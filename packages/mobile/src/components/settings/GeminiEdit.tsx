@@ -18,14 +18,16 @@ import type { GeminiConfig } from "@src/types";
 
 // Model IDs
 const MODEL_GEMINI_3_FLASH = "models/gemini-3-flash-preview";
-const MODEL_GEMINI_3_PRO = "models/gemini-3-pro-preview";
+const MODEL_GEMINI_3_1_PRO = "models/gemini-3.1-pro-preview";
+const MODEL_GEMINI_3_1_FLASH_LITE = "models/gemini-3.1-flash-lite-preview";
 const MODEL_GEMINI_25_PRO = "models/gemini-2.5-pro";
 const MODEL_GEMINI_FLASH = "models/gemini-flash-latest";
 const MODEL_GEMINI_FLASH_LITE = "models/gemini-flash-lite-latest";
 
 const AVAILABLE_MODELS = [
   { id: MODEL_GEMINI_3_FLASH, name: "Gemini 3 Flash (Preview)" },
-  { id: MODEL_GEMINI_3_PRO, name: "Gemini 3 Pro (Preview)" },
+  { id: MODEL_GEMINI_3_1_PRO, name: "Gemini 3.1 Pro (Preview)" },
+  { id: MODEL_GEMINI_3_1_FLASH_LITE, name: "Gemini 3.1 Flash Lite (Preview)" },
   { id: MODEL_GEMINI_25_PRO, name: "Gemini 2.5 Pro" },
   { id: MODEL_GEMINI_FLASH, name: "Gemini Flash (Latest)" },
   { id: MODEL_GEMINI_FLASH_LITE, name: "Gemini Flash Lite (Latest)" },
@@ -62,8 +64,9 @@ type ThinkingConfigMode =
 const getThinkingConfigMode = (model: string): ThinkingConfigMode => {
   switch (model) {
     case MODEL_GEMINI_3_FLASH:
+    case MODEL_GEMINI_3_1_FLASH_LITE:
       return "level_full"; // MINIMAL, LOW, MEDIUM, HIGH
-    case MODEL_GEMINI_3_PRO:
+    case MODEL_GEMINI_3_1_PRO:
       return "level_limited"; // LOW, HIGH only
     case MODEL_GEMINI_25_PRO:
       return "budget_25pro"; // 128-32768
@@ -77,7 +80,9 @@ const getThinkingConfigMode = (model: string): ThinkingConfigMode => {
 
 // Check if model supports mediaResolution
 const supportsMediaResolution = (model: string): boolean => {
-  return model !== MODEL_GEMINI_FLASH_LITE;
+  return (
+    model !== MODEL_GEMINI_FLASH_LITE && model !== MODEL_GEMINI_3_1_FLASH_LITE
+  );
 };
 
 interface GeminiEditProps {

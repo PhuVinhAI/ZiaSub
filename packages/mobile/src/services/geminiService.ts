@@ -106,7 +106,8 @@ const runWithConcurrency = async <T>(
 
 // Model IDs for reference
 const MODEL_GEMINI_3_FLASH = "models/gemini-3-flash-preview";
-const MODEL_GEMINI_3_PRO = "models/gemini-3-pro-preview";
+const MODEL_GEMINI_3_1_PRO = "models/gemini-3.1-pro-preview";
+const MODEL_GEMINI_3_1_FLASH_LITE = "models/gemini-3.1-flash-lite-preview";
 const MODEL_GEMINI_25_PRO = "models/gemini-2.5-pro";
 const MODEL_GEMINI_FLASH = "models/gemini-flash-latest";
 const MODEL_GEMINI_FLASH_LITE = "models/gemini-flash-lite-latest";
@@ -133,12 +134,12 @@ const getThinkingConfig = (
   thinkingBudget?: number
 ): { thinkingLevel?: ThinkingLevel; thinkingBudget?: number } | undefined => {
   // Gemini 3 Flash Preview - uses ThinkingLevel (MINIMAL, LOW, MEDIUM, HIGH)
-  if (model === MODEL_GEMINI_3_FLASH) {
+  if (model === MODEL_GEMINI_3_FLASH || model === MODEL_GEMINI_3_1_FLASH_LITE) {
     return { thinkingLevel: getThinkingLevel(thinkingLevel) };
   }
 
-  // Gemini 3 Pro Preview - only LOW and HIGH
-  if (model === MODEL_GEMINI_3_PRO) {
+  // Gemini 3.1 Pro Preview - only LOW and HIGH
+  if (model === MODEL_GEMINI_3_1_PRO) {
     const level =
       thinkingLevel === "LOW" ? ThinkingLevel.LOW : ThinkingLevel.HIGH;
     return { thinkingLevel: level };
@@ -169,7 +170,9 @@ const getThinkingConfig = (
 // Check if model supports mediaResolution
 const supportsMediaResolution = (model: string): boolean => {
   // Gemini Flash Lite does NOT support mediaResolution
-  return model !== MODEL_GEMINI_FLASH_LITE;
+  return (
+    model !== MODEL_GEMINI_FLASH_LITE && model !== MODEL_GEMINI_3_1_FLASH_LITE
+  );
 };
 
 // Map config string to MediaResolution enum
