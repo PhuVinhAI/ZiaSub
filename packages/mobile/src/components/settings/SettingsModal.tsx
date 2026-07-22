@@ -199,16 +199,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const renderContent = () => {
-    if (editingPrompt !== null) {
-      return (
-        <AIStudioPromptEdit
-          initialPrompt={editingPrompt.prompt}
-          onSave={handleSavePrompt}
-          onCancel={() => setEditingPrompt(null)}
-        />
-      );
-    }
-
     if (activeTab === "general") {
       return (
         <GeneralTab
@@ -363,6 +353,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             onCancel={() => setEditingConfig(null)}
           />
         )}
+
+        <AIStudioPromptEdit
+          visible={editingPrompt !== null}
+          initialPrompt={editingPrompt?.prompt}
+          onSave={handleSavePrompt}
+          onCancel={() => setEditingPrompt(null)}
+        />
       </View>
     </Modal>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -7,7 +7,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  StatusBar,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@src/contexts";
@@ -17,21 +20,31 @@ import { alert } from "../common/CustomAlert";
 import type { AIStudioSystemInstruction } from "@utils/storage";
 
 interface AIStudioPromptEditProps {
+  visible: boolean;
   initialPrompt?: AIStudioSystemInstruction | null;
   onSave: (prompt: AIStudioSystemInstruction) => void;
   onCancel: () => void;
 }
 
 const AIStudioPromptEdit: React.FC<AIStudioPromptEditProps> = ({
+  visible,
   initialPrompt,
   onSave,
   onCancel,
 }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const themedStyles = useThemedStyles(editThemedStyles);
 
   const [title, setTitle] = useState(initialPrompt?.title || "");
   const [text, setText] = useState(initialPrompt?.text || "");
+
+  useEffect(() => {
+    if (visible) {
+      setTitle(initialPrompt?.title || "");
+      setText(initialPrompt?.text || "");
+    }
+  }, [initialPrompt, visible]);
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -51,70 +64,89 @@ const AIStudioPromptEdit: React.FC<AIStudioPromptEditProps> = ({
   const isEditing = !!initialPrompt;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={onCancel}
+      statusBarTranslucent
     >
-      {/* Header */}
-      <View style={themedStyles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onCancel}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-        <Text style={themedStyles.headerTitle}>
-          {isEditing ? "Chỉnh sửa System Prompt" : "Tạo System Prompt mới"}
-        </Text>
-        <TouchableOpacity style={styles.saveHeaderBtn} onPress={handleSave}>
-          <Text style={themedStyles.saveHeaderBtnText}>Lưu</Text>
-        </TouchableOpacity>
+      <View
+        style={[
+          themedStyles.modalContainer,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor="transparent"
+          translucent
+        />
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          {/* Header */}
+          <View style={themedStyles.header}>
+            <TouchableOpacity style={styles.backBtn} onPress={onCancel}>
+              <MaterialCommunityIcons
+                name="arrow-left"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+            <Text style={themedStyles.headerTitle}>
+              {isEditing ? "Chỉnh sửa System Prompt" : "Tạo System Prompt mới"}
+            </Text>
+            <TouchableOpacity style={styles.saveHeaderBtn} onPress={handleSave}>
+              <Text style={themedStyles.saveHeaderBtnText}>Lưu</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Tiêu đề */}
+            <View style={styles.fieldGroup}>
+              <Text style={themedStyles.fieldLabel}>Tiêu đề Prompt</Text>
+              <TextInput
+                style={[styles.input, themedStyles.input]}
+                placeholder="Ví dụ: Dịch thuật chuẩn, Tóm tắt video..."
+                placeholderTextColor={colors.textMuted}
+                value={title}
+                onChangeText={setTitle}
+              />
+            </View>
+
+            {/* Nội dung Prompt */}
+            <View style={styles.fieldGroup}>
+              <Text style={themedStyles.fieldLabel}>Nội dung System Prompt</Text>
+              <TextInput
+                style={[styles.input, styles.textArea, themedStyles.input]}
+                placeholder="Nhập nội dung hướng dẫn chi tiết cho AI tại đây..."
+                placeholderTextColor={colors.textMuted}
+                value={text}
+                onChangeText={setText}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.buttonRow}>
+              <Button3D
+                title="Hủy"
+                variant="outline"
+                onPress={onCancel}
+                style={styles.actionBtn}
+              />
+              <Button3D
+                title={isEditing ? "Cập nhật" : "Lưu Prompt"}
+                variant="primary"
+                onPress={handleSave}
+                style={styles.actionBtn}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Tiêu đề */}
-        <View style={styles.fieldGroup}>
-          <Text style={themedStyles.fieldLabel}>Tiêu đề Prompt</Text>
-          <TextInput
-            style={[styles.input, themedStyles.input]}
-            placeholder="Ví dụ: Dịch thuật chuẩn, Tóm tắt video..."
-            placeholderTextColor={colors.textMuted}
-            value={title}
-            onChangeText={setTitle}
-          />
-        </View>
-
-        {/* Nội dung Prompt */}
-        <View style={styles.fieldGroup}>
-          <Text style={themedStyles.fieldLabel}>Nội dung System Prompt</Text>
-          <TextInput
-            style={[styles.input, styles.textArea, themedStyles.input]}
-            placeholder="Nhập nội dung hướng dẫn chi tiết cho AI tại đây..."
-            placeholderTextColor={colors.textMuted}
-            value={text}
-            onChangeText={setText}
-            multiline
-            textAlignVertical="top"
-          />
-        </View>
-
-        <View style={styles.buttonRow}>
-          <Button3D
-            title="Hủy"
-            variant="outline"
-            onPress={onCancel}
-            style={styles.actionBtn}
-          />
-          <Button3D
-            title={isEditing ? "Cập nhật" : "Lưu Prompt"}
-            variant="primary"
-            onPress={handleSave}
-            style={styles.actionBtn}
-          />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </Modal>
   );
 };
 
@@ -144,7 +176,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   textArea: {
-    minHeight: 220,
+    minHeight: 280,
   },
   buttonRow: {
     flexDirection: "row",
@@ -158,6 +190,10 @@ const styles = StyleSheet.create({
 });
 
 const editThemedStyles = createThemedStyles((colors) => ({
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
