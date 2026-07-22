@@ -3,7 +3,7 @@ import { Animated, Pressable, StyleSheet, View, Easing } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@src/contexts";
 import type { FloatingUISettings } from "@src/types";
-import { isGoogleLoginPage } from "@utils/videoUtils";
+import { isGoogleLoginPage, isAIStudioPage } from "@utils/videoUtils";
 
 interface FloatingButtonProps {
   onPress: () => void;
@@ -452,8 +452,8 @@ const FloatingButton: React.FC<FloatingButtonProps> = (props) => {
     activeUrl = "",
   } = props;
 
-  // Hide 4 floating UI buttons when on Google login pages
-  if (isGoogleLoginPage(activeUrl)) {
+  // Hide floating UI buttons when on Google login pages or AI Studio page
+  if (isGoogleLoginPage(activeUrl) || isAIStudioPage(activeUrl)) {
     return null;
   }
 

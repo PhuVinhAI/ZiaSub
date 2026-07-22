@@ -12,6 +12,7 @@ import {
   INJECTED_JAVASCRIPT_DESKTOP,
 } from "@constants/scripts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import { WebViewErrorView } from "@components/common";
 
 interface YouTubePlayerProps {
   onMessage: (event: WebViewMessageEvent) => void;
@@ -26,6 +27,7 @@ const YouTubePlayer = React.forwardRef<WebView, YouTubePlayerProps>(
     ref
   ) => {
     const styles = useThemedStyles(themedStyles);
+    const webViewInternalRef = React.useRef<WebView | null>(null);
 
     // Initial source based on mode (navigation handled by parent via navigateToUrl)
     const source = useMemo(
@@ -46,7 +48,14 @@ const YouTubePlayer = React.forwardRef<WebView, YouTubePlayerProps>(
     return (
       <View style={styles.videoContainer}>
         <WebView
-          ref={ref}
+          ref={(r) => {
+            webViewInternalRef.current = r;
+            if (typeof ref === "function") {
+              ref(r);
+            } else if (ref) {
+              (ref as React.MutableRefObject<WebView | null>).current = r;
+            }
+          }}
           source={source}
           style={styles.webview}
           userAgent={userAgent}
@@ -54,6 +63,24 @@ const YouTubePlayer = React.forwardRef<WebView, YouTubePlayerProps>(
           onMessage={onMessage}
           onNavigationStateChange={onNavigationStateChange}
           onLoad={onLoad}
+          renderError={(errorDomain, errorCode, errorDescription) => (
+            <WebViewErrorView
+              errorDomain={errorDomain}
+              errorCode={errorCode}
+              errorDescription={errorDescription}
+              onRetry={() => {
+                webViewInternalRef.current?.reload();
+              }}
+              onGoHome={() => {
+                const targetHome = isDesktopMode
+                  ? "https://www.youtube.com"
+                  : "https://m.youtube.com";
+                webViewInternalRef.current?.injectJavaScript(
+                  `window.location.href = "${targetHome}"; true;`
+                );
+              }}
+            />
+          )}
           // Fullscreen & Media
           allowsFullscreenVideo={true}
           allowsInlineMediaPlayback={true}

@@ -14,6 +14,7 @@ export {
   mergeSrtContents,
 } from "./utils/srtParser";
 export * from "./utils/videoUtils";
+export * from "./utils/keyUtils";
 
 // Constants
 export * from "./constants/defaults";

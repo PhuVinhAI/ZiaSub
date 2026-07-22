@@ -68,6 +68,7 @@ interface GeneralTabProps {
   onNotificationChange: (settings: NotificationSettings) => void;
   debugSettings?: DebugSettings;
   onDebugChange?: (settings: DebugSettings) => void;
+  onNavigateToUrl?: (url: string) => void;
 }
 
 type SettingGroup =
@@ -90,7 +91,7 @@ interface GroupConfig {
   description: string;
 }
 
-const GeneralTab: React.FC<GeneralTabProps> = ({
+export const GeneralTab: React.FC<GeneralTabProps> = ({
   subtitleSettings,
   onSubtitleChange,
   batchSettings,
@@ -105,6 +106,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onNotificationChange,
   debugSettings = { enabled: false },
   onDebugChange,
+  onNavigateToUrl,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -227,6 +229,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             <ApiKeysSection
               apiKeys={apiKeys}
               onApiKeysChange={onApiKeysChange}
+              onNavigateToUrl={onNavigateToUrl}
             />
           </View>
         );

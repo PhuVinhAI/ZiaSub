@@ -7,6 +7,7 @@ import type { MessageType, MessageResponse } from "../types/messages";
 const tabs = document.querySelectorAll<HTMLButtonElement>(".tab");
 const tabContents = document.querySelectorAll<HTMLDivElement>(".tab-content");
 const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement;
+const aiStudioBtn = document.getElementById("aiStudioBtn") as HTMLButtonElement;
 const fileBtn = document.getElementById("fileBtn") as HTMLButtonElement;
 const pasteBtn = document.getElementById("pasteBtn") as HTMLButtonElement;
 const fileInput = document.getElementById("fileInput") as HTMLInputElement;
@@ -205,6 +206,42 @@ applyBtn.addEventListener("click", async () => {
 settingsBtn.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
+
+// AI Studio button - toggle between AI Studio and YouTube
+async function initAIStudioBtn() {
+  if (!aiStudioBtn) return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const isAIStudio = tab?.url?.includes("aistudio.google.com");
+
+    if (isAIStudio) {
+      aiStudioBtn.title = "Về YouTube";
+      aiStudioBtn.innerHTML = '<i class="mdi mdi-youtube" style="font-size: 22px; color: #FF0000;"></i>';
+      aiStudioBtn.onclick = () => {
+        if (tab?.id) {
+          chrome.tabs.update(tab.id, { url: "https://www.youtube.com" });
+        } else {
+          chrome.tabs.create({ url: "https://www.youtube.com" });
+        }
+      };
+    } else {
+      aiStudioBtn.title = "AI Studio (Prompt Mới)";
+      aiStudioBtn.innerHTML = '<i class="mdi mdi-creation" style="font-size: 22px;"></i>';
+      aiStudioBtn.onclick = () => {
+        if (tab?.id) {
+          chrome.tabs.update(tab.id, { url: "https://aistudio.google.com/prompts/new_chat" });
+        } else {
+          chrome.tabs.create({ url: "https://aistudio.google.com/prompts/new_chat" });
+        }
+      };
+    }
+  } catch {
+    aiStudioBtn.onclick = () => {
+      chrome.tabs.create({ url: "https://aistudio.google.com/prompts/new_chat" });
+    };
+  }
+}
+initAIStudioBtn();
 
 // Check clipboard on load for SRT content
 async function checkClipboardForSRT() {

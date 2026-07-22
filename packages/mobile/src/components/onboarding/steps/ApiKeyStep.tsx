@@ -15,6 +15,7 @@ import Button3D from "@components/common/Button3D";
 import { Ionicons } from "@expo/vector-icons";
 import { getApiKeys, saveApiKeys } from "@utils/storage";
 import { keyManager } from "@services/keyManager";
+import { isValidApiKey } from "@utils/keyUtils";
 import * as Clipboard from "expo-clipboard";
 
 interface StepProps {
@@ -50,9 +51,7 @@ export const ApiKeyStep: React.FC<StepProps> = ({
 
   const hasKey = apiKeys.length > 0;
 
-  const isValidApiKey = (key: string): boolean => {
-    return key.startsWith("AIza") && key.length >= 35;
-  };
+
 
   const handleAddKey = async () => {
     const trimmedKey = apiKey.trim();

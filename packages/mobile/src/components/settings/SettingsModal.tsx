@@ -50,6 +50,7 @@ interface SettingsModalProps {
   onNotificationSettingsChange: (settings: NotificationSettings) => void;
   debugSettings?: DebugSettings;
   onDebugSettingsChange?: (settings: DebugSettings) => void;
+  onNavigateToUrl?: (url: string) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -69,6 +70,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onNotificationSettingsChange,
   debugSettings,
   onDebugSettingsChange,
+  onNavigateToUrl,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -186,6 +188,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           onNotificationChange={onNotificationSettingsChange}
           debugSettings={debugSettings}
           onDebugChange={onDebugSettingsChange}
+          onNavigateToUrl={(url) => {
+            onClose();
+            onNavigateToUrl?.(url);
+          }}
         />
       );
     }

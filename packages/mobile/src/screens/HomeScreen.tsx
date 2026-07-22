@@ -18,6 +18,7 @@ import { useHomeModals } from "@hooks/useHomeModals";
 import { useWebViewMessageHandler } from "@hooks/useWebViewMessageHandler";
 import { useQueueActions } from "@hooks/useQueueActions";
 import { useSubtitleStyleSync } from "@hooks/useSubtitleStyleSync";
+import { useClipboardKeyDetector } from "@hooks/useClipboardKeyDetector";
 
 import { YouTubePlayer } from "@components/video";
 import { SubtitleInputModal } from "@components/subtitle";
@@ -102,8 +103,15 @@ const HomeScreen = () => {
 
   // Desktop mode state
   const { isDesktopMode, handleToggleDesktopMode } = useDesktopMode({
-    currentUrl,
+    currentUrl: activeUrl || currentUrl,
     navigateToUrl,
+  });
+
+  // Automatic clipboard API key detector
+  useClipboardKeyDetector({
+    apiKeys,
+    updateApiKeys,
+    activeUrl,
   });
 
   // Subtitles hook
@@ -307,7 +315,7 @@ const HomeScreen = () => {
           setUrlInput={setUrlInput}
           setShowUrlInput={setShowUrlInput}
           navigateToUrl={navigateToUrl}
-          currentUrl={currentUrl}
+          currentUrl={activeUrl || currentUrl}
         />
       )}
 
@@ -385,6 +393,7 @@ const HomeScreen = () => {
         onNotificationSettingsChange={updateNotificationSettings}
         debugSettings={debugSettings}
         onDebugSettingsChange={updateDebugSettings}
+        onNavigateToUrl={navigateToUrl}
       />
 
       <TranslationQueueModal

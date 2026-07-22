@@ -9,10 +9,12 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import { keyManager } from "@services/keyManager";
+import { isValidApiKey } from "@utils/keyUtils";
 
 interface ApiKeysSectionProps {
   apiKeys: string[];
   onApiKeysChange: (keys: string[]) => void;
+  onNavigateToUrl?: (url: string) => void;
 }
 
 const maskKey = (key: string) => {
@@ -23,6 +25,7 @@ const maskKey = (key: string) => {
 const ApiKeysSection: React.FC<ApiKeysSectionProps> = ({
   apiKeys,
   onApiKeysChange,
+  onNavigateToUrl,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -43,7 +46,7 @@ const ApiKeysSection: React.FC<ApiKeysSectionProps> = ({
         );
         return;
       }
-      if (!key.startsWith("AIza") || key.length < 30) {
+      if (!isValidApiKey(key)) {
         alert(
           t("settings.apiKeys.invalid"),
           t("settings.apiKeys.invalidMessage")
@@ -87,9 +90,17 @@ const ApiKeysSection: React.FC<ApiKeysSectionProps> = ({
           {t("settings.apiKeys.description")}{" "}
         </Text>
         <TouchableOpacity
-          onPress={() =>
-            Linking.openURL("https://aistudio.google.com/app/apikey")
-          }
+          activeOpacity={0.6}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={styles.getKeyTouch}
+          onPress={() => {
+            const url = "https://aistudio.google.com/app/apikey";
+            if (onNavigateToUrl) {
+              onNavigateToUrl(url);
+            } else {
+              Linking.openURL(url);
+            }
+          }}
         >
           <Text style={themedStyles.linkText}>
             {t("settings.apiKeys.getKey")}
@@ -166,6 +177,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     marginBottom: 12,
+  },
+  getKeyTouch: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
   },
   apiKeyInfo: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   deleteKeyBtn: { padding: 4 },

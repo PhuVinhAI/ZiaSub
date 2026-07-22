@@ -4,11 +4,28 @@
  * Tách từ HomeScreen.tsx — chỉ di chuyển code, không sửa đổi logic.
  */
 import React from "react";
-import { View, Text, TouchableOpacity, TextInput } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { EdgeInsets } from "react-native-safe-area-context";
 import type { ThemeColors } from "@src/contexts";
 import { styles, homeThemedStyles } from "./homeStyles";
+
+import { isAIStudioPage } from "@utils/videoUtils";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type HomeThemedStyles = ReturnType<typeof homeThemedStyles>;
 
@@ -49,6 +66,29 @@ export const HomeHeader = ({
   navigateToUrl,
   currentUrl,
 }: HomeHeaderProps) => {
+  const isAIStudio = isAIStudioPage(currentUrl);
+
+  const handleOpenUrlInput = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowUrlInput(true);
+  };
+
+  const handleCloseUrlInput = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowUrlInput(false);
+    setUrlInput("");
+  };
+
+  const handleToggleAIStudio = () => {
+    if (isAIStudio) {
+      navigateToUrl(
+        isDesktopMode ? "https://www.youtube.com" : "https://m.youtube.com"
+      );
+    } else {
+      navigateToUrl("https://aistudio.google.com/prompts/new_chat");
+    }
+  };
+
   return (
     <View
       style={[
@@ -58,58 +98,62 @@ export const HomeHeader = ({
       ]}
     >
       <View style={styles.header}>
-        <View style={styles.navButtons}>
-          <TouchableOpacity
-            style={[styles.navBtn, !canGoBack && styles.navBtnDisabled]}
-            onPress={handleGoBack}
-            disabled={!canGoBack}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={18}
-              color={canGoBack ? colors.text : colors.textMuted}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.navBtn, !canGoForward && styles.navBtnDisabled]}
-            onPress={handleGoForward}
-            disabled={!canGoForward}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name="arrow-right"
-              size={18}
-              color={canGoForward ? colors.text : colors.textMuted}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navBtn}
-            onPress={reloadWebView}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name="reload"
-              size={18}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.navBtn,
-              styles.modeToggleBtn,
-              isDesktopMode && themedStyles.modeToggleBtnActive,
-            ]}
-            onPress={handleToggleDesktopMode}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name={isDesktopMode ? "monitor" : "cellphone"}
-              size={16}
-              color={isDesktopMode ? colors.primary : colors.text}
-            />
-          </TouchableOpacity>
-        </View>
+        {!showUrlInput && (
+          <View style={styles.navButtons}>
+            <TouchableOpacity
+              style={[styles.navBtn, !canGoBack && styles.navBtnDisabled]}
+              onPress={handleGoBack}
+              disabled={!canGoBack}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name="arrow-left"
+                size={18}
+                color={canGoBack ? colors.text : colors.textMuted}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.navBtn, !canGoForward && styles.navBtnDisabled]}
+              onPress={handleGoForward}
+              disabled={!canGoForward}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name="arrow-right"
+                size={18}
+                color={canGoForward ? colors.text : colors.textMuted}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.navBtn}
+              onPress={reloadWebView}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name="reload"
+                size={18}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+            {!isAIStudio && (
+              <TouchableOpacity
+                style={[
+                  styles.navBtn,
+                  styles.modeToggleBtn,
+                  isDesktopMode && themedStyles.modeToggleBtnActive,
+                ]}
+                onPress={handleToggleDesktopMode}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name={isDesktopMode ? "monitor" : "cellphone"}
+                  size={16}
+                  color={isDesktopMode ? colors.primary : colors.text}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {showUrlInput ? (
           <View
@@ -138,23 +182,18 @@ export const HomeHeader = ({
               onSubmitEditing={() => {
                 if (urlInput.trim()) {
                   navigateToUrl(urlInput);
-                  setShowUrlInput(false);
-                  setUrlInput("");
+                  handleCloseUrlInput();
                 }
               }}
               onBlur={() => {
                 setTimeout(() => {
-                  setShowUrlInput(false);
-                  setUrlInput("");
+                  handleCloseUrlInput();
                 }, 100);
               }}
             />
             <TouchableOpacity
               style={styles.urlInputClose}
-              onPress={() => {
-                setShowUrlInput(false);
-                setUrlInput("");
-              }}
+              onPress={handleCloseUrlInput}
             >
               <MaterialCommunityIcons
                 name="close"
@@ -166,7 +205,7 @@ export const HomeHeader = ({
         ) : (
           <TouchableOpacity
             style={[styles.urlBar, themedStyles.urlBar]}
-            onPress={() => setShowUrlInput(true)}
+            onPress={handleOpenUrlInput}
             activeOpacity={0.7}
           >
             <MaterialCommunityIcons
@@ -195,6 +234,20 @@ export const HomeHeader = ({
             Zia
           </Text>
         </View>
+
+        {!showUrlInput && (
+          <TouchableOpacity
+            style={styles.navBtn}
+            onPress={handleToggleAIStudio}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={isAIStudio ? "youtube" : "creation"}
+              size={20}
+              color={isAIStudio ? "#FF0000" : colors.primary}
+            />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

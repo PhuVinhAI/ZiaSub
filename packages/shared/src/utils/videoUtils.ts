@@ -104,6 +104,15 @@ export const isGoogleLoginPage = (url: string): boolean => {
   }
 };
 
+export const isAIStudioPage = (url?: string): boolean => {
+  if (!url) return false;
+  try {
+    return url.toLowerCase().includes("aistudio.google.com");
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Get the appropriate YouTube URL format for a video
  * Shorts videos use /shorts/ format, regular videos use /watch?v= format
