@@ -478,7 +478,12 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
                 </Text>
               </TouchableOpacity>
             </View>
-            {activeTab === "srt" ? (
+            <View
+              style={{
+                display: activeTab === "srt" ? "flex" : "none",
+                flex: 1,
+              }}
+            >
               <SrtTab
                 srtContent={srtContent}
                 setSrtContent={setSrtContent}
@@ -487,7 +492,13 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
                 configName={activeConfigName}
                 presetName={activePresetName}
               />
-            ) : (
+            </View>
+            <View
+              style={{
+                display: activeTab === "translate" ? "flex" : "none",
+                flex: 1,
+              }}
+            >
               <TranslateTab
                 videoUrl={videoUrl}
                 videoTitle={videoTitle}
@@ -515,7 +526,7 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
                 visible={visible}
                 onCancelQueue={handleCancelQueue}
               />
-            )}
+            </View>
           </Animated.View>
         </Reanimated.View>
       </View>
