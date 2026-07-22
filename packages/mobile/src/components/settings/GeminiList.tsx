@@ -5,6 +5,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import * as Clipboard from "expo-clipboard";
+import { alert } from "../common/CustomAlert";
 import type { GeminiConfig } from "@src/types";
 import Button3D from "../common/Button3D";
 
@@ -25,6 +27,24 @@ const GeminiList: React.FC<GeminiListProps> = ({
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(geminiListThemedStyles);
 
+  const handleCopyPrompt = async (config: GeminiConfig) => {
+    const promptText = config.systemPrompt?.trim();
+    if (!promptText) {
+      alert("Thông báo", `Cấu hình "${config.name}" không có Hướng dẫn dịch.`);
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(promptText);
+      alert(
+        "Thành công",
+        `Đã copy Hướng dẫn dịch của "${config.name}" vào bộ nhớ tạm!`
+      );
+    } catch {
+      alert("Lỗi", "Không thể copy Hướng dẫn dịch.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -41,12 +61,22 @@ const GeminiList: React.FC<GeminiListProps> = ({
             <View style={styles.configActions}>
               <TouchableOpacity
                 style={styles.configActionBtn}
+                onPress={() => handleCopyPrompt(config)}
+              >
+                <MaterialCommunityIcons
+                  name="content-copy"
+                  size={18}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.configActionBtn}
                 onPress={() => onDelete(config.id)}
               >
                 <MaterialCommunityIcons
                   name="delete-outline"
                   size={20}
-                  color={colors.textMuted}
+                  color={colors.error}
                 />
               </TouchableOpacity>
               <MaterialCommunityIcons
