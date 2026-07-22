@@ -12,6 +12,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Linking,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { EdgeInsets } from "react-native-safe-area-context";
@@ -25,6 +26,7 @@ import {
   normalizeYouTubeUrl,
   setLastCopiedVideoUrl,
 } from "@utils/videoUtils";
+import { saveLastCopiedVideoUrlToStorage } from "@utils/storage";
 
 if (
   Platform.OS === "android" &&
@@ -103,20 +105,18 @@ export const HomeHeader = ({
         (isDesktopMode ? "https://www.youtube.com" : "https://m.youtube.com");
       navigateToUrl(targetUrl);
     } else {
-      // If current page is a YouTube video page, auto copy URL to clipboard
+      // If current page is a YouTube video page, auto copy URL to clipboard & storage
       if (currentUrl && isVideoPage(currentUrl)) {
         try {
           const cleanUrl = normalizeYouTubeUrl(currentUrl);
           await Clipboard.setStringAsync(cleanUrl);
           setLastCopiedVideoUrl(cleanUrl);
+          await saveLastCopiedVideoUrlToStorage(cleanUrl);
         } catch {
           // Ignore clipboard errors
         }
       }
-      const targetUrl =
-        lastAIStudioUrlRef.current ||
-        "https://aistudio.google.com/prompts/new_chat";
-      navigateToUrl(targetUrl);
+      Linking.openURL("https://aistudio.google.com/prompts/new_chat");
     }
   };
 

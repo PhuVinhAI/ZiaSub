@@ -69,13 +69,11 @@ export {
   getActiveGeminiConfig,
 } from "./geminiStorage";
 
-// AI Studio System Instructions
+// Last Copied Video URL Storage
 export {
-  getAIStudioSystemInstructions,
-  saveAIStudioSystemInstructions,
-  importSystemPromptsFromGeminiConfigs,
-  AISTUDIO_SYSTEM_INSTRUCTIONS_KEY,
-  type AIStudioSystemInstruction,
+  saveLastCopiedVideoUrlToStorage,
+  getLastCopiedVideoUrlFromStorage,
+  LAST_COPIED_VIDEO_URL_KEY,
 } from "./systemInstructionStorage";
 
 // Chat
@@ -121,5 +119,4 @@ export {
   DEFAULT_CHAT_CONFIG_ID,
   DEFAULT_FLOATING_UI_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
-  DEFAULT_AISTUDIO_USER_PREFERENCE,
 } from "@constants/defaults";

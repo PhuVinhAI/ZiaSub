@@ -42,7 +42,6 @@ import {
   FloatingUISection,
   NotificationSection,
   DebugSection,
-  AIStudioPromptsSection,
 } from "./sections";
 import Button3D from "@components/common/Button3D";
 
@@ -53,8 +52,6 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-import { AIStudioSystemInstruction } from "@utils/storage";
 
 interface GeneralTabProps {
   subtitleSettings: SubtitleSettings;
@@ -72,16 +69,11 @@ interface GeneralTabProps {
   debugSettings?: DebugSettings;
   onDebugChange?: (settings: DebugSettings) => void;
   onNavigateToUrl?: (url: string) => void;
-  onOpenPromptEditor?: (
-    prompt: AIStudioSystemInstruction | null,
-    index?: number
-  ) => void;
 }
 
 type SettingGroup =
   | "appearance"
   | "apiKeys"
-  | "aiStudioPrompts"
   | "subtitle"
   | "batch"
   | "tts"
@@ -115,7 +107,6 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
   debugSettings = { enabled: false },
   onDebugChange,
   onNavigateToUrl,
-  onOpenPromptEditor,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -135,12 +126,6 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
       icon: "key-variant",
       labelKey: "settings.apiKeys.title",
       description: t("settings.groups.apiKeysDesc", { count: apiKeys.length }),
-    },
-    {
-      key: "aiStudioPrompts",
-      icon: "script-text-outline",
-      labelKey: "System Prompts (AI Studio)",
-      description: "Đồng bộ System Prompts vào Google AI Studio",
     },
     {
       key: "subtitle",
@@ -245,14 +230,6 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
               apiKeys={apiKeys}
               onApiKeysChange={onApiKeysChange}
               onNavigateToUrl={onNavigateToUrl}
-            />
-          </View>
-        );
-      case "aiStudioPrompts":
-        return (
-          <View style={styles.groupContent}>
-            <AIStudioPromptsSection
-              onOpenPromptEditor={onOpenPromptEditor}
             />
           </View>
         );

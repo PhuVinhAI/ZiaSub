@@ -5,11 +5,16 @@ import { parseSRT } from "@ziasub/shared";
 import { isValidApiKey, maskKey } from "@utils/keyUtils";
 import {
   getLastCopiedVideoUrl,
+  setLastCopiedVideoUrl,
   isVideoPage,
   normalizeYouTubeUrl,
   extractVideoId,
 } from "@utils/videoUtils";
-import { saveTranslation } from "@utils/storage";
+import {
+  saveTranslation,
+  getLastCopiedVideoUrlFromStorage,
+  saveLastCopiedVideoUrlToStorage,
+} from "@utils/storage";
 import { alert, confirm } from "@components/common/CustomAlert";
 
 interface UseClipboardKeyDetectorParams {
@@ -35,6 +40,15 @@ export const useClipboardKeyDetector = ({
 
       // Skip if this exact clipboard text was already checked
       if (trimmed === lastCheckedClipboardRef.current) return;
+
+      // 0. Check if text in clipboard is a YouTube Video URL (copied from Chrome or anywhere)
+      if (isVideoPage(trimmed)) {
+        lastCheckedClipboardRef.current = trimmed;
+        const cleanUrl = normalizeYouTubeUrl(trimmed);
+        setLastCopiedVideoUrl(cleanUrl);
+        await saveLastCopiedVideoUrlToStorage(cleanUrl);
+        return;
+      }
 
       // 1. Check if text is a valid Gemini API Key (starts with AIza or AQ.)
       if (isValidApiKey(trimmed)) {
@@ -65,8 +79,11 @@ export const useClipboardKeyDetector = ({
         // Mark as checked
         lastCheckedClipboardRef.current = trimmed;
 
-        // Determine target video URL (from previous copy before AI Studio, or activeUrl)
+        // Determine target video URL (from memory, storage, or activeUrl)
         let targetVideoUrl = getLastCopiedVideoUrl();
+        if (!targetVideoUrl) {
+          targetVideoUrl = await getLastCopiedVideoUrlFromStorage();
+        }
         if (!targetVideoUrl && activeUrl && isVideoPage(activeUrl)) {
           targetVideoUrl = normalizeYouTubeUrl(activeUrl);
         }

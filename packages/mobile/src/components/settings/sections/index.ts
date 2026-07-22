@@ -9,4 +9,3 @@ export { DataSection } from "./DataSection";
 export { default as FloatingUISection } from "./FloatingUISection";
 export { default as NotificationSection } from "./NotificationSection";
 export { DebugSection } from "./DebugSection";
-export { default as AIStudioPromptsSection } from "./AIStudioPromptsSection";

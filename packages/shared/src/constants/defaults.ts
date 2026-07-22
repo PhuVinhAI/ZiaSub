@@ -100,55 +100,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
 };
 
 // ============================================
-// DEFAULT AISTUDIO USER PREFERENCE
-// ============================================
-export const DEFAULT_AISTUDIO_USER_PREFERENCE = {
-  promptModel: "models/gemini-3.6-flash",
-  isAdvancedOpen: true,
-  isSafetySettingsOpen: false,
-  areToolsOpen: true,
-  autocompleteEnabled: true,
-  autosaveEnabled: true,
-  chatDocked: true,
-  chatFloatingPosition: null,
-  hasShownDrivePermissionDialog: false,
-  drawingColor: null,
-  pinnedApplets: [],
-  lastUsedCloudRunDeploymentProjectId: "",
-  hasSeenImageGenerationOnboarding: false,
-  hasSeenShareConfirmationDialog: false,
-  hasSeenSsgcOnboarding: false,
-  designModeVersion: "focus_mode",
-  enterKeyBehavior: 2,
-  theme: "system",
-  bidiOutputFormat: 3,
-  codeAssistantModel: "default",
-  codeAssistantNotifications: "default",
-  codeAssistantThinkingLevel: "high",
-  isSystemInstructionsOpen: true,
-  appletCustomSystemInstructions: "",
-  getCodeLanguage: "Python",
-  getCodeHistoryToggle: false,
-  enableGoogleMaps: false,
-  enableSearchAsATool: false,
-  selectedSystemInstructionsConfigName: null,
-  selectedFramework: 0,
-  thinkingBudgetsByModel: {},
-  lastSelectedModelCategory: 17,
-  lastVisitedRouteToRedirectTo: "prompts/new_chat",
-  audioDevice: "default",
-  dismissedPublishZeroStateApplets: [],
-  monacoEditorTextWrap: false,
-  monacoEditorFontLigatures: true,
-  monacoEditorMinimap: false,
-  monacoEditorFolding: false,
-  monacoEditorLineNumbers: true,
-  monacoEditorStickyScrollEnabled: true,
-  monacoEditorGuidesIndentation: true,
-  _promptModelOverride: "models/gemini-3-flash-preview",
-};
-
-// ============================================
 // DEFAULT GEMINI SYSTEM PROMPTS
 // ============================================
 

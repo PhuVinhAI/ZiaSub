@@ -26,14 +26,10 @@ import type {
 import {
   getGeminiConfigs,
   saveGeminiConfigs,
-  getAIStudioSystemInstructions,
-  saveAIStudioSystemInstructions,
-  type AIStudioSystemInstruction,
 } from "@utils/storage";
 import GeneralTab from "./GeneralTab";
 import GeminiList from "./GeminiList";
 import GeminiEdit from "./GeminiEdit";
-import AIStudioPromptEdit from "./AIStudioPromptEdit";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -88,10 +84,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>("general");
   const [geminiConfigs, setGeminiConfigs] = useState<GeminiConfig[]>([]);
   const [editingConfig, setEditingConfig] = useState<GeminiConfig | null>(null);
-  const [editingPrompt, setEditingPrompt] = useState<{
-    prompt: AIStudioSystemInstruction | null;
-    index?: number;
-  } | null>(null);
 
   const themedStyles = useThemedStyles(settingsThemedStyles);
 
@@ -181,23 +173,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setEditingConfig(null);
   };
 
-  const handleSavePrompt = async (savedPrompt: AIStudioSystemInstruction) => {
-    if (!editingPrompt) return;
-    const current = await getAIStudioSystemInstructions();
-    let updated: AIStudioSystemInstruction[];
-
-    if (editingPrompt.index !== undefined && editingPrompt.index >= 0) {
-      updated = current.map((p, i) =>
-        i === editingPrompt.index ? savedPrompt : p
-      );
-    } else {
-      updated = [...current, savedPrompt];
-    }
-
-    await saveAIStudioSystemInstructions(updated);
-    setEditingPrompt(null);
-  };
-
   const renderContent = () => {
     if (activeTab === "general") {
       return (
@@ -220,9 +195,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             onClose();
             onNavigateToUrl?.(url);
           }}
-          onOpenPromptEditor={(prompt, index) =>
-            setEditingPrompt({ prompt, index })
-          }
         />
       );
     }
@@ -353,13 +325,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             onCancel={() => setEditingConfig(null)}
           />
         )}
-
-        <AIStudioPromptEdit
-          visible={editingPrompt !== null}
-          initialPrompt={editingPrompt?.prompt}
-          onSave={handleSavePrompt}
-          onCancel={() => setEditingPrompt(null)}
-        />
       </View>
     </Modal>
   );
