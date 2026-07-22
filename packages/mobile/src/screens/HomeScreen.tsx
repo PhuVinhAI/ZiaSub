@@ -21,7 +21,7 @@ import { useSubtitleStyleSync } from "@hooks/useSubtitleStyleSync";
 import { useClipboardKeyDetector } from "@hooks/useClipboardKeyDetector";
 
 import { isAIStudioPage } from "@utils/videoUtils";
-import { getAIStudioSystemInstructions } from "@utils/storage";
+import { getAIStudioSystemInstructions, DEFAULT_AISTUDIO_USER_PREFERENCE } from "@utils/storage";
 
 import { YouTubePlayer } from "@components/video";
 import { SubtitleInputModal } from "@components/subtitle";
@@ -156,16 +156,18 @@ const HomeScreen = () => {
     isVideoPlaying,
   });
 
-  // Auto-sync system prompts to Google AI Studio localStorage
+  // Auto-sync AI Studio user preferences & system prompts to Google AI Studio localStorage
   useEffect(() => {
     if (isAIStudioPage(activeUrl)) {
       getAIStudioSystemInstructions().then((instructions) => {
-        if (webViewRef.current && instructions && instructions.length > 0) {
+        if (webViewRef.current) {
+          const userPrefData = JSON.stringify(DEFAULT_AISTUDIO_USER_PREFERENCE);
+          const instructionsData = JSON.stringify(instructions || []);
           const js = `
             try {
               if (window.location.hostname.includes("aistudio.google.com")) {
-                var data = ${JSON.stringify(instructions)};
-                localStorage.setItem("aistudio_all_system_instructions", JSON.stringify(data));
+                localStorage.setItem("aiStudioUserPreference", ${JSON.stringify(userPrefData)});
+                localStorage.setItem("aistudio_all_system_instructions", ${JSON.stringify(instructionsData)});
               }
             } catch(e) {}
             true;
