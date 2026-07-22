@@ -127,3 +127,13 @@ export const getYouTubeUrl = (
   return `https://m.youtube.com/watch?v=${videoId}`;
 };
 
+let memoryLastCopiedVideoUrl: string = "";
+
+export const setLastCopiedVideoUrl = (url: string) => {
+  memoryLastCopiedVideoUrl = url;
+};
+
+export const getLastCopiedVideoUrl = (): string => {
+  return memoryLastCopiedVideoUrl;
+};
+

@@ -1,19 +1,29 @@
 import { useEffect, useRef, useCallback } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import { parseSRT } from "@ziasub/shared";
 import { isValidApiKey, maskKey } from "@utils/keyUtils";
+import {
+  getLastCopiedVideoUrl,
+  isVideoPage,
+  normalizeYouTubeUrl,
+  extractVideoId,
+} from "@utils/videoUtils";
+import { saveTranslation } from "@utils/storage";
 import { alert, confirm } from "@components/common/CustomAlert";
 
 interface UseClipboardKeyDetectorParams {
   apiKeys: string[];
   updateApiKeys: (keys: string[]) => void;
   activeUrl?: string;
+  onApplySrt?: (srtContent: string, videoUrl: string) => void;
 }
 
 export const useClipboardKeyDetector = ({
   apiKeys,
   updateApiKeys,
   activeUrl,
+  onApplySrt,
 }: UseClipboardKeyDetectorParams) => {
   const lastCheckedClipboardRef = useRef<string>("");
 
@@ -26,31 +36,79 @@ export const useClipboardKeyDetector = ({
       // Skip if this exact clipboard text was already checked
       if (trimmed === lastCheckedClipboardRef.current) return;
 
-      // Check if format is a valid key (starts with AIza or AQ.)
-      if (!isValidApiKey(trimmed)) return;
+      // 1. Check if text is a valid Gemini API Key (starts with AIza or AQ.)
+      if (isValidApiKey(trimmed)) {
+        // Mark as checked
+        lastCheckedClipboardRef.current = trimmed;
 
-      // Mark this clipboard string as checked so we don't pop up again for the same string
-      lastCheckedClipboardRef.current = trimmed;
+        // Skip if key already exists in app's apiKeys
+        if (apiKeys.includes(trimmed)) return;
 
-      // Skip if key already exists in app's apiKeys
-      if (apiKeys.includes(trimmed)) return;
+        // Prompt user to add API Key
+        confirm(
+          "Thêm API Key mới?",
+          `Tìm thấy key: ${maskKey(trimmed)}`,
+          () => {
+            const newKeys = [...apiKeys, trimmed];
+            updateApiKeys(newKeys);
+            alert("Thành công", "Đã thêm API Key mới!");
+          },
+          "Thêm ngay",
+          "Bỏ qua"
+        );
+        return;
+      }
 
-      // Prompt user with small confirm dialog
-      confirm(
-        "Thêm API Key mới?",
-        `Tìm thấy key: ${maskKey(trimmed)}`,
-        () => {
-          const newKeys = [...apiKeys, trimmed];
-          updateApiKeys(newKeys);
-          alert("Thành công", "Đã thêm API Key mới!");
-        },
-        "Thêm ngay",
-        "Bỏ qua"
-      );
+      // 2. Check if text is a valid SRT Subtitle format
+      const srtItems = parseSRT(trimmed);
+      if (srtItems && srtItems.length > 0) {
+        // Mark as checked
+        lastCheckedClipboardRef.current = trimmed;
+
+        // Determine target video URL (from previous copy before AI Studio, or activeUrl)
+        let targetVideoUrl = getLastCopiedVideoUrl();
+        if (!targetVideoUrl && activeUrl && isVideoPage(activeUrl)) {
+          targetVideoUrl = normalizeYouTubeUrl(activeUrl);
+        }
+
+        if (targetVideoUrl) {
+          const videoId = extractVideoId(targetVideoUrl) || targetVideoUrl;
+
+          // Prompt user to auto-save translation for video
+          confirm(
+            "Lưu phụ đề AI Studio?",
+            `Tìm thấy phụ đề SRT (${srtItems.length} câu) cho video: ${videoId}\n\nBạn có muốn tự động lưu bản dịch này không?`,
+            async () => {
+              try {
+                await saveTranslation(
+                  targetVideoUrl,
+                  trimmed,
+                  "AI Studio"
+                );
+                if (
+                  activeUrl &&
+                  extractVideoId(activeUrl) === extractVideoId(targetVideoUrl) &&
+                  onApplySrt
+                ) {
+                  onApplySrt(trimmed, targetVideoUrl);
+                }
+                alert(
+                  "Thành công",
+                  "Đã tự động lưu bản dịch 'AI Studio' cho video!"
+                );
+              } catch {
+                alert("Lỗi", "Không thể lưu phụ đề vào video.");
+              }
+            },
+            "Lưu bản dịch",
+            "Bỏ qua"
+          );
+        }
+      }
     } catch {
       // Ignore errors when reading clipboard
     }
-  }, [apiKeys, updateApiKeys]);
+  }, [apiKeys, updateApiKeys, activeUrl, onApplySrt]);
 
   useEffect(() => {
     // Initial check on mount / URL change

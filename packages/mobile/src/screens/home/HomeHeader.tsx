@@ -23,6 +23,7 @@ import {
   isAIStudioPage,
   isVideoPage,
   normalizeYouTubeUrl,
+  setLastCopiedVideoUrl,
 } from "@utils/videoUtils";
 
 if (
@@ -107,6 +108,7 @@ export const HomeHeader = ({
         try {
           const cleanUrl = normalizeYouTubeUrl(currentUrl);
           await Clipboard.setStringAsync(cleanUrl);
+          setLastCopiedVideoUrl(cleanUrl);
         } catch {
           // Ignore clipboard errors
         }

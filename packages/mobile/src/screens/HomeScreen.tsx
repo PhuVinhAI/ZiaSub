@@ -110,33 +110,6 @@ const HomeScreen = () => {
     navigateToUrl,
   });
 
-  // Automatic clipboard API key detector
-  useClipboardKeyDetector({
-    apiKeys,
-    updateApiKeys,
-    activeUrl,
-  });
-
-  // Auto-sync system prompts to Google AI Studio localStorage
-  useEffect(() => {
-    if (isAIStudioPage(activeUrl)) {
-      getAIStudioSystemInstructions().then((instructions) => {
-        if (webViewRef.current && instructions && instructions.length > 0) {
-          const js = `
-            try {
-              if (window.location.hostname.includes("aistudio.google.com")) {
-                var data = ${JSON.stringify(instructions)};
-                localStorage.setItem("aistudio_all_system_instructions", JSON.stringify(data));
-              }
-            } catch(e) {}
-            true;
-          `;
-          webViewRef.current.injectJavaScript(js);
-        }
-      });
-    }
-  }, [activeUrl, webViewRef]);
-
   // Subtitles hook
   const {
     srtContent,
@@ -149,6 +122,14 @@ const HomeScreen = () => {
     clearSubtitles,
     hasSubtitles,
   } = useSubtitles({ webViewRef, ttsSettings });
+
+  // Automatic clipboard API key & SRT subtitle detector
+  useClipboardKeyDetector({
+    apiKeys,
+    updateApiKeys,
+    activeUrl,
+    onApplySrt: applySrtContent,
+  });
 
   // Translation queue hook
   const {
@@ -174,6 +155,26 @@ const HomeScreen = () => {
     subtitleSettings,
     isVideoPlaying,
   });
+
+  // Auto-sync system prompts to Google AI Studio localStorage
+  useEffect(() => {
+    if (isAIStudioPage(activeUrl)) {
+      getAIStudioSystemInstructions().then((instructions) => {
+        if (webViewRef.current && instructions && instructions.length > 0) {
+          const js = `
+            try {
+              if (window.location.hostname.includes("aistudio.google.com")) {
+                var data = ${JSON.stringify(instructions)};
+                localStorage.setItem("aistudio_all_system_instructions", JSON.stringify(data));
+              }
+            } catch(e) {}
+            true;
+          `;
+          webViewRef.current.injectJavaScript(js);
+        }
+      });
+    }
+  }, [activeUrl, webViewRef]);
 
   // Load saved SRT when URL changes
   useEffect(() => {
