@@ -4,12 +4,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Modal,
   StatusBar,
+  Platform,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -63,6 +62,10 @@ const AIStudioPromptEdit: React.FC<AIStudioPromptEditProps> = ({
 
   const isEditing = !!initialPrompt;
 
+  const statusBarHeight =
+    Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
+  const topPadding = Math.max(insets.top, statusBarHeight);
+
   return (
     <Modal
       visible={visible}
@@ -73,7 +76,7 @@ const AIStudioPromptEdit: React.FC<AIStudioPromptEditProps> = ({
       <View
         style={[
           themedStyles.modalContainer,
-          { paddingTop: insets.top, paddingBottom: insets.bottom },
+          { paddingTop: topPadding, paddingBottom: insets.bottom },
         ]}
       >
         <StatusBar
@@ -81,70 +84,70 @@ const AIStudioPromptEdit: React.FC<AIStudioPromptEditProps> = ({
           backgroundColor="transparent"
           translucent
         />
-        <KeyboardAvoidingView
+        {/* Header */}
+        <View style={themedStyles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={onCancel}>
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+          <Text style={themedStyles.headerTitle}>
+            {isEditing ? "Chỉnh sửa System Prompt" : "Tạo System Prompt mới"}
+          </Text>
+          <TouchableOpacity style={styles.saveHeaderBtn} onPress={handleSave}>
+            <Text style={themedStyles.saveHeaderBtnText}>Lưu</Text>
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAwareScrollView
           style={styles.container}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          bottomOffset={30}
         >
-          {/* Header */}
-          <View style={themedStyles.header}>
-            <TouchableOpacity style={styles.backBtn} onPress={onCancel}>
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-            <Text style={themedStyles.headerTitle}>
-              {isEditing ? "Chỉnh sửa System Prompt" : "Tạo System Prompt mới"}
-            </Text>
-            <TouchableOpacity style={styles.saveHeaderBtn} onPress={handleSave}>
-              <Text style={themedStyles.saveHeaderBtnText}>Lưu</Text>
-            </TouchableOpacity>
+          {/* Tiêu đề */}
+          <View style={styles.fieldGroup}>
+            <Text style={themedStyles.fieldLabel}>Tiêu đề Prompt</Text>
+            <TextInput
+              style={[styles.input, themedStyles.input]}
+              placeholder="Ví dụ: Dịch thuật chuẩn, Tóm tắt video..."
+              placeholderTextColor={colors.textMuted}
+              value={title}
+              onChangeText={setTitle}
+            />
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Tiêu đề */}
-            <View style={styles.fieldGroup}>
-              <Text style={themedStyles.fieldLabel}>Tiêu đề Prompt</Text>
-              <TextInput
-                style={[styles.input, themedStyles.input]}
-                placeholder="Ví dụ: Dịch thuật chuẩn, Tóm tắt video..."
-                placeholderTextColor={colors.textMuted}
-                value={title}
-                onChangeText={setTitle}
-              />
-            </View>
+          {/* Nội dung Prompt */}
+          <View style={styles.fieldGroup}>
+            <Text style={themedStyles.fieldLabel}>Nội dung System Prompt</Text>
+            <TextInput
+              style={[styles.input, styles.textArea, themedStyles.input]}
+              placeholder="Nhập nội dung hướng dẫn chi tiết cho AI tại đây..."
+              placeholderTextColor={colors.textMuted}
+              value={text}
+              onChangeText={setText}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
 
-            {/* Nội dung Prompt */}
-            <View style={styles.fieldGroup}>
-              <Text style={themedStyles.fieldLabel}>Nội dung System Prompt</Text>
-              <TextInput
-                style={[styles.input, styles.textArea, themedStyles.input]}
-                placeholder="Nhập nội dung hướng dẫn chi tiết cho AI tại đây..."
-                placeholderTextColor={colors.textMuted}
-                value={text}
-                onChangeText={setText}
-                multiline
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={styles.buttonRow}>
-              <Button3D
-                title="Hủy"
-                variant="outline"
-                onPress={onCancel}
-                style={styles.actionBtn}
-              />
-              <Button3D
-                title={isEditing ? "Cập nhật" : "Lưu Prompt"}
-                variant="primary"
-                onPress={handleSave}
-                style={styles.actionBtn}
-              />
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          <View style={styles.buttonRow}>
+            <Button3D
+              title="Hủy"
+              variant="outline"
+              onPress={onCancel}
+              style={styles.actionBtn}
+            />
+            <Button3D
+              title={isEditing ? "Cập nhật" : "Lưu Prompt"}
+              variant="primary"
+              onPress={handleSave}
+              style={styles.actionBtn}
+            />
+          </View>
+        </KeyboardAwareScrollView>
       </View>
     </Modal>
   );
@@ -154,16 +157,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  contentContainer: {
+    padding: 16,
+  },
   backBtn: {
     padding: 4,
   },
   saveHeaderBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
   },
   fieldGroup: {
     marginBottom: 18,
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   textArea: {
-    minHeight: 280,
+    minHeight: 240,
   },
   buttonRow: {
     flexDirection: "row",
