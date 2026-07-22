@@ -16,8 +16,22 @@ import {
 } from "@utils/storage";
 import { logger } from "./loggerService";
 // Tách từ file này sang file riêng — chỉ import, không sửa logic
-import { QUEUE_STORAGE_KEY, PAGE_SIZE, extractVideoId } from "./queueUtils";
+import { QUEUE_STORAGE_KEY, extractVideoId } from "./queueUtils";
 import { validateTransition } from "./queueTransitions";
+import { computeBatchRange } from "./queueBatchMath";
+import {
+  createQueueItemId,
+  migrateStuckTranslatingItems,
+  getItemsByStatus as selectItemsByStatus,
+  getCounts as selectCounts,
+  isInQueue as selectIsInQueue,
+  getPausedBatchRetranslation as selectPausedBatchRetranslation,
+  getBatchRetranslationInfo as selectBatchRetranslationInfo,
+  getPartialSrt as selectPartialSrt,
+  isTimeRangeTranslation as selectIsTimeRangeTranslation,
+  getTimeRangeInfo as selectTimeRangeInfo,
+  getTranslatingQueueCount as selectTranslatingQueueCount,
+} from "./queueSelectors";
 
 // Re-export types for backward compatibility
 export type { QueueItem, QueueStatus } from "@src/types";
@@ -72,19 +86,7 @@ class QueueManager {
         this.items = JSON.parse(data);
         // Reset stuck "translating" items to "paused" - they were interrupted by app restart
         // This allows user to resume them later
-        this.items = this.items.map((item) => {
-          if (item.status === "translating") {
-            // Move all translating items to paused (was interrupted by app restart)
-            // Keep all existing data (partial, config, etc.) for resume
-            return {
-              ...item,
-              status: "paused" as QueueStatus,
-              // Only set completedBatches if not present (don't override totalBatches)
-              completedBatches: item.completedBatches ?? 0,
-            };
-          }
-          return item;
-        });
+        this.items = migrateStuckTranslatingItems(this.items);
       }
 
       await this.save();
@@ -211,7 +213,7 @@ class QueueManager {
     }
 
     const item: QueueItem = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: createQueueItemId(),
       videoUrl,
       videoId,
       title: title || `Video ${videoId}`,
@@ -713,37 +715,16 @@ class QueueManager {
           existingTranslation.rangeEnd !== undefined;
 
         // Calculate batchStart and batchEnd considering time range AND presub mode
-        let batchStart: number;
-        let batchEnd: number;
-
-        if (isTimeRangeTranslation) {
-          // Time range translation: batches are relative to translationRangeStart
-          batchStart =
-            translationRangeStart + item.retranslateBatchIndex * batchDuration;
-          batchEnd = Math.min(
-            translationRangeStart +
-              (item.retranslateBatchIndex + 1) * batchDuration,
-            translationRangeEnd
-          );
-        } else if (isPresubMode) {
-          if (item.retranslateBatchIndex === 0) {
-            batchStart = 0;
-            batchEnd = Math.min(presubDuration, item.duration || Infinity);
-          } else {
-            batchStart =
-              presubDuration + (item.retranslateBatchIndex - 1) * batchDuration;
-            batchEnd = Math.min(
-              presubDuration + item.retranslateBatchIndex * batchDuration,
-              item.duration || Infinity
-            );
-          }
-        } else {
-          batchStart = item.retranslateBatchIndex * batchDuration;
-          batchEnd = Math.min(
-            (item.retranslateBatchIndex + 1) * batchDuration,
-            item.duration || Infinity
-          );
-        }
+        const { batchStart, batchEnd } = computeBatchRange({
+          retranslateBatchIndex: item.retranslateBatchIndex,
+          batchDuration,
+          isTimeRangeTranslation,
+          translationRangeStart,
+          translationRangeEnd,
+          isPresubMode,
+          presubDuration,
+          itemDuration: item.duration,
+        });
 
         // Update progress immediately to show "đang dịch" instead of "đang chờ"
         await this.updateItem(item.id, {
@@ -1002,28 +983,7 @@ class QueueManager {
     status: QueueStatus | "all",
     page: number = 1
   ): { items: QueueItem[]; total: number; totalPages: number } {
-    let filtered =
-      status === "all"
-        ? this.items
-        : this.items.filter((i) => i.status === status);
-
-    // Sort by time
-    filtered.sort((a, b) => {
-      if (status === "completed")
-        return (b.completedAt || 0) - (a.completedAt || 0);
-      if (status === "translating")
-        return (a.startedAt || 0) - (b.startedAt || 0); // FIFO order for translating
-      if (status === "paused") return (b.startedAt || 0) - (a.startedAt || 0); // Most recently paused first
-      // Pending: oldest first (FIFO - video thêm trước hiện trước)
-      return a.addedAt - b.addedAt;
-    });
-
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / PAGE_SIZE);
-    const start = (page - 1) * PAGE_SIZE;
-    const items = filtered.slice(start, start + PAGE_SIZE);
-
-    return { items, total, totalPages };
+    return selectItemsByStatus(this.items, status, page);
   }
 
   // Get counts
@@ -1034,19 +994,12 @@ class QueueManager {
     completed: number;
     error: number;
   } {
-    return {
-      pending: this.items.filter((i) => i.status === "pending").length,
-      translating: this.items.filter((i) => i.status === "translating").length,
-      paused: this.items.filter((i) => i.status === "paused").length,
-      completed: this.items.filter((i) => i.status === "completed").length,
-      error: this.items.filter((i) => i.status === "error").length,
-    };
+    return selectCounts(this.items);
   }
 
   // Check if video is in queue
   isInQueue(videoUrl: string): QueueItem | undefined {
-    const videoId = this.extractVideoId(videoUrl);
-    return this.items.find((i) => i.videoId === videoId);
+    return selectIsInQueue(this.items, videoUrl);
   }
 
   // Start auto processing - mark ALL pending/error as translating and process sequentially
@@ -1286,37 +1239,13 @@ class QueueManager {
 
   // Get paused batch retranslation info for a video
   getPausedBatchRetranslation(videoUrl: string): QueueItem | null {
-    const videoId = this.extractVideoId(videoUrl);
-    const item = this.items.find(
-      (i) =>
-        i.videoId === videoId &&
-        i.status === "paused" &&
-        i.retranslateBatchIndex !== undefined
-    );
-    return item || null;
+    return selectPausedBatchRetranslation(this.items, videoUrl);
   }
 
   // Get batch retranslation info for a video (paused or waiting to be resumed)
   // This is used by TranslateTab to show resume button
   getBatchRetranslationInfo(videoUrl: string): QueueItem | null {
-    const videoId = this.extractVideoId(videoUrl);
-    // Check for paused batch retranslation
-    const pausedItem = this.items.find(
-      (i) =>
-        i.videoId === videoId &&
-        i.status === "paused" &&
-        i.retranslateBatchIndex !== undefined
-    );
-    if (pausedItem) return pausedItem;
-
-    // Check for translating batch retranslation (waiting or active)
-    const translatingItem = this.items.find(
-      (i) =>
-        i.videoId === videoId &&
-        i.status === "translating" &&
-        i.retranslateBatchIndex !== undefined
-    );
-    return translatingItem || null;
+    return selectBatchRetranslationInfo(this.items, videoUrl);
   }
 
   // Mark video as error
@@ -1521,8 +1450,7 @@ class QueueManager {
 
   // Get partial SRT for an item
   getPartialSrt(itemId: string): string | undefined {
-    const item = this.items.find((i) => i.id === itemId);
-    return item?.partialSrt;
+    return selectPartialSrt(this.items, itemId);
   }
 
   // Remove completed video from queue (called when all translations are deleted)
@@ -1864,7 +1792,7 @@ class QueueManager {
     } else {
       // Add new item to queue with all config info
       const newItem: QueueItem = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: createQueueItemId(),
         videoUrl,
         videoId,
         title: title || `Video ${videoId}`,
@@ -1927,27 +1855,14 @@ class QueueManager {
 
   // Check if a queue item is a time range translation (not full video)
   isTimeRangeTranslation(videoUrl: string): boolean {
-    const videoId = this.extractVideoId(videoUrl);
-    const item = this.items.find((i) => i.videoId === videoId);
-    return !!(
-      item &&
-      (item.rangeStart !== undefined || item.rangeEnd !== undefined)
-    );
+    return selectIsTimeRangeTranslation(this.items, videoUrl);
   }
 
   // Get time range info for a video in queue
   getTimeRangeInfo(
     videoUrl: string
   ): { rangeStart?: number; rangeEnd?: number } | null {
-    const videoId = this.extractVideoId(videoUrl);
-    const item = this.items.find((i) => i.videoId === videoId);
-    if (
-      !item ||
-      (item.rangeStart === undefined && item.rangeEnd === undefined)
-    ) {
-      return null;
-    }
-    return { rangeStart: item.rangeStart, rangeEnd: item.rangeEnd };
+    return selectTimeRangeInfo(this.items, videoUrl);
   }
 
   // Get queue status for a video (for UI display)
@@ -1986,7 +1901,7 @@ class QueueManager {
 
   // Get total count of videos in translating queue (for notification display)
   getTranslatingQueueCount(): number {
-    return this.items.filter((i) => i.status === "translating").length;
+    return selectTranslatingQueueCount(this.items);
   }
 
   // Reset queue (called when clearing all app data)

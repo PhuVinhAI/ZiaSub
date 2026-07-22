@@ -1,33 +1,36 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import React, { useEffect } from "react";
+import { View, ScrollView } from "react-native";
 import { alert, confirm, confirmDestructive } from "../common/CustomAlert";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
-import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import { useThemedStyles } from "@hooks/useThemedStyles";
 import type {
   GeminiConfig,
   BatchSettings,
   SavedTranslation,
   BatchProgress,
-  TranslationJob,
 } from "@src/types";
 import {
-  getGeminiConfigs,
-  getActiveTranslationConfig,
   saveActiveTranslationConfigId,
-  getVideoTranslations,
   setActiveTranslation,
   deleteTranslation,
-  getApiKeys,
 } from "@utils/storage";
 import { translationManager } from "@services/translationManager";
-import { parseTime, extractVideoId } from "@utils/videoUtils";
+import { parseTime } from "@utils/videoUtils";
 import { parseSRT } from "@utils/srtParser";
-import { PRESET_PROMPTS, type PresetPromptType } from "@constants/defaults";
+import { type PresetPromptType } from "@constants/defaults";
 // Tách từ file này sang file riêng — chỉ import, không sửa logic
 import { rebuildSrt } from "./translate/translateTabUtils";
+import {
+  styles,
+  translateTabThemedStyles,
+} from "./translate/translateTabStyles";
+import { useTranslationConfigs } from "./translate/useTranslationConfigs";
+import { useSavedTranslations } from "./translate/useSavedTranslations";
+import { useBatchRetranslationTracking } from "./translate/useBatchRetranslationTracking";
+import { useAdvancedOptions } from "./translate/useAdvancedOptions";
 import Button3D from "../common/Button3D";
 import {
   SavedTranslationsList,
@@ -83,344 +86,56 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(translateTabThemedStyles);
-  const [geminiConfigs, setGeminiConfigs] = useState<GeminiConfig[]>([]);
-  const [selectedConfigId, setSelectedConfigId] = useState<string>("");
-  const [showConfigPicker, setShowConfigPicker] = useState(false);
-  const [savedTranslations, setSavedTranslations] = useState<
-    SavedTranslation[]
-  >([]);
-  const [activeTranslationId, setActiveTranslationId] = useState<string | null>(
-    null
-  );
-  const [hasApiKey, setHasApiKey] = useState(true);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [streamingMode, setStreamingMode] = useState(
-    batchSettings?.streamingMode ?? false
-  );
-  const [presubMode, setPresubMode] = useState(
-    batchSettings?.presubMode ?? false
-  );
-  const [useCustomRange, setUseCustomRange] = useState(false);
-  const [rangeStartStr, setRangeStartStr] = useState("");
-  const [rangeEndStr, setRangeEndStr] = useState("");
-  const [currentPresetId, setCurrentPresetId] = useState<
-    PresetPromptType | undefined
-  >();
-  // Track batch retranslation job (for single batch or fromHere mode)
-  const [batchRetranslateJob, setBatchRetranslateJob] =
-    useState<TranslationJob | null>(null);
-  // Track paused batch retranslation (from queue)
-  const [pausedBatchRetranslation, setPausedBatchRetranslation] = useState<{
-    batchIndex: number;
-    mode: "single" | "fromHere";
-    translationId?: string;
-  } | null>(null);
-  // Track which translation is being retranslated
-  const [retranslatingTranslationId, setRetranslatingTranslationId] = useState<
-    string | null
-  >(null);
-  // Track current time range translation (for display in TranslationProgress)
-  const [currentTimeRange, setCurrentTimeRange] = useState<{
-    rangeStart?: number;
-    rangeEnd?: number;
-  } | null>(null);
 
-  // Detect current preset from selected config
-  useEffect(() => {
-    const selectedConfig = geminiConfigs.find((c) => c.id === selectedConfigId);
-    if (selectedConfig) {
-      // Use presetId if set, otherwise check if systemPrompt matches any preset
-      if (selectedConfig.presetId) {
-        setCurrentPresetId(selectedConfig.presetId as PresetPromptType);
-      } else {
-        const matchingPreset = PRESET_PROMPTS.find(
-          (p) => p.prompt === selectedConfig.systemPrompt
-        );
-        setCurrentPresetId(matchingPreset?.id || "custom");
-      }
-    }
-  }, [selectedConfigId, geminiConfigs]);
+  const {
+    geminiConfigs,
+    setGeminiConfigs,
+    selectedConfigId,
+    showConfigPicker,
+    setShowConfigPicker,
+    hasApiKey,
+    currentPresetId,
+    setCurrentPresetId,
+    handleSelectConfig,
+  } = useTranslationConfigs();
 
-  const loadConfigs = async () => {
-    const configs = await getGeminiConfigs();
-    // Filter out chat config for translation picker
-    const translationConfigs = configs.filter(
-      (c) => c.id !== "default-chat-config"
-    );
-    setGeminiConfigs(translationConfigs);
-    const activeConfig = await getActiveTranslationConfig();
-    if (activeConfig) {
-      setSelectedConfigId(activeConfig.id);
-    } else if (translationConfigs.length > 0) {
-      setSelectedConfigId(translationConfigs[0].id);
-    }
-  };
-  const checkApiKeys = async () => {
-    const keys = await getApiKeys();
-    setHasApiKey(keys.length > 0);
-  };
-  const loadTranslations = useCallback(async () => {
-    if (!videoUrl) return;
-    try {
-      const data = await getVideoTranslations(videoUrl);
-      if (data) {
-        setSavedTranslations(data.translations);
-        setActiveTranslationId(data.activeTranslationId);
-      } else {
-        setSavedTranslations([]);
-        setActiveTranslationId(null);
-      }
-    } catch (error) {
-      console.error("Error loading translations:", error);
-      setSavedTranslations([]);
-      setActiveTranslationId(null);
-    }
-  }, [videoUrl]);
+  const {
+    savedTranslations,
+    setSavedTranslations,
+    activeTranslationId,
+    setActiveTranslationId,
+    loadTranslations,
+  } = useSavedTranslations(videoUrl, visible);
 
-  useEffect(() => {
-    loadConfigs();
-    checkApiKeys();
-  }, []);
-  useEffect(() => {
-    if (videoUrl) loadTranslations();
-  }, [videoUrl, loadTranslations]);
-  // Reload translations when modal becomes visible
-  useEffect(() => {
-    if (visible && videoUrl) {
-      loadTranslations();
-    }
-  }, [visible, videoUrl, loadTranslations]);
+  const {
+    batchRetranslateJob,
+    setBatchRetranslateJob,
+    pausedBatchRetranslation,
+    setPausedBatchRetranslation,
+    retranslatingTranslationId,
+    setRetranslatingTranslationId,
+    currentTimeRange,
+  } = useBatchRetranslationTracking({
+    videoUrl,
+    savedTranslations,
+    loadTranslations,
+  });
 
-  // Check for paused/waiting/active batch retranslation from queue
-  useEffect(() => {
-    if (!videoUrl) {
-      setPausedBatchRetranslation(null);
-      setBatchRetranslateJob(null);
-      return;
-    }
-
-    let isMounted = true;
-    let unsubscribe: (() => void) | null = null;
-
-    const setupAndSubscribe = async () => {
-      const { queueManager } = await import("@services/queueManager");
-
-      const checkBatchRetranslation = () => {
-        if (!isMounted) return;
-        // Use getBatchRetranslationInfo to get paused, waiting, or active batch retranslation
-        const batchItem = queueManager.getBatchRetranslationInfo(videoUrl);
-        if (
-          batchItem &&
-          batchItem.retranslateBatchIndex !== undefined &&
-          batchItem.retranslateMode
-        ) {
-          // Track which translation is being retranslated
-          if (batchItem.savedTranslationId) {
-            setRetranslatingTranslationId(batchItem.savedTranslationId);
-          }
-
-          if (batchItem.status === "paused") {
-            // Paused state
-            setPausedBatchRetranslation({
-              batchIndex: batchItem.retranslateBatchIndex,
-              mode: batchItem.retranslateMode,
-              translationId: batchItem.savedTranslationId,
-            });
-            setBatchRetranslateJob(null);
-          } else if (batchItem.status === "translating") {
-            // Active or waiting state - create a fake job to show UI
-            setPausedBatchRetranslation(null);
-            const batchDuration =
-              batchItem.batchSettings?.maxVideoDuration || 600;
-            const isPresubMode = batchItem.batchSettings?.presubMode ?? false;
-            const presubDuration =
-              batchItem.batchSettings?.presubDuration ?? 120;
-
-            // Find the translation being retranslated to get its time range info
-            const targetTranslation = batchItem.savedTranslationId
-              ? savedTranslations.find(
-                  (t) => t.id === batchItem.savedTranslationId
-                )
-              : savedTranslations[0];
-
-            // Check if the translation has time range
-            const translationRangeStart = targetTranslation?.rangeStart ?? 0;
-            const translationRangeEnd =
-              targetTranslation?.rangeEnd ??
-              targetTranslation?.videoDuration ??
-              batchItem.duration ??
-              0;
-            const isTimeRangeTranslation =
-              targetTranslation?.rangeStart !== undefined ||
-              targetTranslation?.rangeEnd !== undefined;
-
-            // Calculate rangeStart and rangeEnd considering time range AND presub mode
-            let rangeStart: number;
-            let rangeEnd: number | undefined;
-
-            if (isTimeRangeTranslation) {
-              // Time range translation: batches are relative to translationRangeStart
-              rangeStart =
-                translationRangeStart +
-                batchItem.retranslateBatchIndex * batchDuration;
-              rangeEnd =
-                batchItem.retranslateMode === "single"
-                  ? Math.min(
-                      translationRangeStart +
-                        (batchItem.retranslateBatchIndex + 1) * batchDuration,
-                      translationRangeEnd
-                    )
-                  : batchItem.duration;
-            } else if (isPresubMode) {
-              if (batchItem.retranslateBatchIndex === 0) {
-                rangeStart = 0;
-                rangeEnd =
-                  batchItem.retranslateMode === "single"
-                    ? Math.min(presubDuration, batchItem.duration || Infinity)
-                    : batchItem.duration;
-              } else {
-                rangeStart =
-                  presubDuration +
-                  (batchItem.retranslateBatchIndex - 1) * batchDuration;
-                rangeEnd =
-                  batchItem.retranslateMode === "single"
-                    ? Math.min(
-                        presubDuration +
-                          batchItem.retranslateBatchIndex * batchDuration,
-                        batchItem.duration || Infinity
-                      )
-                    : batchItem.duration;
-              }
-            } else {
-              rangeStart = batchItem.retranslateBatchIndex * batchDuration;
-              rangeEnd =
-                batchItem.retranslateMode === "single"
-                  ? (batchItem.retranslateBatchIndex + 1) * batchDuration
-                  : batchItem.duration;
-            }
-
-            setBatchRetranslateJob({
-              id: batchItem.id,
-              videoUrl: batchItem.videoUrl,
-              configName: batchItem.configName || "",
-              status: batchItem.progress ? "processing" : "pending",
-              progress: batchItem.progress
-                ? {
-                    currentBatch: batchItem.progress.completed + 1,
-                    totalBatches: batchItem.progress.total,
-                    completedBatches: batchItem.progress.completed,
-                    status: "processing",
-                    batchStatuses: [],
-                  }
-                : null,
-              keyStatus: null,
-              result: null,
-              error: null,
-              startedAt: batchItem.startedAt || Date.now(),
-              completedAt: null,
-              partialResult: null,
-              rangeStart,
-              rangeEnd,
-              existingTranslationId: batchItem.savedTranslationId, // Track which translation is being retranslated
-            });
-          }
-        } else {
-          setPausedBatchRetranslation(null);
-          setRetranslatingTranslationId(null);
-          // Only clear batchRetranslateJob if there's no active translation
-          const currentJob = translationManager.getCurrentJob();
-          if (!currentJob || currentJob.status !== "processing") {
-            setBatchRetranslateJob(null);
-          }
-        }
-      };
-
-      // Check immediately
-      checkBatchRetranslation();
-
-      // Subscribe to queue changes
-      unsubscribe = queueManager.subscribe(() => {
-        checkBatchRetranslation();
-      });
-    };
-
-    setupAndSubscribe();
-
-    return () => {
-      isMounted = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [videoUrl]);
-
-  // Subscribe to translationManager to track batch retranslation
-  useEffect(() => {
-    if (!videoUrl) return;
-
-    const currentVideoId = extractVideoId(videoUrl);
-
-    // Check current job state immediately when component mounts
-    const currentJob = translationManager.getCurrentJob();
-    if (currentJob) {
-      const jobVideoId = extractVideoId(currentJob.videoUrl);
-      // Check if this is a batch retranslation (has isBatchRetranslation flag or retranslateBatchIndex)
-      // Time range translation (rangeStart/rangeEnd without isBatchRetranslation) is NOT a batch job
-      const isBatchJob =
-        currentJob.isBatchRetranslation ||
-        currentJob.retranslateBatchIndex !== undefined;
-      if (
-        jobVideoId === currentVideoId &&
-        currentJob.status === "processing" &&
-        isBatchJob
-      ) {
-        setBatchRetranslateJob(currentJob);
-      }
-    }
-
-    const unsubscribe = translationManager.subscribe((job) => {
-      const jobVideoId = extractVideoId(job.videoUrl);
-      // Check if this is a batch retranslation for current video
-      // Time range translation (rangeStart/rangeEnd without isBatchRetranslation) is NOT a batch job
-      const isBatchJob =
-        job.isBatchRetranslation || job.retranslateBatchIndex !== undefined;
-      if (jobVideoId === currentVideoId && isBatchJob) {
-        if (job.status === "processing") {
-          setBatchRetranslateJob(job);
-          // Clear paused state when job starts
-          setPausedBatchRetranslation(null);
-        } else if (job.status === "completed" || job.status === "error") {
-          setBatchRetranslateJob(null);
-          // Reload translations when batch retranslation completes
-          if (job.status === "completed") {
-            loadTranslations();
-          }
-        }
-      }
-
-      // Track time range for full translation (not batch retranslation)
-      if (jobVideoId === currentVideoId && !isBatchJob) {
-        if (job.status === "processing") {
-          // Check if this is a time range translation
-          if (job.rangeStart !== undefined || job.rangeEnd !== undefined) {
-            setCurrentTimeRange({
-              rangeStart: job.rangeStart,
-              rangeEnd: job.rangeEnd,
-            });
-          } else {
-            setCurrentTimeRange(null);
-          }
-        } else if (job.status === "completed" || job.status === "error") {
-          setCurrentTimeRange(null);
-        }
-      }
-    });
-    return () => unsubscribe();
-  }, [videoUrl, loadTranslations]);
-  useEffect(() => {
-    if (batchSettings) {
-      setStreamingMode(batchSettings.streamingMode ?? false);
-      setPresubMode(batchSettings.presubMode ?? false);
-    }
-  }, [batchSettings]);
+  const {
+    showAdvanced,
+    setShowAdvanced,
+    streamingMode,
+    setStreamingMode,
+    presubMode,
+    useCustomRange,
+    setUseCustomRange,
+    rangeStartStr,
+    setRangeStartStr,
+    rangeEndStr,
+    setRangeEndStr,
+    handleStreamingModeChange,
+    handlePresubModeChange,
+  } = useAdvancedOptions({ batchSettings, onBatchSettingsChange });
 
   // Expose loadTranslations to parent via ref
   useEffect(() => {
@@ -433,25 +148,6 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
       }
     };
   }, [onReloadRef, loadTranslations]);
-
-  const handleStreamingModeChange = (value: boolean) => {
-    setStreamingMode(value);
-    if (batchSettings && onBatchSettingsChange)
-      onBatchSettingsChange({ ...batchSettings, streamingMode: value });
-  };
-  const handlePresubModeChange = (value: boolean) => {
-    setPresubMode(value);
-    if (value && !streamingMode) {
-      setStreamingMode(true);
-      if (batchSettings && onBatchSettingsChange)
-        onBatchSettingsChange({
-          ...batchSettings,
-          presubMode: value,
-          streamingMode: true,
-        });
-    } else if (batchSettings && onBatchSettingsChange)
-      onBatchSettingsChange({ ...batchSettings, presubMode: value });
-  };
 
   const handleTranslate = async (
     resumeTranslation?: SavedTranslation,
@@ -1089,10 +785,6 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
       }
     );
   };
-  const handleSelectConfig = (configId: string) => {
-    setSelectedConfigId(configId);
-    setShowConfigPicker(false);
-  };
 
   return (
     <View style={styles.tabContent}>
@@ -1361,77 +1053,3 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  tabContent: { flex: 1 },
-  scrollContent: { flex: 1 },
-  scrollContentContainer: { paddingBottom: 8 },
-  translateButtonContainer: { marginTop: 8, marginBottom: 8 },
-});
-
-const translateTabThemedStyles = createThemedStyles((colors) => ({
-  warningContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.warningBg,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.warning,
-  },
-  warningText: { color: colors.warning, fontSize: 13, flex: 1 },
-  longVideoWarningContainer: {
-    backgroundColor: colors.warningBg,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.warning,
-  },
-  longVideoWarningContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  waitingContainer: {
-    backgroundColor: colors.warningBg,
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.warning,
-  },
-  waitingContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  waitingText: {
-    color: colors.warning,
-    fontSize: 14,
-    fontWeight: "500",
-    flex: 1,
-  },
-  pausedContainer: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pausedContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  pausedText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontWeight: "500",
-    flex: 1,
-  },
-}));

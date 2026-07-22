@@ -1,27 +1,23 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  StyleSheet,
-  StatusBar,
-  Text,
-  TouchableOpacity,
-  TextInput,
-} from "react-native";
-import { alert, showAlert } from "@components/common/CustomAlert";
+import React, { useEffect, useCallback } from "react";
+import { View, StatusBar } from "react-native";
+import { alert } from "@components/common/CustomAlert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { WebViewMessageEvent, WebViewNavigation } from "react-native-webview";
+import { WebViewNavigation } from "react-native-webview";
 import { useTranslation } from "react-i18next";
 
 import { useTheme, useUpdate } from "@src/contexts";
-import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
-import { ttsService } from "@services/ttsService";
+import { useThemedStyles } from "@hooks/useThemedStyles";
 import { queueManager } from "@services/queueManager";
 
 import { useAppSettings } from "@hooks/useAppSettings";
 import { useVideoPlayer } from "@hooks/useVideoPlayer";
 import { useSubtitles } from "@hooks/useSubtitles";
 import { useTranslationQueue } from "@hooks/useTranslationQueue";
+import { useDesktopMode } from "@hooks/useDesktopMode";
+import { useHomeModals } from "@hooks/useHomeModals";
+import { useWebViewMessageHandler } from "@hooks/useWebViewMessageHandler";
+import { useQueueActions } from "@hooks/useQueueActions";
+import { useSubtitleStyleSync } from "@hooks/useSubtitleStyleSync";
 
 import { YouTubePlayer } from "@components/video";
 import { SubtitleInputModal } from "@components/subtitle";
@@ -30,6 +26,9 @@ import { FloatingButton, FAQModal } from "@components/common";
 import { TranslationQueueModal } from "@components/queue";
 import { ChatModal } from "@components/chat";
 
+import { HomeHeader } from "./home/HomeHeader";
+import { styles, homeThemedStyles } from "./home/homeStyles";
+
 const HomeScreen = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -37,47 +36,20 @@ const HomeScreen = () => {
   const { hasUpdate } = useUpdate();
 
   // Modal states
-  const [modalVisible, setModalVisible] = useState(false);
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [queueModalVisible, setQueueModalVisible] = useState(false);
-  const [chatModalVisible, setChatModalVisible] = useState(false);
-  const [faqModalVisible, setFaqModalVisible] = useState(false);
-  const [isChatLoading, setIsChatLoading] = useState(false);
-
-  // Desktop mode state
-  const [isDesktopMode, setIsDesktopMode] = useState(false);
-
-  // Helper to convert URL between mobile and desktop YouTube
-  const convertYouTubeUrl = (
-    url: string | undefined,
-    toDesktop: boolean
-  ): string => {
-    if (!url) {
-      return toDesktop ? "https://www.youtube.com" : "https://m.youtube.com";
-    }
-    if (toDesktop) {
-      return url.replace(
-        /^https?:\/\/m\.youtube\.com/,
-        "https://www.youtube.com"
-      );
-    } else {
-      return url.replace(
-        /^https?:\/\/(www\.)?youtube\.com/,
-        "https://m.youtube.com"
-      );
-    }
-  };
-
-  // Toggle between mobile and desktop mode
-  const handleToggleDesktopMode = () => {
-    const newMode = !isDesktopMode;
-    const convertedUrl = convertYouTubeUrl(currentUrl, newMode);
-    setIsDesktopMode(newMode);
-    // Navigate to converted URL after mode change
-    setTimeout(() => {
-      navigateToUrl(convertedUrl);
-    }, 100);
-  };
+  const {
+    modalVisible,
+    setModalVisible,
+    settingsVisible,
+    setSettingsVisible,
+    queueModalVisible,
+    setQueueModalVisible,
+    chatModalVisible,
+    setChatModalVisible,
+    faqModalVisible,
+    setFaqModalVisible,
+    isChatLoading,
+    setIsChatLoading,
+  } = useHomeModals();
 
   // App settings hook
   const {
@@ -127,6 +99,12 @@ const HomeScreen = () => {
     postMessageToWebView,
   } = useVideoPlayer();
 
+  // Desktop mode state
+  const { isDesktopMode, handleToggleDesktopMode } = useDesktopMode({
+    currentUrl,
+    navigateToUrl,
+  });
+
   // Subtitles hook
   const {
     srtContent,
@@ -157,129 +135,37 @@ const HomeScreen = () => {
     onTranslationComplete: updateFromTranslation,
   });
 
-  // Set up TTS speaking callback for video ducking
-  useEffect(() => {
-    ttsService.setSpeakingCallback((isSpeaking) => {
-      const settings = ttsService.getSettings();
-      if (webViewRef.current && settings.duckVideo) {
-        const volume = isSpeaking ? settings.duckLevel : 1.0;
-        postMessageToWebView({ type: "setVideoVolume", payload: volume });
-      }
-    });
-  }, [postMessageToWebView]);
-
-  // Send subtitle style to WebView whenever settings change
-  useEffect(() => {
-    postMessageToWebView({
-      type: "setSubtitleStyle",
-      payload: subtitleSettings,
-    });
-  }, [subtitleSettings, postMessageToWebView]);
-
-  // Send subtitle style when entering video page
-  useEffect(() => {
-    if (isVideoPlaying) {
-      const timer = setTimeout(() => {
-        postMessageToWebView({
-          type: "setSubtitleStyle",
-          payload: subtitleSettings,
-        });
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isVideoPlaying, subtitleSettings, postMessageToWebView]);
+  // Subtitle style + TTS ducking sync effects
+  useSubtitleStyleSync({
+    webViewRef,
+    postMessageToWebView,
+    subtitleSettings,
+    isVideoPlaying,
+  });
 
   // Load saved SRT when URL changes
   useEffect(() => {
     loadSavedSRT(currentUrl);
   }, [currentUrl, loadSavedSRT]);
 
-  // Update queue status when URL changes
-  useEffect(() => {
-    if (currentUrl) {
-      setCurrentVideoInQueue(queueManager.isInQueue(currentUrl));
-    }
-  }, [currentUrl, setCurrentVideoInQueue]);
+  // Queue status effects + actions
+  const { handleAddToQueue, handleSelectVideoFromQueue } = useQueueActions({
+    currentUrl,
+    videoTitle,
+    videoDuration,
+    setCurrentVideoInQueue,
+    navigateToVideo,
+    setQueueModalVisible,
+  });
 
-  // Subscribe to queue changes to update isInQueue status
-  useEffect(() => {
-    const unsubscribe = queueManager.subscribe(() => {
-      if (currentUrl) {
-        setCurrentVideoInQueue(queueManager.isInQueue(currentUrl));
-      }
-    });
-    return () => unsubscribe();
-  }, [currentUrl, setCurrentVideoInQueue]);
-
-  const handleWebViewMessage = useCallback(
-    async (event: WebViewMessageEvent) => {
-      try {
-        const data = JSON.parse(event.nativeEvent.data);
-
-        switch (data.type) {
-          case "currentTime":
-            findSubtitle(data.payload);
-            break;
-          case "videoDuration":
-            setVideoDuration(data.payload);
-            break;
-          case "videoTitle":
-            setVideoTitle(data.payload);
-            break;
-          case "fullscreen_open":
-            onFullScreenOpen();
-            break;
-          case "fullscreen_close":
-            onFullScreenClose();
-            break;
-          case "addToQueue":
-            await handleAddToQueueFromThumbnail(data.payload);
-            break;
-        }
-      } catch (e) {}
-    },
-    [
-      findSubtitle,
-      setVideoDuration,
-      setVideoTitle,
-      onFullScreenOpen,
-      onFullScreenClose,
-    ]
-  );
-
-  const handleAddToQueueFromThumbnail = async (payload: {
-    videoUrl: string;
-    title: string;
-    duration?: number;
-  }) => {
-    const { videoUrl, title, duration } = payload;
-
-    const result = await queueManager.addToQueue(videoUrl, title, duration);
-
-    if (result.isExisting) {
-      const statusText =
-        result.item.status === "translating"
-          ? t("queue.currentlyTranslating")
-          : t("queue.alreadyInQueue", { count: result.pendingCount });
-      alert(t("common.notice"), statusText);
-    } else {
-      const pendingText =
-        result.pendingCount > 1
-          ? t("queue.pendingCount", { count: result.pendingCount })
-          : t("queue.willTranslateNow");
-      showAlert(
-        t("queue.addedToQueue"),
-        t("queue.addedMessage", { pendingText }),
-        [
-          { text: t("common.ok") },
-          {
-            text: t("queue.viewQueue"),
-            onPress: () => setQueueModalVisible(true),
-          },
-        ]
-      );
-    }
-  };
+  const { handleWebViewMessage } = useWebViewMessageHandler({
+    findSubtitle,
+    setVideoDuration,
+    setVideoTitle,
+    onFullScreenOpen,
+    onFullScreenClose,
+    setQueueModalVisible,
+  });
 
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
@@ -311,59 +197,6 @@ const HomeScreen = () => {
     setModalVisible(false);
   }, [srtContent, currentUrl, applySrtContent, t]);
 
-  const handleAddToQueue = useCallback(async () => {
-    if (!currentUrl) return;
-
-    // Check if we have required data (title and duration)
-    if (!videoTitle || !videoDuration) {
-      alert(
-        t("common.notice"),
-        t("queue.waitingForVideoData") ||
-          "Đang tải thông tin video, vui lòng thử lại sau giây lát"
-      );
-      return;
-    }
-
-    const result = await queueManager.addToQueue(
-      currentUrl,
-      videoTitle,
-      videoDuration
-    );
-
-    setCurrentVideoInQueue(result.item);
-
-    if (result.isExisting) {
-      const statusText =
-        result.item.status === "translating"
-          ? t("queue.currentlyTranslating")
-          : t("queue.alreadyInQueue", { count: result.pendingCount });
-      alert(t("common.notice"), statusText);
-    } else {
-      const pendingText =
-        result.pendingCount > 1
-          ? t("queue.pendingCount", { count: result.pendingCount })
-          : t("queue.willTranslateNow");
-      showAlert(
-        t("queue.addedToQueue"),
-        t("queue.addedMessage", { pendingText }),
-        [
-          { text: t("common.ok") },
-          {
-            text: t("queue.viewQueue"),
-            onPress: () => setQueueModalVisible(true),
-          },
-        ]
-      );
-    }
-  }, [currentUrl, videoTitle, videoDuration, setCurrentVideoInQueue, t]);
-
-  const handleSelectVideoFromQueue = useCallback(
-    (videoUrl: string) => {
-      navigateToVideo(videoUrl);
-    },
-    [navigateToVideo]
-  );
-
   const themedStyles = useThemedStyles(homeThemedStyles);
 
   return (
@@ -380,153 +213,24 @@ const HomeScreen = () => {
       />
 
       {!isFullscreen && (
-        <View
-          style={[
-            styles.headerContainer,
-            themedStyles.headerContainer,
-            { paddingTop: insets.top },
-          ]}
-        >
-          <View style={styles.header}>
-            <View style={styles.navButtons}>
-              <TouchableOpacity
-                style={[styles.navBtn, !canGoBack && styles.navBtnDisabled]}
-                onPress={handleGoBack}
-                disabled={!canGoBack}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons
-                  name="arrow-left"
-                  size={18}
-                  color={canGoBack ? colors.text : colors.textMuted}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.navBtn, !canGoForward && styles.navBtnDisabled]}
-                onPress={handleGoForward}
-                disabled={!canGoForward}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons
-                  name="arrow-right"
-                  size={18}
-                  color={canGoForward ? colors.text : colors.textMuted}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.navBtn}
-                onPress={reloadWebView}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons
-                  name="reload"
-                  size={18}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.navBtn,
-                  styles.modeToggleBtn,
-                  isDesktopMode && themedStyles.modeToggleBtnActive,
-                ]}
-                onPress={handleToggleDesktopMode}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons
-                  name={isDesktopMode ? "monitor" : "cellphone"}
-                  size={16}
-                  color={isDesktopMode ? colors.primary : colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {showUrlInput ? (
-              <View
-                style={[
-                  styles.urlInputContainer,
-                  themedStyles.urlInputContainer,
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name="magnify"
-                  size={16}
-                  color={colors.textMuted}
-                  style={styles.urlInputIcon}
-                />
-                <TextInput
-                  style={[styles.urlInput, themedStyles.urlInput]}
-                  value={urlInput}
-                  onChangeText={setUrlInput}
-                  placeholder="URL hoặc tìm kiếm..."
-                  placeholderTextColor={colors.textMuted}
-                  autoFocus
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="go"
-                  selectTextOnFocus
-                  onSubmitEditing={() => {
-                    if (urlInput.trim()) {
-                      navigateToUrl(urlInput);
-                      setShowUrlInput(false);
-                      setUrlInput("");
-                    }
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      setShowUrlInput(false);
-                      setUrlInput("");
-                    }, 100);
-                  }}
-                />
-                <TouchableOpacity
-                  style={styles.urlInputClose}
-                  onPress={() => {
-                    setShowUrlInput(false);
-                    setUrlInput("");
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name="close"
-                    size={16}
-                    color={colors.textMuted}
-                  />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.urlBar, themedStyles.urlBar]}
-                onPress={() => setShowUrlInput(true)}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons
-                  name="magnify"
-                  size={16}
-                  color={colors.textMuted}
-                />
-                <Text
-                  style={[styles.urlText, themedStyles.urlText]}
-                  numberOfLines={1}
-                >
-                  {currentUrl || "m.youtube.com"}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.brandContainer}>
-              <View style={[styles.logoContainer, themedStyles.logoContainer]}>
-                <MaterialCommunityIcons
-                  name="subtitles"
-                  size={12}
-                  color={colors.onPrimary}
-                />
-              </View>
-              <Text style={[styles.brandText, themedStyles.brandText]}>
-                Zia
-              </Text>
-            </View>
-          </View>
-        </View>
+        <HomeHeader
+          insets={insets}
+          colors={colors}
+          themedStyles={themedStyles}
+          canGoBack={canGoBack}
+          canGoForward={canGoForward}
+          handleGoBack={handleGoBack}
+          handleGoForward={handleGoForward}
+          reloadWebView={reloadWebView}
+          isDesktopMode={isDesktopMode}
+          handleToggleDesktopMode={handleToggleDesktopMode}
+          showUrlInput={showUrlInput}
+          urlInput={urlInput}
+          setUrlInput={setUrlInput}
+          setShowUrlInput={setShowUrlInput}
+          navigateToUrl={navigateToUrl}
+          currentUrl={currentUrl}
+        />
       )}
 
       <YouTubePlayer
@@ -626,111 +330,5 @@ const HomeScreen = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  headerContainer: {
-    borderBottomWidth: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    height: 44,
-    gap: 8,
-  },
-  navButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  navBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  navBtnDisabled: {
-    opacity: 0.4,
-  },
-  modeToggleBtn: {
-    marginLeft: 2,
-  },
-  urlBar: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    height: 34,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    gap: 6,
-  },
-  urlInputContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    height: 34,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-  },
-  urlInputIcon: {
-    marginRight: 6,
-  },
-  urlInput: {
-    flex: 1,
-    height: 34,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  urlInputClose: {
-    padding: 4,
-    marginLeft: 4,
-  },
-  urlText: {
-    flex: 1,
-    fontSize: 13,
-  },
-  brandContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  logoContainer: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  brandText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-});
-
-const homeThemedStyles = createThemedStyles((colors, isDark) => ({
-  container: { backgroundColor: colors.background },
-  headerContainer: {
-    backgroundColor: colors.surface,
-    borderBottomColor: colors.border,
-  },
-  logoContainer: { backgroundColor: colors.primary },
-  urlBar: {
-    backgroundColor: isDark ? colors.surfaceLight : colors.surfaceElevated,
-  },
-  urlInputContainer: {
-    backgroundColor: isDark ? colors.surfaceLight : colors.surfaceElevated,
-  },
-  urlInput: { color: colors.text },
-  urlText: { color: colors.textSecondary },
-  brandText: { color: colors.primary },
-  modeToggleBtnActive: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: 8,
-  },
-}));
 
 export default HomeScreen;

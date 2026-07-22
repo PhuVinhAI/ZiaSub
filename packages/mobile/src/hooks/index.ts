@@ -9,3 +9,8 @@ export { useLanguage } from "./useLanguage";
 export { useThemedStyles, createThemedStyles } from "./useThemedStyles";
 export { useQueueVideoStatus } from "./useQueueVideoStatus";
 export type { QueueVideoStatus } from "./useQueueVideoStatus";
+export { useDesktopMode } from "./useDesktopMode";
+export { useHomeModals } from "./useHomeModals";
+export { useWebViewMessageHandler } from "./useWebViewMessageHandler";
+export { useQueueActions } from "./useQueueActions";
+export { useSubtitleStyleSync } from "./useSubtitleStyleSync";

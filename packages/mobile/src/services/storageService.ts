@@ -9,43 +9,24 @@ import type {
   ChatSession,
   VideoTranslations,
 } from "@src/types";
-import {
-  DEFAULT_APP_SETTINGS,
-  DEFAULT_CHAT_CONFIG_ID,
-  DEFAULT_PRESUB_CONFIG_ID,
-  DEFAULT_SYSTEM_PROMPT,
-} from "@constants/defaults";
+import { DEFAULT_APP_SETTINGS } from "@constants/defaults";
 import { logger } from "./loggerService";
-
-// Storage keys
-const KEYS = {
-  SETTINGS: "@ziasub_settings",
-  GEMINI_CONFIGS: "@ziasub_gemini_configs",
-  CHAT_SESSIONS: "@ziasub_chat_sessions",
-  ACTIVE_TRANSLATION_CONFIG: "@ziasub_active_translation_config",
-  ACTIVE_CHAT_CONFIG: "@ziasub_active_chat_config",
-  ACTIVE_CHAT_SESSION: "@ziasub_active_chat_session",
-  TRANSLATION_INDEX: "@ziasub_translation_index", // List of video IDs
-  TRANSLATION_PREFIX: "@ziasub_translation_", // + videoId
-  SRT_PREFIX: "@ziasub_srt_", // + videoId
-  ONBOARDING_COMPLETED: "@onboarding_completed",
-  BACKUP_PATH: "@ziasub_backup_path",
-  BACKUP_TYPE: "@ziasub_backup_type",
-  AUTO_BACKUP_ENABLED: "@ziasub_auto_backup",
-  LAST_BACKUP_TIME: "@ziasub_last_backup",
-};
+import { KEYS } from "./storageKeys";
+import { mergeWithDefaults, computeEnsuredConfigs } from "./storageDefaults";
+import {
+  exportAllData,
+  importAllData,
+  clearAllData,
+  type StorageCache,
+  type BackupContext,
+} from "./storageBackup";
 
 class StorageService {
   private static instance: StorageService;
   private initialized = false;
 
   // In-memory cache for frequently accessed data
-  private cache: {
-    settings: AppSettings | null;
-    geminiConfigs: GeminiConfig[] | null;
-    chatSessions: ChatSession[] | null;
-    translationIndex: Set<string>;
-  } = {
+  private cache: StorageCache = {
     settings: null,
     geminiConfigs: null,
     chatSessions: null,
@@ -59,6 +40,40 @@ class StorageService {
       StorageService.instance = new StorageService();
     }
     return StorageService.instance;
+  }
+
+  /**
+   * Build the context object bulk operations use to reach this instance's
+   * cache + per-domain methods (including private helpers).
+   */
+  private getBackupContext(): BackupContext {
+    return {
+      getCache: () => this.cache,
+      setCache: (cache) => {
+        this.cache = cache;
+      },
+      getSettings: () => this.getSettings(),
+      getGeminiConfigs: () => this.getGeminiConfigs(),
+      getChatSessions: () => this.getChatSessions(),
+      getTranslation: (videoId) => this.getTranslation(videoId),
+      getSrt: (videoId) => this.getSrt(videoId),
+      setSrt: (videoId, content) => this.setSrt(videoId, content),
+      getActiveTranslationConfigId: () => this.getActiveTranslationConfigId(),
+      setActiveTranslationConfigId: (id) =>
+        this.setActiveTranslationConfigId(id),
+      getActiveChatConfigId: () => this.getActiveChatConfigId(),
+      setActiveChatConfigId: (id) => this.setActiveChatConfigId(id),
+      getActiveChatSessionId: () => this.getActiveChatSessionId(),
+      setActiveChatSessionId: (id) => this.setActiveChatSessionId(id),
+      getBackupPath: () => this.getBackupPath(),
+      setBackupPath: (path) => this.setBackupPath(path),
+      getBackupType: () => this.getBackupType(),
+      setBackupType: (type) => this.setBackupType(type),
+      isAutoBackupEnabled: () => this.isAutoBackupEnabled(),
+      setAutoBackupEnabled: (enabled) => this.setAutoBackupEnabled(enabled),
+      saveTranslationIndex: () => this.saveTranslationIndex(),
+      ensureDefaultConfigs: () => this.ensureDefaultConfigs(),
+    };
   }
 
   /**
@@ -81,7 +96,7 @@ class StorageService {
       // Parse and merge with defaults
       if (settings) {
         const parsed = JSON.parse(settings);
-        this.cache.settings = this.mergeWithDefaults(parsed);
+        this.cache.settings = mergeWithDefaults(parsed);
       } else {
         this.cache.settings = { ...DEFAULT_APP_SETTINGS };
       }
@@ -127,85 +142,10 @@ class StorageService {
     await this.initialize();
   }
 
-  private mergeWithDefaults(settings: Partial<AppSettings>): AppSettings {
-    return {
-      subtitle: { ...DEFAULT_APP_SETTINGS.subtitle, ...settings.subtitle },
-      batch: { ...DEFAULT_APP_SETTINGS.batch, ...settings.batch },
-      apiKeys: { ...DEFAULT_APP_SETTINGS.apiKeys, ...settings.apiKeys },
-      tts: { ...DEFAULT_APP_SETTINGS.tts, ...settings.tts },
-      floatingUI: {
-        ...DEFAULT_APP_SETTINGS.floatingUI,
-        ...settings.floatingUI,
-      },
-      notification: {
-        ...DEFAULT_APP_SETTINGS.notification,
-        ...settings.notification,
-      },
-      debug: {
-        ...DEFAULT_APP_SETTINGS.debug,
-        ...settings.debug,
-      },
-    };
-  }
-
   private async ensureDefaultConfigs(): Promise<void> {
-    let needsSave = false;
-    let configs = this.cache.geminiConfigs || [];
-
-    // Ensure default chat config
-    const chatConfig = configs.find((c) => c.id === DEFAULT_CHAT_CONFIG_ID);
-    if (!chatConfig) {
-      configs = [
-        {
-          id: DEFAULT_CHAT_CONFIG_ID,
-          name: "Chat",
-          model: "models/gemini-flash-lite-latest",
-          temperature: 1.0,
-          systemPrompt: "",
-          mediaResolution: "MEDIA_RESOLUTION_HIGH",
-          thinkingLevel: "HIGH",
-        },
-        ...configs,
-      ];
-      needsSave = true;
-    }
-
-    // Ensure at least one translation config
-    if (
-      !configs.some(
-        (c) => c.id !== DEFAULT_CHAT_CONFIG_ID && c.id !== DEFAULT_PRESUB_CONFIG_ID
-      )
-    ) {
-      configs.push({
-        id: Date.now().toString(),
-        name: "Mặc định",
-        model: "models/gemini-flash-latest",
-        temperature: 0.7,
-        systemPrompt: DEFAULT_SYSTEM_PROMPT,
-        mediaResolution: "MEDIA_RESOLUTION_HIGH",
-        thinkingLevel: "HIGH",
-      });
-      needsSave = true;
-    }
-
-    // Migration for outdated configs on existing app storage
-    for (const c of configs) {
-      if (c.id === DEFAULT_CHAT_CONFIG_ID && c.model !== "models/gemini-flash-lite-latest") {
-        c.model = "models/gemini-flash-lite-latest";
-        needsSave = true;
-      }
-      if (c.name === "Mặc định" && c.model !== "models/gemini-flash-latest") {
-        c.model = "models/gemini-flash-latest";
-        needsSave = true;
-      }
-      if (
-        c.model === "models/gemini-3-flash-preview" ||
-        c.model === "models/gemini-2.5-pro"
-      ) {
-        c.model = "models/gemini-flash-latest";
-        needsSave = true;
-      }
-    }
+    const { configs, needsSave } = computeEnsuredConfigs(
+      this.cache.geminiConfigs
+    );
 
     if (needsSave) {
       this.cache.geminiConfigs = configs;
@@ -424,55 +364,8 @@ class StorageService {
   /**
    * Export all data for backup
    */
-  async exportAllData(): Promise<{
-    settings: AppSettings;
-    geminiConfigs: GeminiConfig[];
-    chatSessions: ChatSession[];
-    translations: Record<string, VideoTranslations>;
-    srtFiles: Record<string, string>;
-    activeTranslationConfigId: string | null;
-    activeChatConfigId: string | null;
-    activeChatSessionId: string | null;
-    translationQueue: any[];
-  }> {
-    const translations: Record<string, VideoTranslations> = {};
-    const srtFiles: Record<string, string> = {};
-
-    // Load all translations
-    for (const videoId of this.cache.translationIndex) {
-      const data = await this.getTranslation(videoId);
-      if (data) translations[videoId] = data;
-    }
-
-    // Load all SRT files (get all keys starting with SRT_PREFIX)
-    const allKeys = await AsyncStorage.getAllKeys();
-    const srtKeys = allKeys.filter((k) => k.startsWith(KEYS.SRT_PREFIX));
-    for (const key of srtKeys) {
-      const videoId = key.replace(KEYS.SRT_PREFIX, "");
-      const content = await this.getSrt(videoId);
-      if (content) srtFiles[videoId] = content;
-    }
-
-    // Load translation queue
-    let translationQueue: any[] = [];
-    try {
-      const queueData = await AsyncStorage.getItem("@translation_queue");
-      if (queueData) {
-        translationQueue = JSON.parse(queueData);
-      }
-    } catch {}
-
-    return {
-      settings: this.getSettings(),
-      geminiConfigs: this.getGeminiConfigs(),
-      chatSessions: this.getChatSessions(),
-      translations,
-      srtFiles,
-      activeTranslationConfigId: await this.getActiveTranslationConfigId(),
-      activeChatConfigId: await this.getActiveChatConfigId(),
-      activeChatSessionId: await this.getActiveChatSessionId(),
-      translationQueue,
-    };
+  async exportAllData() {
+    return exportAllData(this.getBackupContext());
   }
 
   /**
@@ -489,115 +382,14 @@ class StorageService {
     activeChatSessionId?: string | null;
     translationQueue?: any[];
   }): Promise<void> {
-    // Import settings
-    if (data.settings) {
-      const merged = this.mergeWithDefaults(data.settings);
-      this.cache.settings = merged;
-      await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(merged));
-    }
-
-    // Import configs
-    if (data.geminiConfigs) {
-      this.cache.geminiConfigs = data.geminiConfigs;
-      await AsyncStorage.setItem(
-        KEYS.GEMINI_CONFIGS,
-        JSON.stringify(data.geminiConfigs)
-      );
-    }
-
-    // Import chat sessions
-    if (data.chatSessions) {
-      this.cache.chatSessions = data.chatSessions;
-      await AsyncStorage.setItem(
-        KEYS.CHAT_SESSIONS,
-        JSON.stringify(data.chatSessions)
-      );
-    }
-
-    // Import translations
-    if (data.translations) {
-      for (const [videoId, translation] of Object.entries(data.translations)) {
-        await AsyncStorage.setItem(
-          KEYS.TRANSLATION_PREFIX + videoId,
-          JSON.stringify(translation)
-        );
-        this.cache.translationIndex.add(videoId);
-      }
-      await this.saveTranslationIndex();
-    }
-
-    // Import SRT files
-    if (data.srtFiles) {
-      for (const [videoId, content] of Object.entries(data.srtFiles)) {
-        await this.setSrt(videoId, content);
-      }
-    }
-
-    // Import active IDs
-    if (data.activeTranslationConfigId) {
-      await this.setActiveTranslationConfigId(data.activeTranslationConfigId);
-    }
-    if (data.activeChatConfigId) {
-      await this.setActiveChatConfigId(data.activeChatConfigId);
-    }
-    if (data.activeChatSessionId) {
-      await this.setActiveChatSessionId(data.activeChatSessionId);
-    }
-
-    // Import translation queue
-    if (data.translationQueue && data.translationQueue.length > 0) {
-      await AsyncStorage.setItem(
-        "@translation_queue",
-        JSON.stringify(data.translationQueue)
-      );
-    }
-
-    // Reinitialize queueManager to load new data
-    const { queueManager } = await import("./queueManager");
-    // Use reset() for atomic state cleanup instead of accessing private fields
-    await queueManager.reset();
-    // Clear initialized flag so initialize() will reload from AsyncStorage
-    (queueManager as any).initialized = false;
-    await queueManager.initialize();
+    return importAllData(this.getBackupContext(), data);
   }
 
   /**
    * Clear all app data (preserves backup configuration)
    */
   async clearAllData(): Promise<void> {
-    // Preserve backup configuration before clearing
-    const backupPath = await this.getBackupPath();
-    const backupType = await this.getBackupType();
-    const autoBackupEnabled = await this.isAutoBackupEnabled();
-
-    const allKeys = await AsyncStorage.getAllKeys();
-    // Include @ziasub_ keys and @translation_queue
-    const appKeys = allKeys.filter(
-      (k) => k.startsWith("@ziasub_") || k === "@translation_queue"
-    );
-    await AsyncStorage.multiRemove(appKeys);
-
-    // Reset cache
-    this.cache = {
-      settings: { ...DEFAULT_APP_SETTINGS },
-      geminiConfigs: [],
-      chatSessions: [],
-      translationIndex: new Set(),
-    };
-
-    // Re-ensure defaults
-    await this.ensureDefaultConfigs();
-
-    // Restore backup configuration
-    if (backupPath) {
-      await this.setBackupPath(backupPath);
-      await this.setBackupType(backupType);
-      await this.setAutoBackupEnabled(autoBackupEnabled);
-    }
-
-    // Reset queueManager in-memory state
-    const { queueManager } = await import("./queueManager");
-    await queueManager.reset();
+    return clearAllData(this.getBackupContext());
   }
 }
 

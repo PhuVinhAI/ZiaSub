@@ -10,18 +10,28 @@ import { translateVideoWithGemini } from "./geminiService";
 import { notificationService } from "./notificationService";
 import { backgroundService } from "./backgroundService";
 import { logger } from "./loggerService";
-
-type TranslationListener = (job: TranslationJob) => void;
+import {
+  TranslationJobStore,
+  createJobId,
+  type TranslationListener,
+} from "./translationJobStore";
 
 class TranslationManager {
   private static instance: TranslationManager;
-  private currentJob: TranslationJob | null = null;
-  private listeners: Set<TranslationListener> = new Set();
+  private store = new TranslationJobStore();
   private abortController: AbortController | null = null;
   private isAborted: boolean = false;
   private skipBackgroundControl: boolean = false; // true khi gọi từ queue
   private skipNotification: boolean = false; // true khi gọi từ queue
   private skipSavePartial: boolean = false; // true khi xoá bản dịch - không lưu partial
+
+  // Proxy current job through the store so all method bodies below are unchanged.
+  private get currentJob(): TranslationJob | null {
+    return this.store.currentJob;
+  }
+  private set currentJob(job: TranslationJob | null) {
+    this.store.currentJob = job;
+  }
 
   private constructor() {}
 
@@ -33,17 +43,11 @@ class TranslationManager {
   }
 
   subscribe(listener: TranslationListener): () => void {
-    this.listeners.add(listener);
-    if (this.currentJob) {
-      listener(this.currentJob);
-    }
-    return () => this.listeners.delete(listener);
+    return this.store.subscribe(listener);
   }
 
   private notify() {
-    if (this.currentJob) {
-      this.listeners.forEach((listener) => listener(this.currentJob!));
-    }
+    this.store.notify();
   }
 
   getCurrentJob(): TranslationJob | null {
@@ -106,7 +110,7 @@ class TranslationManager {
       await backgroundService.onTranslationStart(config.name);
     }
 
-    const jobId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    const jobId = createJobId();
     logger.info(
       "TranslationManager",
       `Starting translation job ${jobId} for: ${videoUrl}`,
@@ -524,7 +528,7 @@ class TranslationManager {
     // Start background service
     await backgroundService.onTranslationStart(config.name);
 
-    const jobId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    const jobId = createJobId();
     this.currentJob = {
       id: jobId,
       videoUrl,
