@@ -18,7 +18,12 @@ import type { EdgeInsets } from "react-native-safe-area-context";
 import type { ThemeColors } from "@src/contexts";
 import { styles, homeThemedStyles } from "./homeStyles";
 
-import { isAIStudioPage } from "@utils/videoUtils";
+import * as Clipboard from "expo-clipboard";
+import {
+  isAIStudioPage,
+  isVideoPage,
+  normalizeYouTubeUrl,
+} from "@utils/videoUtils";
 
 if (
   Platform.OS === "android" &&
@@ -90,13 +95,22 @@ export const HomeHeader = ({
     setUrlInput("");
   };
 
-  const handleToggleAIStudio = () => {
+  const handleToggleAIStudio = async () => {
     if (isAIStudio) {
       const targetUrl =
         lastYouTubeUrlRef.current ||
         (isDesktopMode ? "https://www.youtube.com" : "https://m.youtube.com");
       navigateToUrl(targetUrl);
     } else {
+      // If current page is a YouTube video page, auto copy URL to clipboard
+      if (currentUrl && isVideoPage(currentUrl)) {
+        try {
+          const cleanUrl = normalizeYouTubeUrl(currentUrl);
+          await Clipboard.setStringAsync(cleanUrl);
+        } catch {
+          // Ignore clipboard errors
+        }
+      }
       const targetUrl =
         lastAIStudioUrlRef.current ||
         "https://aistudio.google.com/prompts/new_chat";
