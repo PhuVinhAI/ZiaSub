@@ -24,6 +24,7 @@ import type { BatchSettings, BatchProgress, TranslationJob } from "@src/types";
 import { translationManager } from "@services/translationManager";
 import { queueManager } from "@services/queueManager";
 import { extractVideoId } from "@utils/videoUtils";
+import { useQueueVideoStatus } from "@hooks/useQueueVideoStatus";
 import { getActiveTranslationConfig } from "@utils/storage/geminiStorage";
 import { PRESET_PROMPTS } from "@constants/defaults";
 import { SrtTab } from "./SrtTab";
@@ -89,13 +90,13 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(
     null
   );
-  const [isWaitingInQueue, setIsWaitingInQueue] = useState(false);
-  const [isPausedInQueue, setIsPausedInQueue] = useState(false);
-  const [queuePosition, setQueuePosition] = useState<number | null>(null);
-  const [pausedProgress, setPausedProgress] = useState<{
-    completed: number;
-    total: number;
-  } | null>(null);
+  // Đề xuất E: Dùng hook chung thay vì duplicate checkQueueStatus logic
+  const {
+    isWaitingInQueue,
+    isPausedInQueue,
+    queuePosition,
+    pausedProgress,
+  } = useQueueVideoStatus(videoUrl);
 
   // Config info for SRT export
   const [activeConfigName, setActiveConfigName] = useState<string>("");
@@ -160,169 +161,7 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
     if (visible) loadConfigInfo();
   }, [visible, t]);
 
-  // Check queue status for current video
-  const checkQueueStatus = useCallback(() => {
-    if (!videoUrl) {
-      setIsWaitingInQueue(false);
-      setIsPausedInQueue(false);
-      setQueuePosition(null);
-      setPausedProgress(null);
-      return;
-    }
-
-    const queueStatus = queueManager.getVideoQueueStatus(videoUrl);
-
-    // Check if paused
-    if (queueStatus.inQueue && queueStatus.status === "paused") {
-      // Check if this is a batch retranslation paused - should NOT affect main UI
-      const queueItem = queueManager.isInQueue(videoUrl);
-      if (queueItem?.retranslateBatchIndex !== undefined) {
-        // Batch retranslation paused - don't show paused state in main UI
-        setIsPausedInQueue(false);
-        setIsWaitingInQueue(false);
-        setQueuePosition(null);
-        setPausedProgress(null);
-        return;
-      }
-
-      // Full translation paused - show paused state
-      setIsPausedInQueue(true);
-      setIsWaitingInQueue(false);
-      setQueuePosition(null);
-      // Get paused progress from queue item
-      if (queueItem && queueItem.completedBatches && queueItem.totalBatches) {
-        setPausedProgress({
-          completed: queueItem.completedBatches,
-          total: queueItem.totalBatches,
-        });
-      } else {
-        setPausedProgress(null);
-      }
-      return;
-    }
-
-    // Reset paused state
-    setIsPausedInQueue(false);
-    setPausedProgress(null);
-
-    if (queueStatus.inQueue && queueStatus.status === "translating") {
-      // Check if this is a batch retranslation - should NOT show as waiting
-      const queueItem = queueManager.isInQueue(videoUrl);
-      if (queueItem?.retranslateBatchIndex !== undefined) {
-        // Batch retranslation - don't show waiting state
-        setIsWaitingInQueue(false);
-        setQueuePosition(null);
-        return;
-      }
-
-      // Video is in translating queue - check if it's actually being translated
-      const currentJob = translationManager.getCurrentJob();
-      const currentVideoId = extractVideoId(videoUrl);
-      const jobVideoId = currentJob
-        ? extractVideoId(currentJob.videoUrl)
-        : null;
-
-      if (
-        currentJob &&
-        jobVideoId === currentVideoId &&
-        currentJob.status === "processing"
-      ) {
-        // This video is actively being translated
-        setIsWaitingInQueue(false);
-        setQueuePosition(null);
-      } else {
-        // This video is waiting in queue
-        setIsWaitingInQueue(true);
-        setQueuePosition(queueStatus.position || null);
-      }
-    } else {
-      setIsWaitingInQueue(false);
-      setQueuePosition(null);
-    }
-  }, [videoUrl]);
-
-  // Subscribe to queue changes
-  useEffect(() => {
-    const unsubscribe = queueManager.subscribe(() => {
-      // Re-check queue status when queue changes
-      if (!videoUrl) {
-        setIsWaitingInQueue(false);
-        setIsPausedInQueue(false);
-        setQueuePosition(null);
-        setPausedProgress(null);
-        return;
-      }
-
-      const queueStatus = queueManager.getVideoQueueStatus(videoUrl);
-
-      // Check if paused
-      if (queueStatus.inQueue && queueStatus.status === "paused") {
-        // Check if this is a batch retranslation paused - should NOT affect main UI
-        const queueItem = queueManager.isInQueue(videoUrl);
-        if (queueItem?.retranslateBatchIndex !== undefined) {
-          // Batch retranslation paused - don't show paused state in main UI
-          setIsPausedInQueue(false);
-          setIsWaitingInQueue(false);
-          setQueuePosition(null);
-          setPausedProgress(null);
-          return;
-        }
-
-        // Full translation paused - show paused state
-        setIsPausedInQueue(true);
-        setIsWaitingInQueue(false);
-        setQueuePosition(null);
-        if (queueItem && queueItem.completedBatches && queueItem.totalBatches) {
-          setPausedProgress({
-            completed: queueItem.completedBatches,
-            total: queueItem.totalBatches,
-          });
-        } else {
-          setPausedProgress(null);
-        }
-        return;
-      }
-
-      // Reset paused state if not paused
-      setIsPausedInQueue(false);
-      setPausedProgress(null);
-
-      if (queueStatus.inQueue && queueStatus.status === "translating") {
-        // Check if this is a batch retranslation - should NOT show as waiting
-        const queueItem = queueManager.isInQueue(videoUrl);
-        if (queueItem?.retranslateBatchIndex !== undefined) {
-          // Batch retranslation - don't show waiting state
-          setIsWaitingInQueue(false);
-          setQueuePosition(null);
-          return;
-        }
-
-        const currentJob = translationManager.getCurrentJob();
-        const currentVideoId = extractVideoId(videoUrl);
-        const jobVideoId = currentJob
-          ? extractVideoId(currentJob.videoUrl)
-          : null;
-
-        if (
-          currentJob &&
-          jobVideoId === currentVideoId &&
-          currentJob.status === "processing"
-        ) {
-          setIsWaitingInQueue(false);
-          setQueuePosition(null);
-        } else {
-          setIsWaitingInQueue(true);
-          setQueuePosition(queueStatus.position || null);
-        }
-      } else {
-        setIsWaitingInQueue(false);
-        setQueuePosition(null);
-      }
-    });
-    checkQueueStatus();
-    return () => unsubscribe();
-  }, [videoUrl]); // Only depend on videoUrl, not checkQueueStatus
-
+  // Đề xuất E: checkQueueStatus và queue subscribe useEffect đã được thay bằng useQueueVideoStatus hook ở trên
   // Handle cancel waiting/translating in queue - abort and remove from queue
   const handleCancelQueue = useCallback(async () => {
     if (videoUrl) {
@@ -335,9 +174,8 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
         // Remove from queue completely
         await queueManager.removeFromQueue(queueItem.id);
       }
-      setIsWaitingInQueue(false);
+      // Queue status sẽ tự cập nhật qua useQueueVideoStatus hook
       setIsTranslating(false);
-      setQueuePosition(null);
     }
   }, [videoUrl]);
 

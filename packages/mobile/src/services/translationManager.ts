@@ -517,6 +517,9 @@ class TranslationManager {
 
     this.abortController = new AbortController();
     this.isAborted = false;
+    this.skipBackgroundControl = false; // Reset — translateSingleBatch always manages its own background
+    this.skipNotification = false; // Reset — translateSingleBatch always sends its own notifications
+    this.skipSavePartial = false; // Reset flag for new translation
 
     // Start background service
     await backgroundService.onTranslationStart(config.name);

@@ -1,5 +1,8 @@
 /**
  * Hook for managing translation queue
+ *
+ * Đề xuất E: checkQueueStatus logic đã được gộp vào useQueueVideoStatus hook chung.
+ * Hook này giờ chỉ giữ logic translation-specific (isTranslating, progress, WebView sync).
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { queueManager } from "@services/queueManager";
@@ -9,6 +12,7 @@ import {
   getFullyTranslatedVideoUrls,
   getPartialOnlyVideoUrls,
 } from "@utils/storage";
+import { useQueueVideoStatus } from "./useQueueVideoStatus";
 import { WebView } from "react-native-webview";
 
 interface UseTranslationQueueOptions {
@@ -24,13 +28,6 @@ export const useTranslationQueue = ({
 }: UseTranslationQueueOptions) => {
   const [queueCount, setQueueCount] = useState(0);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [isWaitingInQueue, setIsWaitingInQueue] = useState(false);
-  const [isPausedInQueue, setIsPausedInQueue] = useState(false);
-  const [queuePosition, setQueuePosition] = useState<number | null>(null);
-  const [pausedProgress, setPausedProgress] = useState<{
-    completed: number;
-    total: number;
-  } | null>(null);
   const [translationProgress, setTranslationProgress] = useState<{
     completed: number;
     total: number;
@@ -39,95 +36,13 @@ export const useTranslationQueue = ({
   // Track the video URL that is currently being translated for THIS video
   const currentTranslatingUrlRef = useRef<string | null>(null);
 
-  // Check if current video is waiting in queue or paused
-  const checkQueueStatus = useCallback(() => {
-    if (!currentUrlRef.current) {
-      setIsWaitingInQueue(false);
-      setIsPausedInQueue(false);
-      setQueuePosition(null);
-      setPausedProgress(null);
-      return;
-    }
-
-    const queueStatus = queueManager.getVideoQueueStatus(currentUrlRef.current);
-
-    // Check if paused
-    if (queueStatus.inQueue && queueStatus.status === "paused") {
-      // Check if this is a batch retranslation paused - should NOT affect main UI
-      const queueItem = queueManager.isInQueue(currentUrlRef.current);
-      if (queueItem?.retranslateBatchIndex !== undefined) {
-        // Batch retranslation paused - don't show paused state in main UI
-        setIsPausedInQueue(false);
-        setIsWaitingInQueue(false);
-        setQueuePosition(null);
-        setPausedProgress(null);
-        return;
-      }
-
-      // Full translation paused - show paused state
-      setIsPausedInQueue(true);
-      setIsWaitingInQueue(false);
-      setQueuePosition(null);
-      // Get paused progress from queue item
-      if (queueItem && queueItem.completedBatches && queueItem.totalBatches) {
-        setPausedProgress({
-          completed: queueItem.completedBatches,
-          total: queueItem.totalBatches,
-        });
-      } else {
-        setPausedProgress(null);
-      }
-      return;
-    }
-
-    // Reset paused state
-    setIsPausedInQueue(false);
-    setPausedProgress(null);
-
-    if (queueStatus.inQueue && queueStatus.status === "translating") {
-      // Check if this is a batch retranslation - should NOT show as waiting
-      const queueItem = queueManager.isInQueue(currentUrlRef.current);
-      if (queueItem?.retranslateBatchIndex !== undefined) {
-        // Batch retranslation - don't show waiting state, let user do other things
-        setIsWaitingInQueue(false);
-        setQueuePosition(null);
-        return;
-      }
-
-      // Video is in translating queue - check if it's actually being translated
-      const currentJob = translationManager.getCurrentJob();
-      const currentVideoId = extractVideoId(currentUrlRef.current);
-      const jobVideoId = currentJob
-        ? extractVideoId(currentJob.videoUrl)
-        : null;
-
-      if (
-        currentJob &&
-        jobVideoId === currentVideoId &&
-        currentJob.status === "processing"
-      ) {
-        // This video is actively being translated (full translation)
-        // Check if it's batch retranslation - don't show waiting
-        if (
-          currentJob.rangeStart !== undefined &&
-          currentJob.rangeEnd !== undefined
-        ) {
-          setIsWaitingInQueue(false);
-          setQueuePosition(null);
-        } else {
-          setIsWaitingInQueue(false);
-          setQueuePosition(null);
-        }
-      } else {
-        // This video is waiting in queue
-        setIsWaitingInQueue(true);
-        setQueuePosition(queueStatus.position || null);
-      }
-    } else {
-      setIsWaitingInQueue(false);
-      setQueuePosition(null);
-    }
-  }, [currentUrlRef]);
+  // Đề xuất E: Dùng hook chung cho queue status thay vì duplicate checkQueueStatus
+  const {
+    isWaitingInQueue,
+    isPausedInQueue,
+    queuePosition,
+    pausedProgress,
+  } = useQueueVideoStatus(undefined, currentUrlRef);
 
   // Sync translated video IDs to WebView
   const syncTranslatedVideosToWebView = useCallback(async () => {
@@ -186,10 +101,9 @@ export const useTranslationQueue = ({
       const counts = queueManager.getCounts();
       setQueueCount(counts.pending + counts.translating);
       syncQueuedVideosToWebView();
-      checkQueueStatus();
     });
     return () => unsubscribe();
-  }, [syncQueuedVideosToWebView, checkQueueStatus]);
+  }, [syncQueuedVideosToWebView]);
 
   // Subscribe to translation manager for auto-apply
   useEffect(() => {
@@ -243,10 +157,9 @@ export const useTranslationQueue = ({
           currentTranslatingUrlRef.current = null;
         }
 
-        // Batch retranslation completed - just sync and check status
+        // Batch retranslation completed - just sync
         if (job.status === "completed" && isBatchRetranslation) {
           syncTranslatedVideosToWebView();
-          checkQueueStatus();
         }
 
         if (job.status === "error") {
@@ -255,16 +168,7 @@ export const useTranslationQueue = ({
             setTranslationProgress(null);
             currentTranslatingUrlRef.current = null;
           }
-          // Check if video was removed from queue (isBeingRemoved)
-          // If so, also reset waiting/paused states
-          if (queueManager.isBeingRemoved(job.videoUrl)) {
-            setIsWaitingInQueue(false);
-            setIsPausedInQueue(false);
-            setQueuePosition(null);
-            setPausedProgress(null);
-          } else {
-            checkQueueStatus();
-          }
+          // Queue status (waiting/paused) tự cập nhật qua useQueueVideoStatus hook
         }
       } else {
         // Different video is being translated - ensure current video shows correct state
@@ -276,7 +180,6 @@ export const useTranslationQueue = ({
           setIsTranslating(false);
           setTranslationProgress(null);
         }
-        checkQueueStatus();
       }
     });
     return () => unsubscribe();
@@ -284,7 +187,6 @@ export const useTranslationQueue = ({
     currentUrlRef,
     onTranslationComplete,
     syncTranslatedVideosToWebView,
-    checkQueueStatus,
   ]);
 
   // Reset state when URL changes
@@ -320,8 +222,8 @@ export const useTranslationQueue = ({
       setIsTranslating(false);
       setTranslationProgress(null);
     }
-    checkQueueStatus();
-  }, [currentUrlRef.current, checkQueueStatus]);
+    // Queue status tự cập nhật qua useQueueVideoStatus hook khi URL thay đổi
+  }, [currentUrlRef.current]);
 
   return {
     queueCount,

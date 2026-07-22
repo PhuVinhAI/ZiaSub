@@ -26,6 +26,8 @@ import { translationManager } from "@services/translationManager";
 import { parseTime, extractVideoId } from "@utils/videoUtils";
 import { parseSRT } from "@utils/srtParser";
 import { PRESET_PROMPTS, type PresetPromptType } from "@constants/defaults";
+// Tách từ file này sang file riêng — chỉ import, không sửa logic
+import { rebuildSrt } from "./translate/translateTabUtils";
 import Button3D from "../common/Button3D";
 import {
   SavedTranslationsList,
@@ -739,32 +741,6 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
       // Video was removed from queue - start fresh translation
       handleTranslate();
     }
-  };
-
-  // Helper to format SRT time
-  const formatSrtTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    const ms = Math.round((seconds % 1) * 1000);
-    return `${h.toString().padStart(2, "0")}:${m
-      .toString()
-      .padStart(2, "0")}:${s.toString().padStart(2, "0")},${ms
-      .toString()
-      .padStart(3, "0")}`;
-  };
-
-  // Helper to rebuild SRT from subtitles
-  const rebuildSrt = (
-    subtitles: Array<{ startTime: number; endTime: number; text: string }>
-  ) => {
-    let srt = "";
-    subtitles.forEach((sub, idx) => {
-      srt += `${idx + 1}\n${formatSrtTime(sub.startTime)} --> ${formatSrtTime(
-        sub.endTime
-      )}\n${sub.text}\n\n`;
-    });
-    return srt;
   };
 
   const handleRetranslateBatch = (

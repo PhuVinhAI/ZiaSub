@@ -15,12 +15,12 @@ import {
   getVideoTranslations,
 } from "@utils/storage";
 import { logger } from "./loggerService";
+// Tách từ file này sang file riêng — chỉ import, không sửa logic
+import { QUEUE_STORAGE_KEY, PAGE_SIZE, extractVideoId } from "./queueUtils";
+import { validateTransition } from "./queueTransitions";
 
 // Re-export types for backward compatibility
 export type { QueueItem, QueueStatus } from "@src/types";
-
-const QUEUE_STORAGE_KEY = "@translation_queue";
-const PAGE_SIZE = 10;
 
 type QueueListener = (items: QueueItem[]) => void;
 
@@ -28,16 +28,32 @@ class QueueManager {
   private static instance: QueueManager;
   private items: QueueItem[] = [];
   private listeners: Set<QueueListener> = new Set();
-  private isProcessing = false;
+  private isProcessing = false; // Kept for backward compat — managed via setProcessingState/clearProcessingState
   private initialized = false;
   private autoProcessEnabled = false; // Flag to track if auto-process is active
-  private userStoppedItemId: string | null = null; // Track item being stopped by user
+  private userStoppedItemIds: Set<string> = new Set(); // Track items being stopped by user (Set — supports multiple)
   private translationManagerUnsubscribe: (() => void) | null = null; // Track subscription
-  private currentProcessingItemId: string | null = null; // Track which item is being processed
+  private currentProcessingItemId: string | null = null; // Kept for backward compat — managed via setProcessingState/clearProcessingState
   private userPausedItems: Set<string> = new Set(); // Track items paused by user (won't auto-resume)
   private queueStartCompletedCount: number = 0; // Track completed count when queue started
   private directTranslationVideoUrl: string | null = null; // Track video being translated directly (not from queue)
-  private removingItemId: string | null = null; // Track item being removed (to skip subscription handling)
+  private removingItemIds: Set<string> = new Set(); // Track items being removed (Set — supports multiple)
+
+  // ============================================
+  // ATOMIC STATE HELPERS (Đề xuất A)
+  // ============================================
+
+  /** Atomically set processing state — ensures isProcessing and currentProcessingItemId never diverge */
+  private setProcessingState(itemId: string): void {
+    this.isProcessing = true;
+    this.currentProcessingItemId = itemId;
+  }
+
+  /** Atomically clear processing state — ensures isProcessing and currentProcessingItemId never diverge */
+  private clearProcessingState(): void {
+    this.isProcessing = false;
+    this.currentProcessingItemId = null;
+  }
 
   private constructor() {}
 
@@ -172,18 +188,9 @@ class QueueManager {
     return () => this.listeners.delete(listener);
   }
 
-  // Extract video ID from URL
+  // Extract video ID from URL — tách sang queueUtils.ts, delegate để giữ backward compat
   private extractVideoId(url: string): string {
-    const patterns = [
-      /youtu\.be\/([a-zA-Z0-9_-]+)/,
-      /[?&]v=([a-zA-Z0-9_-]+)/,
-      /\/shorts\/([a-zA-Z0-9_-]+)/,
-    ];
-    for (const p of patterns) {
-      const m = url.match(p);
-      if (m) return m[1];
-    }
-    return url;
+    return extractVideoId(url);
   }
 
   // Add video to queue - returns result with status info
@@ -247,9 +254,9 @@ class QueueManager {
     if (item.status === "translating" && !item.partialSrt && !isResume)
       return { success: false, reason: "already_translating" };
 
-    // Clear userStoppedItemId if it matches this item (user is starting/resuming after stopping)
-    if (this.userStoppedItemId === itemId) {
-      this.userStoppedItemId = null;
+    // Clear userStoppedItemIds if it matches this item (user is starting/resuming after stopping)
+    if (this.userStoppedItemIds.has(itemId)) {
+      this.userStoppedItemIds.delete(itemId);
     }
 
     // Get current config and batch settings to save (only if not already set)
@@ -312,9 +319,9 @@ class QueueManager {
     // Clear from user paused items since user is manually resuming
     this.userPausedItems.delete(itemId);
 
-    // Clear userStoppedItemId if it matches this item (user is resuming after stopping)
-    if (this.userStoppedItemId === itemId) {
-      this.userStoppedItemId = null;
+    // Clear userStoppedItemIds if it matches this item (user is resuming after stopping)
+    if (this.userStoppedItemIds.has(itemId)) {
+      this.userStoppedItemIds.delete(itemId);
     }
 
     // Check if has partial data to resume
@@ -355,7 +362,7 @@ class QueueManager {
     }
 
     // Check if this item was stopped by user - don't process it
-    if (this.userStoppedItemId === item.id) {
+    if (this.userStoppedItemIds.has(item.id)) {
       console.log("[QueueManager] Item was stopped by user, skipping");
       return;
     }
@@ -416,8 +423,7 @@ class QueueManager {
       streamingMode: true, // Always use streaming for queue to track partial results
     };
 
-    this.isProcessing = true;
-    this.currentProcessingItemId = item.id;
+    this.setProcessingState(item.id);
 
     // Start background service để giữ app chạy khi ở background
     await backgroundService.onTranslationStart(
@@ -523,7 +529,7 @@ class QueueManager {
 
         if (job.status === "completed") {
           // Check if this was a user-initiated stop - if so, don't mark as completed
-          if (this.userStoppedItemId === currentItemId) {
+          if (this.userStoppedItemIds.has(currentItemId)) {
             safeUnsubscribe();
             return;
           }
@@ -546,8 +552,7 @@ class QueueManager {
             // Clear time range mode (keep rangeStart/rangeEnd for display in completed items)
             // Note: We keep rangeStart/rangeEnd so completed items show what range was translated
           });
-          this.isProcessing = false;
-          this.currentProcessingItemId = null;
+          this.clearProcessingState();
           safeUnsubscribe();
 
           // Send notification when translation completes
@@ -587,22 +592,20 @@ class QueueManager {
         if (job.status === "error") {
           // Check if this item is being removed - if so, skip handling
           // abortAndRemove will handle processNextInQueue
-          if (this.removingItemId === currentItemId) {
-            this.isProcessing = false;
-            this.currentProcessingItemId = null;
+          if (this.removingItemIds.has(currentItemId)) {
+            this.clearProcessingState();
             safeUnsubscribe();
             return;
           }
 
           // Check if this was a user-initiated stop - if so, stopTranslation already handled it
-          const wasUserStopped = this.userStoppedItemId === currentItemId;
+          const wasUserStopped = this.userStoppedItemIds.has(currentItemId);
           // Check if user paused this item (e.g., batch retranslation pause)
           const wasUserPaused = this.userPausedItems.has(currentItemId);
           if (wasUserStopped || wasUserPaused) {
             // User stopped/paused - don't process error, just cleanup
             safeUnsubscribe();
-            this.isProcessing = false;
-            this.currentProcessingItemId = null;
+            this.clearProcessingState();
             return;
           }
 
@@ -648,8 +651,7 @@ class QueueManager {
               "queue"
             );
           }
-          this.isProcessing = false;
-          this.currentProcessingItemId = null;
+          this.clearProcessingState();
           safeUnsubscribe();
 
           // Only continue to next item if auto-process is enabled (user clicked "Translate All")
@@ -778,7 +780,40 @@ class QueueManager {
         );
       }
     } catch (e: any) {
-      // Error handled in subscription
+      // Đề xuất B: Đảm bảo reset state nếu subscription không fire (VD: startTranslation throw đồng bộ)
+      // Trước đây catch block rỗng → isProcessing stay true → queue bị kẹt vĩnh viễn
+      logger.error("QueueManager", `processItem error: ${e.message || e}`, e);
+      if (!hasUnsubscribed) {
+        // Subscription chưa fire — tự xử lý error ở đây
+        const errorItem = this.items.find((i) => i.id === currentItemId);
+        const videoTitle = errorItem?.title || "Video";
+        const hasPartial =
+          this.items.find((i) => i.id === currentItemId)?.partialSrt;
+        if (hasPartial) {
+          this.updateItem(currentItemId, {
+            status: "paused",
+            error: e.message || "Có lỗi xảy ra",
+            progress: undefined,
+          });
+        } else {
+          this.updateItem(currentItemId, {
+            status: "error",
+            error: e.message || "Có lỗi xảy ra",
+            progress: undefined,
+          });
+        }
+        notificationService.notifyTranslationError(
+          videoTitle,
+          e.message || undefined,
+          "queue"
+        );
+        this.clearProcessingState();
+        safeUnsubscribe();
+        if (this.autoProcessEnabled) {
+          this.processNextInQueue();
+        }
+      }
+      // Nếu subscription đã fire rồi, error đã được xử lý ở đó — không cần làm gì thêm
     }
   }
 
@@ -806,7 +841,7 @@ class QueueManager {
       .filter(
         (i) =>
           i.status === "translating" &&
-          i.id !== this.userStoppedItemId &&
+          !this.userStoppedItemIds.has(i.id) &&
           !this.userPausedItems.has(i.id)
       )
       .sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
@@ -828,14 +863,21 @@ class QueueManager {
     this.autoProcessEnabled = false;
   }
 
-  // Update item
+  // Update item — with transition validation (Đề xuất F)
   private async updateItem(
     itemId: string,
     updates: Partial<QueueItem>
   ): Promise<void> {
-    this.items = this.items.map((i) =>
-      i.id === itemId ? { ...i, ...updates } : i
-    );
+    this.items = this.items.map((i) => {
+      if (i.id === itemId) {
+        // Validate status transition if status is being changed
+        if (updates.status && updates.status !== i.status) {
+          validateTransition(itemId, i.status, updates.status);
+        }
+        return { ...i, ...updates };
+      }
+      return i;
+    });
     await this.save();
     this.notify();
   }
@@ -895,14 +937,13 @@ class QueueManager {
 
     // Set flag to indicate this item is being removed
     // This prevents subscription from handling the abort error
-    this.removingItemId = itemId;
+    this.removingItemIds.add(itemId);
 
     // If this video is currently being translated, abort it
     if (translationManager.isTranslatingUrl(item.videoUrl)) {
       const result = await translationManager.abortTranslation(item.videoUrl);
       if (result.aborted) {
-        this.isProcessing = false;
-        this.currentProcessingItemId = null;
+        this.clearProcessingState();
         await backgroundService.onTranslationStop();
       }
     }
@@ -916,8 +957,8 @@ class QueueManager {
 
     // Clear the removing flag after a delay (to ensure subscription has processed)
     setTimeout(() => {
-      if (this.removingItemId === itemId) {
-        this.removingItemId = null;
+      if (this.removingItemIds.has(itemId)) {
+        this.removingItemIds.delete(itemId);
       }
     }, 500);
   }
@@ -930,14 +971,13 @@ class QueueManager {
 
     // Set flag to indicate this item is being removed
     // This prevents subscription from handling the abort error
-    this.removingItemId = item.id;
+    this.removingItemIds.add(item.id);
 
     // If this video is currently being translated, abort it
     if (translationManager.isTranslatingUrl(item.videoUrl)) {
       const result = await translationManager.abortTranslation(item.videoUrl);
       if (result.aborted) {
-        this.isProcessing = false;
-        this.currentProcessingItemId = null;
+        this.clearProcessingState();
         await backgroundService.onTranslationStop();
       }
     }
@@ -951,8 +991,8 @@ class QueueManager {
 
     // Clear the removing flag after a delay (to ensure subscription has processed)
     setTimeout(() => {
-      if (this.removingItemId === item.id) {
-        this.removingItemId = null;
+      if (this.removingItemIds.has(item.id)) {
+        this.removingItemIds.delete(item.id);
       }
     }, 500);
   }
@@ -1212,9 +1252,9 @@ class QueueManager {
     // Clear from user paused items
     this.userPausedItems.delete(item.id);
 
-    // Clear userStoppedItemId if it matches this item
-    if (this.userStoppedItemId === item.id) {
-      this.userStoppedItemId = null;
+    // Clear userStoppedItemIds if it matches this item
+    if (this.userStoppedItemIds.has(item.id)) {
+      this.userStoppedItemIds.delete(item.id);
     }
 
     // Move back to translating status
@@ -1314,7 +1354,7 @@ class QueueManager {
     if (!item || item.status !== "translating") return;
 
     // Set flag to indicate user-initiated stop BEFORE any async operations
-    this.userStoppedItemId = itemId;
+    this.userStoppedItemIds.add(itemId);
 
     // Add to user paused items - this item won't auto-resume in processNextInQueue
     this.userPausedItems.add(itemId);
@@ -1332,8 +1372,7 @@ class QueueManager {
       const result = await translationManager.abortTranslation(item.videoUrl);
 
       // Always reset processing state after abort attempt
-      this.isProcessing = false;
-      this.currentProcessingItemId = null;
+      this.clearProcessingState();
 
       // Only stop background service if no more items to process in queue
       const remainingItems = this.items.filter(
@@ -1377,8 +1416,8 @@ class QueueManager {
       // Use setTimeout to ensure all callbacks have processed
       // Clear AFTER processNextInQueue delay (1500ms > 1000ms)
       setTimeout(() => {
-        if (this.userStoppedItemId === itemId) {
-          this.userStoppedItemId = null;
+        if (this.userStoppedItemIds.has(itemId)) {
+          this.userStoppedItemIds.delete(itemId);
         }
       }, 1500);
 
@@ -1400,8 +1439,8 @@ class QueueManager {
 
       // Clear the user stopped flag after a delay
       setTimeout(() => {
-        if (this.userStoppedItemId === itemId) {
-          this.userStoppedItemId = null;
+        if (this.userStoppedItemIds.has(itemId)) {
+          this.userStoppedItemIds.delete(itemId);
         }
       }, 1500);
     }
@@ -1414,15 +1453,14 @@ class QueueManager {
 
     // Set flag to indicate this item is being removed
     // This prevents subscription from handling the abort error
-    this.removingItemId = itemId;
+    this.removingItemIds.add(itemId);
     const wasAutoProcessEnabled = this.autoProcessEnabled;
 
     // If this video is currently being translated (by queue or direct), abort it
     if (translationManager.isTranslatingUrl(item.videoUrl)) {
       const result = await translationManager.abortTranslation(item.videoUrl);
       if (result.aborted) {
-        this.isProcessing = false;
-        this.currentProcessingItemId = null;
+        this.clearProcessingState();
         await backgroundService.onTranslationStop();
       }
     }
@@ -1437,8 +1475,8 @@ class QueueManager {
 
     // Clear the removing flag after a delay (to ensure subscription has processed)
     setTimeout(() => {
-      if (this.removingItemId === itemId) {
-        this.removingItemId = null;
+      if (this.removingItemIds.has(itemId)) {
+        this.removingItemIds.delete(itemId);
       }
     }, 500);
 
@@ -1475,10 +1513,10 @@ class QueueManager {
 
   // Check if a video is being removed from queue
   isBeingRemoved(videoUrl: string): boolean {
-    if (!this.removingItemId) return false;
+    if (this.removingItemIds.size === 0) return false;
     const videoId = this.extractVideoId(videoUrl);
     const item = this.items.find((i) => i.videoId === videoId);
-    return item?.id === this.removingItemId;
+    return item ? this.removingItemIds.has(item.id) : false;
   }
 
   // Get partial SRT for an item
@@ -1518,8 +1556,7 @@ class QueueManager {
         currentItem.videoUrl
       );
       if (result.aborted) {
-        this.isProcessing = false;
-        this.currentProcessingItemId = null;
+        this.clearProcessingState();
 
         // Stop background service
         await backgroundService.onTranslationStop();
@@ -1628,22 +1665,21 @@ class QueueManager {
 
     if (currentItem) {
       // Set removing flag
-      this.removingItemId = currentItem.id;
+      this.removingItemIds.add(currentItem.id);
 
       // Abort current translation
       const result = await translationManager.abortTranslation(
         currentItem.videoUrl
       );
       if (result.aborted) {
-        this.isProcessing = false;
-        this.currentProcessingItemId = null;
+        this.clearProcessingState();
         await backgroundService.onTranslationStop();
       }
 
       // Clear removing flag after delay
       setTimeout(() => {
-        if (this.removingItemId === currentItem.id) {
-          this.removingItemId = null;
+        if (this.removingItemIds.has(currentItem.id)) {
+          this.removingItemIds.delete(currentItem.id);
         }
       }, 500);
     }
@@ -1956,14 +1992,13 @@ class QueueManager {
   // Reset queue (called when clearing all app data)
   async reset(): Promise<void> {
     this.items = [];
-    this.isProcessing = false;
+    this.clearProcessingState(); // Atomic reset — ensures isProcessing + currentProcessingItemId stay in sync
     this.autoProcessEnabled = false;
-    this.userStoppedItemId = null;
-    this.currentProcessingItemId = null;
+    this.userStoppedItemIds.clear();
     this.userPausedItems.clear();
     this.queueStartCompletedCount = 0;
     this.directTranslationVideoUrl = null;
-    this.removingItemId = null;
+    this.removingItemIds.clear();
     await this.save();
     this.notify();
   }
