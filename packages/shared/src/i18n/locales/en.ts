@@ -97,6 +97,9 @@ export default {
     file: "File",
     start: "Start",
     stop: "Stop",
+    exitAppTitle: "Exit App",
+    exitAppMessage: "Are you sure you want to exit the application?",
+    exit: "Exit",
   },
 
   // Home Screen

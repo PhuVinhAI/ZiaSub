@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from "react";
-import { View, StatusBar } from "react-native";
-import { alert } from "@components/common/CustomAlert";
+import { View, StatusBar, BackHandler } from "react-native";
+import { alert, confirm } from "@components/common/CustomAlert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebViewNavigation } from "react-native-webview";
 import { useTranslation } from "react-i18next";
@@ -74,6 +74,7 @@ const HomeScreen = () => {
     webViewRef,
     currentUrlRef,
     currentUrl,
+    activeUrl,
     canGoBack,
     canGoForward,
     isVideoPlaying,
@@ -147,6 +148,83 @@ const HomeScreen = () => {
   useEffect(() => {
     loadSavedSRT(currentUrl);
   }, [currentUrl, loadSavedSRT]);
+
+  // Handle Android hardware back press
+  useEffect(() => {
+    const onBackPress = () => {
+      // 1. Close full screen mode first if active
+      if (isFullscreen) {
+        onFullScreenClose();
+        return true;
+      }
+      // 2. Close open modals first
+      if (settingsVisible) {
+        setSettingsVisible(false);
+        return true;
+      }
+      if (queueModalVisible) {
+        setQueueModalVisible(false);
+        return true;
+      }
+      if (chatModalVisible) {
+        setChatModalVisible(false);
+        return true;
+      }
+      if (faqModalVisible) {
+        setFaqModalVisible(false);
+        return true;
+      }
+      if (modalVisible) {
+        setModalVisible(false);
+        return true;
+      }
+      if (showUrlInput) {
+        setShowUrlInput(false);
+        return true;
+      }
+
+      // 3. Navigate back in WebView if history exists
+      if (canGoBack) {
+        handleGoBack();
+        return true;
+      }
+
+      // 4. Show exit confirmation dialog when no more back history
+      confirm(
+        t("common.exitAppTitle"),
+        t("common.exitAppMessage"),
+        () => BackHandler.exitApp(),
+        t("common.exit"),
+        t("common.cancel")
+      );
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress
+    );
+
+    return () => subscription.remove();
+  }, [
+    isFullscreen,
+    onFullScreenClose,
+    settingsVisible,
+    setSettingsVisible,
+    queueModalVisible,
+    setQueueModalVisible,
+    chatModalVisible,
+    setChatModalVisible,
+    faqModalVisible,
+    setFaqModalVisible,
+    modalVisible,
+    setModalVisible,
+    showUrlInput,
+    setShowUrlInput,
+    canGoBack,
+    handleGoBack,
+    t,
+  ]);
 
   // Queue status effects + actions
   const { handleAddToQueue, handleSelectVideoFromQueue } = useQueueActions({
@@ -244,6 +322,7 @@ const HomeScreen = () => {
       <FloatingButton
         isVideoPage={isVideoPlaying}
         isDesktopMode={isDesktopMode}
+        activeUrl={activeUrl}
         onPress={() => setModalVisible(true)}
         onSettingsPress={() => setSettingsVisible(true)}
         onQueuePress={() => setQueueModalVisible(true)}

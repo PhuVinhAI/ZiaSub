@@ -97,6 +97,9 @@ export default {
     file: "File",
     start: "Bắt đầu",
     stop: "Dừng",
+    exitAppTitle: "Thoát ứng dụng",
+    exitAppMessage: "Bạn có chắc chắn muốn thoát ứng dụng không?",
+    exit: "Thoát",
   },
 
   // Home Screen

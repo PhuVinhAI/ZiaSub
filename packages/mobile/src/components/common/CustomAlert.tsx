@@ -53,8 +53,8 @@ export const confirm = (
   cancelText = "Không"
 ) => {
   showAlert(title, message, [
-    { text: confirmText, onPress: onConfirm },
     { text: cancelText, style: "cancel" },
+    { text: confirmText, onPress: onConfirm },
   ]);
 };
 
@@ -69,8 +69,8 @@ export const confirmDestructive = (
     title,
     message,
     [
-      { text: confirmText, style: "destructive", onPress: onConfirm },
       { text: cancelText, style: "cancel" },
+      { text: confirmText, style: "destructive", onPress: onConfirm },
     ],
     "warning"
   );

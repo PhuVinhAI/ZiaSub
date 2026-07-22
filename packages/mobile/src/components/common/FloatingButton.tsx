@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View, Easing } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@src/contexts";
 import type { FloatingUISettings } from "@src/types";
+import { isGoogleLoginPage } from "@utils/videoUtils";
 
 interface FloatingButtonProps {
   onPress: () => void;
@@ -25,6 +26,7 @@ interface FloatingButtonProps {
   isChatLoading?: boolean;
   hasUpdate?: boolean;
   floatingUISettings?: FloatingUISettings;
+  activeUrl?: string;
 }
 
 const SHADOW_HEIGHT = 4;
@@ -447,7 +449,13 @@ const FloatingButton: React.FC<FloatingButtonProps> = (props) => {
     isChatLoading = false,
     hasUpdate = false,
     floatingUISettings,
+    activeUrl = "",
   } = props;
+
+  // Hide 4 floating UI buttons when on Google login pages
+  if (isGoogleLoginPage(activeUrl)) {
+    return null;
+  }
 
   // Default values if settings not provided
   const bottomOffset = floatingUISettings?.bottomOffset ?? 80;

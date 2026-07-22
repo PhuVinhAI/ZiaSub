@@ -13,6 +13,7 @@ export const useVideoPlayer = () => {
   const currentUrlRef = useRef<string>("");
 
   const [currentUrl, setCurrentUrl] = useState("");
+  const [activeUrl, setActiveUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
@@ -34,6 +35,7 @@ export const useVideoPlayer = () => {
       onVideoExit?: () => void,
       syncAllToWebView?: () => void
     ) => {
+      setActiveUrl(navState.url);
       setCanGoBack(navState.canGoBack);
       setCanGoForward(navState.canGoForward);
       const isWatchPage = isVideoPage(navState.url);
@@ -152,6 +154,7 @@ export const useVideoPlayer = () => {
     webViewRef,
     currentUrlRef,
     currentUrl,
+    activeUrl,
     canGoBack,
     canGoForward,
     isVideoPlaying,

@@ -88,6 +88,22 @@ export const isShortsUrl = (url: string): boolean => {
   return url.includes("/shorts/");
 };
 
+export const isGoogleLoginPage = (url: string): boolean => {
+  if (!url) return false;
+  try {
+    const lowerUrl = url.toLowerCase();
+    return (
+      lowerUrl.includes("accounts.google.") ||
+      lowerUrl.includes("accounts.youtube.com") ||
+      lowerUrl.includes("myaccount.google.com") ||
+      lowerUrl.includes("ssl.gstatic.com/accounts") ||
+      lowerUrl.includes("youtube.com/signin")
+    );
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Get the appropriate YouTube URL format for a video
  * Shorts videos use /shorts/ format, regular videos use /watch?v= format
@@ -101,3 +117,4 @@ export const getYouTubeUrl = (
   }
   return `https://m.youtube.com/watch?v=${videoId}`;
 };
+
