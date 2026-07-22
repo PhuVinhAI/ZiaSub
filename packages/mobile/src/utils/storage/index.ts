@@ -69,6 +69,15 @@ export {
   getActiveGeminiConfig,
 } from "./geminiStorage";
 
+// AI Studio System Instructions
+export {
+  getAIStudioSystemInstructions,
+  saveAIStudioSystemInstructions,
+  importSystemPromptsFromGeminiConfigs,
+  AISTUDIO_SYSTEM_INSTRUCTIONS_KEY,
+  type AIStudioSystemInstruction,
+} from "./systemInstructionStorage";
+
 // Chat
 export {
   getChatSessions,

@@ -42,6 +42,7 @@ import {
   FloatingUISection,
   NotificationSection,
   DebugSection,
+  AIStudioPromptsSection,
 } from "./sections";
 import Button3D from "@components/common/Button3D";
 
@@ -74,6 +75,7 @@ interface GeneralTabProps {
 type SettingGroup =
   | "appearance"
   | "apiKeys"
+  | "aiStudioPrompts"
   | "subtitle"
   | "batch"
   | "tts"
@@ -126,6 +128,12 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
       icon: "key-variant",
       labelKey: "settings.apiKeys.title",
       description: t("settings.groups.apiKeysDesc", { count: apiKeys.length }),
+    },
+    {
+      key: "aiStudioPrompts",
+      icon: "script-text-outline",
+      labelKey: "System Prompts (AI Studio)",
+      description: "Đồng bộ System Prompts vào Google AI Studio",
     },
     {
       key: "subtitle",
@@ -231,6 +239,12 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
               onApiKeysChange={onApiKeysChange}
               onNavigateToUrl={onNavigateToUrl}
             />
+          </View>
+        );
+      case "aiStudioPrompts":
+        return (
+          <View style={styles.groupContent}>
+            <AIStudioPromptsSection />
           </View>
         );
       case "subtitle":

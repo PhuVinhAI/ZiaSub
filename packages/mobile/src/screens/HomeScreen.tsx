@@ -20,6 +20,9 @@ import { useQueueActions } from "@hooks/useQueueActions";
 import { useSubtitleStyleSync } from "@hooks/useSubtitleStyleSync";
 import { useClipboardKeyDetector } from "@hooks/useClipboardKeyDetector";
 
+import { isAIStudioPage } from "@utils/videoUtils";
+import { getAIStudioSystemInstructions } from "@utils/storage";
+
 import { YouTubePlayer } from "@components/video";
 import { SubtitleInputModal } from "@components/subtitle";
 import { SettingsModal } from "@components/settings";
@@ -113,6 +116,26 @@ const HomeScreen = () => {
     updateApiKeys,
     activeUrl,
   });
+
+  // Auto-sync system prompts to Google AI Studio localStorage
+  useEffect(() => {
+    if (isAIStudioPage(activeUrl)) {
+      getAIStudioSystemInstructions().then((instructions) => {
+        if (webViewRef.current && instructions && instructions.length > 0) {
+          const js = `
+            try {
+              if (window.location.hostname.includes("aistudio.google.com")) {
+                var data = ${JSON.stringify(instructions)};
+                localStorage.setItem("aistudio_all_system_instructions", JSON.stringify(data));
+              }
+            } catch(e) {}
+            true;
+          `;
+          webViewRef.current.injectJavaScript(js);
+        }
+      });
+    }
+  }, [activeUrl, webViewRef]);
 
   // Subtitles hook
   const {
