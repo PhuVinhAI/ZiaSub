@@ -18,7 +18,7 @@ export const getAIStudioSystemInstructions = async (): Promise<
     const raw = await AsyncStorage.getItem(AISTUDIO_SYSTEM_INSTRUCTIONS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
@@ -26,20 +26,7 @@ export const getAIStudioSystemInstructions = async (): Promise<
     console.error("Error reading AI Studio System Instructions:", e);
   }
 
-  // Default initial prompts if empty
-  const defaultItems: AIStudioSystemInstruction[] = [
-    {
-      title: "Dịch thuật chuẩn",
-      text: "Bạn là một chuyên gia dịch thuật. Hãy dịch đoạn văn bản sau sang tiếng Việt một cách tự nhiên, chuẩn văn phong và giữ nguyên các mốc thời gian nếu có.",
-    },
-    {
-      title: "Tóm tắt nội dung",
-      text: "Hãy tóm tắt ngắn gọn các ý chính của bài nói/video sau theo dạng danh sách gạch đầu dòng dễ hiểu.",
-    },
-  ];
-
-  await saveAIStudioSystemInstructions(defaultItems);
-  return defaultItems;
+  return [];
 };
 
 /**
