@@ -1,41 +1,36 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  ScrollView,
-} from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import Button3D from "../../common/Button3D";
-import { alert, confirmDestructive } from "../../common/CustomAlert";
+import { alert, showAlert, confirmDestructive } from "../../common/CustomAlert";
 import {
   getAIStudioSystemInstructions,
   saveAIStudioSystemInstructions,
-  importSystemPromptsFromGeminiConfigs,
+  getGeminiConfigs,
   type AIStudioSystemInstruction,
 } from "@utils/storage";
 
 interface AIStudioPromptsSectionProps {
   onSyncToAIStudio?: (instructions: AIStudioSystemInstruction[]) => void;
+  onOpenPromptEditor?: (
+    prompt: AIStudioSystemInstruction | null,
+    index?: number
+  ) => void;
 }
 
 const AIStudioPromptsSection: React.FC<AIStudioPromptsSectionProps> = ({
   onSyncToAIStudio,
+  onOpenPromptEditor,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(promptsThemedStyles);
 
   const [instructions, setInstructions] = useState<AIStudioSystemInstruction[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newText, setNewText] = useState("");
 
   const loadInstructions = async () => {
     const data = await getAIStudioSystemInstructions();
@@ -54,39 +49,68 @@ const AIStudioPromptsSection: React.FC<AIStudioPromptsSectionProps> = ({
     }
   };
 
+  const askOverwrite = (title: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      showAlert(
+        "Phát hiện trùng tiêu đề",
+        `System Prompt "${title}" đã có sẵn trong danh sách. Bạn có muốn GHI ĐÈ bằng nội dung mới từ Cấu hình AI không?`,
+        [
+          { text: "Bỏ qua", style: "cancel", onPress: () => resolve(false) },
+          { text: "Ghi đè", onPress: () => resolve(true) },
+        ]
+      );
+    });
+  };
+
   const handleImportFromConfigs = async () => {
     try {
-      const imported = await importSystemPromptsFromGeminiConfigs();
-      setInstructions(imported);
-      if (onSyncToAIStudio) {
-        onSyncToAIStudio(imported);
+      const currentList = [...instructions];
+      const configs = await getGeminiConfigs();
+      let importedCount = 0;
+      let overwrittenCount = 0;
+
+      for (const config of configs) {
+        if (!config.systemPrompt || !config.systemPrompt.trim()) continue;
+
+        const titleName = config.name || "Cấu hình AI";
+        const promptText = config.systemPrompt.trim();
+        const existingIndex = currentList.findIndex(
+          (item) => item.title.trim().toLowerCase() === titleName.trim().toLowerCase()
+        );
+
+        if (existingIndex !== -1) {
+          // If title matches, prompt user whether to overwrite
+          const shouldOverwrite = await askOverwrite(titleName);
+          if (shouldOverwrite) {
+            currentList[existingIndex] = {
+              title: titleName,
+              text: promptText,
+            };
+            overwrittenCount++;
+          }
+        } else {
+          // New title, add directly
+          currentList.push({
+            title: titleName,
+            text: promptText,
+          });
+          importedCount++;
+        }
       }
-      alert(
-        "Thành công",
-        `Đã nhập thành công các System Prompt từ Cấu hình AI! (Tổng số: ${imported.length})`
-      );
+
+      await handleSaveAndSync(currentList);
+
+      if (importedCount > 0 || overwrittenCount > 0) {
+        alert(
+          "Thành công",
+          `Đã cập nhật System Prompt từ Cấu hình AI!\n(Thêm mới: ${importedCount}, Ghi đè: ${overwrittenCount})`
+        );
+      } else {
+        alert("Thông báo", "Không có Cấu hình AI mới nào được nhập.");
+      }
     } catch {
       alert("Lỗi", "Không thể nhập System Prompt từ Cấu hình AI.");
     }
-  };
-
-  const handleAddPrompt = async () => {
-    if (!newTitle.trim() || !newText.trim()) {
-      alert("Thông báo", "Vui lòng nhập đầy đủ Tiêu đề và Nội dung System Prompt.");
-      return;
-    }
-
-    const newItem: AIStudioSystemInstruction = {
-      title: newTitle.trim(),
-      text: newText.trim(),
-    };
-
-    const updated = [...instructions, newItem];
-    await handleSaveAndSync(updated);
-    setNewTitle("");
-    setNewText("");
-    setShowAddModal(false);
-    alert("Thành công", "Đã thêm System Prompt mới!");
   };
 
   const handleDeletePrompt = (index: number) => {
@@ -115,7 +139,12 @@ const AIStudioPromptsSection: React.FC<AIStudioPromptsSectionProps> = ({
           <Text style={themedStyles.emptyText}>Chưa có System Prompt nào.</Text>
         ) : (
           instructions.map((item, index) => (
-            <View key={index} style={themedStyles.promptCard}>
+            <TouchableOpacity
+              key={index}
+              style={themedStyles.promptCard}
+              onPress={() => onOpenPromptEditor?.(item, index)}
+              activeOpacity={0.7}
+            >
               <View style={styles.cardHeader}>
                 <View style={styles.cardTitleRow}>
                   <MaterialCommunityIcons
@@ -125,21 +154,34 @@ const AIStudioPromptsSection: React.FC<AIStudioPromptsSectionProps> = ({
                   />
                   <Text style={themedStyles.cardTitle}>{item.title}</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => handleDeletePrompt(index)}
-                  style={styles.deleteBtn}
-                >
-                  <MaterialCommunityIcons
-                    name="delete-outline"
-                    size={18}
-                    color={colors.error}
-                  />
-                </TouchableOpacity>
+
+                <View style={styles.actionIconRow}>
+                  <TouchableOpacity
+                    onPress={() => onOpenPromptEditor?.(item, index)}
+                    style={styles.actionIconBtn}
+                  >
+                    <MaterialCommunityIcons
+                      name="pencil-outline"
+                      size={18}
+                      color={colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeletePrompt(index)}
+                    style={styles.actionIconBtn}
+                  >
+                    <MaterialCommunityIcons
+                      name="delete-outline"
+                      size={18}
+                      color={colors.error}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               <Text style={themedStyles.cardText} numberOfLines={3}>
                 {item.text}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))
         )}
 
@@ -148,7 +190,7 @@ const AIStudioPromptsSection: React.FC<AIStudioPromptsSectionProps> = ({
             icon="plus"
             title="Thêm mới"
             variant="primary"
-            onPress={() => setShowAddModal(true)}
+            onPress={() => onOpenPromptEditor?.(null, -1)}
             style={styles.actionBtn}
           />
           <Button3D
@@ -160,56 +202,6 @@ const AIStudioPromptsSection: React.FC<AIStudioPromptsSectionProps> = ({
           />
         </View>
       </View>
-
-      {/* Modal Thêm System Prompt */}
-      <Modal
-        visible={showAddModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, themedStyles.modalCard]}>
-            <Text style={[styles.modalTitle, themedStyles.modalTitle]}>
-              Thêm System Prompt mới
-            </Text>
-
-            <TextInput
-              style={[styles.input, themedStyles.input]}
-              placeholder="Tiêu đề (VD: Dịch thuật chuẩn)"
-              placeholderTextColor={colors.textMuted}
-              value={newTitle}
-              onChangeText={setNewTitle}
-            />
-
-            <TextInput
-              style={[styles.input, styles.textArea, themedStyles.input]}
-              placeholder="Nội dung System Prompt..."
-              placeholderTextColor={colors.textMuted}
-              value={newText}
-              onChangeText={setNewText}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-
-            <View style={styles.modalButtonRow}>
-              <Button3D
-                title="Hủy"
-                variant="outline"
-                onPress={() => setShowAddModal(false)}
-                style={styles.actionBtn}
-              />
-              <Button3D
-                title="Lưu"
-                variant="primary"
-                onPress={handleAddPrompt}
-                style={styles.actionBtn}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 };
@@ -230,7 +222,12 @@ const styles = StyleSheet.create({
     gap: 6,
     flex: 1,
   },
-  deleteBtn: {
+  actionIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  actionIconBtn: {
     padding: 4,
   },
   actionRow: {
@@ -240,41 +237,6 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     width: "100%",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: 16,
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  input: {
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  textArea: {
-    minHeight: 100,
-  },
-  modalButtonRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
   },
 });
 
@@ -319,19 +281,6 @@ const promptsThemedStyles = createThemedStyles((colors) => ({
     fontSize: 12,
     color: colors.textSecondary,
     lineHeight: 17,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalTitle: {
-    color: colors.text,
-  },
-  input: {
-    backgroundColor: colors.surfaceLight,
-    borderColor: colors.border,
-    color: colors.text,
   },
 }));
 

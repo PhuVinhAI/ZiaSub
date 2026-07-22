@@ -54,6 +54,8 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+import { AIStudioSystemInstruction } from "@utils/storage";
+
 interface GeneralTabProps {
   subtitleSettings: SubtitleSettings;
   onSubtitleChange: (settings: SubtitleSettings) => void;
@@ -70,6 +72,10 @@ interface GeneralTabProps {
   debugSettings?: DebugSettings;
   onDebugChange?: (settings: DebugSettings) => void;
   onNavigateToUrl?: (url: string) => void;
+  onOpenPromptEditor?: (
+    prompt: AIStudioSystemInstruction | null,
+    index?: number
+  ) => void;
 }
 
 type SettingGroup =
@@ -109,6 +115,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
   debugSettings = { enabled: false },
   onDebugChange,
   onNavigateToUrl,
+  onOpenPromptEditor,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -244,7 +251,9 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
       case "aiStudioPrompts":
         return (
           <View style={styles.groupContent}>
-            <AIStudioPromptsSection />
+            <AIStudioPromptsSection
+              onOpenPromptEditor={onOpenPromptEditor}
+            />
           </View>
         );
       case "subtitle":
