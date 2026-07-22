@@ -49,12 +49,14 @@ export const saveGeminiConfigs = async (
 
 export const getGeminiConfigs = async (): Promise<GeminiConfig[]> => {
   let configs = storageService.getGeminiConfigs();
+  let needsSave = false;
 
   // Ensure default chat config exists
   const hasChatConfig = configs.some((c) => c.id === DEFAULT_CHAT_CONFIG_ID);
   if (!hasChatConfig) {
     const chatConfig = createDefaultChatConfig();
     configs = [chatConfig, ...configs];
+    needsSave = true;
   }
 
   // Ensure default presub config exists
@@ -64,6 +66,7 @@ export const getGeminiConfigs = async (): Promise<GeminiConfig[]> => {
   if (!hasPresubConfig) {
     const presubConfig = createDefaultPresubConfig();
     configs = [...configs, presubConfig];
+    needsSave = true;
   }
 
   // Ensure at least one translation config exists (not chat or presub)
@@ -73,10 +76,33 @@ export const getGeminiConfigs = async (): Promise<GeminiConfig[]> => {
   if (!hasTranslationConfig) {
     const defaultConfig = createDefaultGeminiConfig();
     configs = [...configs, defaultConfig];
+    needsSave = true;
   }
 
-  // Save if any configs were added
-  if (!hasChatConfig || !hasPresubConfig || !hasTranslationConfig) {
+  // Auto-migrate existing saved configs to user's desired default models
+  for (const config of configs) {
+    // Chat config -> models/gemini-flash-lite-latest (dùng flash-lite vì flash-latest bị lỗi ở Chat)
+    if (config.id === DEFAULT_CHAT_CONFIG_ID && config.model !== "models/gemini-flash-lite-latest") {
+      config.model = "models/gemini-flash-lite-latest";
+      needsSave = true;
+    }
+    // "Mặc định" translation config -> models/gemini-flash-latest
+    if (config.name === "Mặc định" && config.model !== "models/gemini-flash-latest") {
+      config.model = "models/gemini-flash-latest";
+      needsSave = true;
+    }
+    // Any outdated models -> models/gemini-flash-latest
+    if (
+      config.model === "models/gemini-3-flash-preview" ||
+      config.model === "models/gemini-2.5-pro"
+    ) {
+      config.model = "models/gemini-flash-latest";
+      needsSave = true;
+    }
+  }
+
+  // Save if any configs were added or migrated
+  if (needsSave) {
     await storageService.setGeminiConfigs(configs);
   }
 

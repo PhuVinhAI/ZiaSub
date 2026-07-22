@@ -12,6 +12,7 @@ import type {
 import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_CHAT_CONFIG_ID,
+  DEFAULT_PRESUB_CONFIG_ID,
   DEFAULT_SYSTEM_PROMPT,
 } from "@constants/defaults";
 import { logger } from "./loggerService";
@@ -152,14 +153,17 @@ class StorageService {
     let configs = this.cache.geminiConfigs || [];
 
     // Ensure default chat config
-    if (!configs.some((c) => c.id === DEFAULT_CHAT_CONFIG_ID)) {
+    const chatConfig = configs.find((c) => c.id === DEFAULT_CHAT_CONFIG_ID);
+    if (!chatConfig) {
       configs = [
         {
           id: DEFAULT_CHAT_CONFIG_ID,
           name: "Chat",
-          model: "models/gemini-flash-latest",
+          model: "models/gemini-flash-lite-latest",
           temperature: 1.0,
           systemPrompt: "",
+          mediaResolution: "MEDIA_RESOLUTION_HIGH",
+          thinkingLevel: "HIGH",
         },
         ...configs,
       ];
@@ -167,15 +171,40 @@ class StorageService {
     }
 
     // Ensure at least one translation config
-    if (!configs.some((c) => c.id !== DEFAULT_CHAT_CONFIG_ID)) {
+    if (
+      !configs.some(
+        (c) => c.id !== DEFAULT_CHAT_CONFIG_ID && c.id !== DEFAULT_PRESUB_CONFIG_ID
+      )
+    ) {
       configs.push({
         id: Date.now().toString(),
         name: "Mặc định",
-        model: "models/gemini-3-flash-preview",
+        model: "models/gemini-flash-latest",
         temperature: 0.7,
         systemPrompt: DEFAULT_SYSTEM_PROMPT,
+        mediaResolution: "MEDIA_RESOLUTION_HIGH",
+        thinkingLevel: "HIGH",
       });
       needsSave = true;
+    }
+
+    // Migration for outdated configs on existing app storage
+    for (const c of configs) {
+      if (c.id === DEFAULT_CHAT_CONFIG_ID && c.model !== "models/gemini-flash-lite-latest") {
+        c.model = "models/gemini-flash-lite-latest";
+        needsSave = true;
+      }
+      if (c.name === "Mặc định" && c.model !== "models/gemini-flash-latest") {
+        c.model = "models/gemini-flash-latest";
+        needsSave = true;
+      }
+      if (
+        c.model === "models/gemini-3-flash-preview" ||
+        c.model === "models/gemini-2.5-pro"
+      ) {
+        c.model = "models/gemini-flash-latest";
+        needsSave = true;
+      }
     }
 
     if (needsSave) {
