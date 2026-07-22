@@ -2,6 +2,7 @@
  * Translation Storage - Gemini translations persistence using AsyncStorage
  */
 import { storageService } from "@services/storageService";
+import { logger } from "@services/loggerService";
 import type {
   SavedTranslation,
   VideoTranslations,
@@ -120,6 +121,7 @@ export const saveTranslation = async (
   data.activeTranslationId = newTranslation.id;
 
   await storageService.setTranslation(videoId, data);
+  logger.info("TranslationStorage", `Saved completed translation for videoId: ${videoId} (ID: ${newTranslation.id}, chars: ${srtContent.length})`);
   return newTranslation;
 };
 

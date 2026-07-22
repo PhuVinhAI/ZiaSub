@@ -18,6 +18,7 @@ import {
   deleteTranslation,
 } from "@utils/storage";
 import { translationManager } from "@services/translationManager";
+import { logger } from "@services/loggerService";
 import { parseTime } from "@utils/videoUtils";
 import { parseSRT } from "@utils/srtParser";
 import { type PresetPromptType } from "@constants/defaults";
@@ -383,6 +384,13 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
         }
       }
 
+      logger.info("TranslateTab UI", `User triggered handleTranslate for ${videoUrl}`, {
+        config: effectiveConfig.name,
+        rangeStart,
+        rangeEnd,
+        retranslateBatchIndex,
+      });
+
       translationManager
         .startTranslation(
           videoUrl,
@@ -395,11 +403,10 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
           presubConfig
         )
         .catch((error: any) => {
-          // Error is handled by translationManager and queueManager subscribers
-          // Just log here for debugging
-          console.log("[TranslateTab] Translation error:", error.message);
+          logger.error("TranslateTab UI", `Translation start error for ${videoUrl}: ${error.message}`, error);
         });
     } catch (error: any) {
+      logger.error("TranslateTab UI", `Failed to initiate translation for ${videoUrl}`, error);
       alert(
         t("subtitleModal.translate.error"),
         error.message || t("errors.generic")

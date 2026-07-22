@@ -425,6 +425,17 @@ class QueueManager {
       streamingMode: true, // Always use streaming for queue to track partial results
     };
 
+    logger.info(
+      "QueueManager",
+      `Starting translation process for queue item ${item.id} (${item.title})`,
+      {
+        videoUrl: item.videoUrl,
+        config: effectiveConfig.name,
+        shouldResume,
+        savedBatches: item.completedBatches || 0,
+      }
+    );
+
     this.setProcessingState(item.id);
 
     // Start background service để giữ app chạy khi ở background
@@ -1017,6 +1028,11 @@ class QueueManager {
       .filter((i) => i.status === "pending" || i.status === "error")
       .sort((a, b) => a.addedAt - b.addedAt);
 
+    logger.info(
+      "QueueManager",
+      `startAutoProcess requested. Total pending/error items to process: ${pendingItems.length}`
+    );
+
     if (pendingItems.length === 0) return { success: true };
 
     // Get current active config and batch settings to save for all items
@@ -1281,6 +1297,8 @@ class QueueManager {
   async stopTranslation(itemId: string): Promise<void> {
     const item = this.items.find((i) => i.id === itemId);
     if (!item || item.status !== "translating") return;
+
+    logger.warn("QueueManager", `stopTranslation requested for item ${itemId} (${item.title})`);
 
     // Set flag to indicate user-initiated stop BEFORE any async operations
     this.userStoppedItemIds.add(itemId);

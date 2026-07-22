@@ -4,6 +4,7 @@
  */
 import BackgroundService from "react-native-background-actions";
 import { Platform, AppState, AppStateStatus } from "react-native";
+import { logger } from "./loggerService";
 
 // Flag để track trạng thái
 let translationInProgress = false;
@@ -91,6 +92,7 @@ class BackgroundServiceManager {
   async onTranslationStart(videoTitle?: string): Promise<void> {
     translationInProgress = true;
     this.currentVideoTitle = videoTitle || "Video";
+    logger.info("BackgroundService", `onTranslationStart triggered for: ${this.currentVideoTitle}`);
 
     if (Platform.OS !== "android") return;
 
