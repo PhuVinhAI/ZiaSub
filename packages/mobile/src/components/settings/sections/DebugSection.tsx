@@ -279,8 +279,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     marginTop: 16,
-    marginBottom: 16,
-    alignItems: "flex-start",
+    alignItems: "stretch",
   },
   modalContainer: {
     flex: 1,
