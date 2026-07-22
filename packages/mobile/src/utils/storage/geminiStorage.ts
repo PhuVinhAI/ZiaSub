@@ -11,7 +11,7 @@ import {
 export const createDefaultGeminiConfig = (): GeminiConfig => ({
   id: Date.now().toString(),
   name: "Mặc định",
-  model: "models/gemini-3-flash-preview",
+  model: "models/gemini-flash-latest",
   temperature: 0.7,
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   mediaResolution: "MEDIA_RESOLUTION_HIGH",
@@ -21,11 +21,11 @@ export const createDefaultGeminiConfig = (): GeminiConfig => ({
 export const createDefaultChatConfig = (): GeminiConfig => ({
   id: DEFAULT_CHAT_CONFIG_ID,
   name: "Chat",
-  model: "models/gemini-flash-latest",
+  model: "models/gemini-flash-lite-latest",
   temperature: 1.0,
   systemPrompt: "",
-  mediaResolution: "MEDIA_RESOLUTION_MEDIUM",
-  thinkingBudget: 24576,
+  mediaResolution: "MEDIA_RESOLUTION_HIGH",
+  thinkingLevel: "HIGH",
 });
 
 // Default presub config ID
@@ -34,11 +34,11 @@ export const DEFAULT_PRESUB_CONFIG_ID = "default-presub-config";
 export const createDefaultPresubConfig = (): GeminiConfig => ({
   id: DEFAULT_PRESUB_CONFIG_ID,
   name: "Xem nhanh",
-  model: "models/gemini-3-flash-preview",
+  model: "models/gemini-flash-lite-latest",
   temperature: 0.7,
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
-  mediaResolution: "MEDIA_RESOLUTION_MEDIUM",
-  thinkingLevel: "MEDIUM",
+  mediaResolution: "MEDIA_RESOLUTION_HIGH",
+  thinkingLevel: "HIGH",
 });
 
 export const saveGeminiConfigs = async (

@@ -154,7 +154,10 @@ const AppContent = () => {
       background: colors.background,
       surface: colors.surface,
       onSurface: colors.text,
+      onSurfaceVariant: colors.textSecondary,
       surfaceVariant: colors.surfaceLight,
+      outline: colors.border,
+      outlineVariant: colors.borderLight,
     },
   };
 

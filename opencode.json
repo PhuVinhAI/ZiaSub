@@ -1,7 +1,0 @@
-{
-  "$schema": "https://kilo.ai/config.json",
-  "permission": "allow",
-"instructions": [
-    "./.master-context/apply.md"
-  ]
-}

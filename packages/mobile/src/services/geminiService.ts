@@ -105,14 +105,16 @@ const runWithConcurrency = async <T>(
 };
 
 // Model IDs for reference
+const MODEL_GEMINI_3_6_FLASH = "models/gemini-3.6-flash";
+const MODEL_GEMINI_3_5_FLASH = "models/gemini-3.5-flash";
+const MODEL_GEMINI_3_5_FLASH_LITE = "models/gemini-3.5-flash-lite";
 const MODEL_GEMINI_3_FLASH = "models/gemini-3-flash-preview";
 const MODEL_GEMINI_3_1_PRO = "models/gemini-3.1-pro-preview";
-const MODEL_GEMINI_3_1_FLASH_LITE = "models/gemini-3.1-flash-lite-preview";
-const MODEL_GEMINI_25_PRO = "models/gemini-2.5-pro";
+const MODEL_GEMINI_3_1_FLASH_LITE = "models/gemini-3.1-flash-lite";
 const MODEL_GEMINI_FLASH = "models/gemini-flash-latest";
 const MODEL_GEMINI_FLASH_LITE = "models/gemini-flash-lite-latest";
 
-// Map config string to ThinkingLevel enum (for Gemini 3 Flash Preview)
+// Map config string to ThinkingLevel enum
 const getThinkingLevel = (level?: string): ThinkingLevel => {
   switch (level) {
     case "MINIMAL":
@@ -130,14 +132,8 @@ const getThinkingLevel = (level?: string): ThinkingLevel => {
 // Get thinking config based on model type
 const getThinkingConfig = (
   model: string,
-  thinkingLevel?: string,
-  thinkingBudget?: number
-): { thinkingLevel?: ThinkingLevel; thinkingBudget?: number } | undefined => {
-  // Gemini 3 Flash Preview - uses ThinkingLevel (MINIMAL, LOW, MEDIUM, HIGH)
-  if (model === MODEL_GEMINI_3_FLASH || model === MODEL_GEMINI_3_1_FLASH_LITE) {
-    return { thinkingLevel: getThinkingLevel(thinkingLevel) };
-  }
-
+  thinkingLevel?: string
+): { thinkingLevel?: ThinkingLevel } | undefined => {
   // Gemini 3.1 Pro Preview - only LOW and HIGH
   if (model === MODEL_GEMINI_3_1_PRO) {
     const level =
@@ -145,34 +141,13 @@ const getThinkingConfig = (
     return { thinkingLevel: level };
   }
 
-  // Gemini 2.5 Pro - uses thinkingBudget (128-32768)
-  if (model === MODEL_GEMINI_25_PRO) {
-    const budget = Math.max(128, Math.min(32768, thinkingBudget ?? 32768));
-    return { thinkingBudget: budget };
-  }
-
-  // Gemini Flash Latest - uses thinkingBudget (0-24576)
-  if (model === MODEL_GEMINI_FLASH) {
-    const budget = Math.max(0, Math.min(24576, thinkingBudget ?? 24576));
-    return { thinkingBudget: budget };
-  }
-
-  // Gemini Flash Lite Latest - uses thinkingBudget (0-24576), NO mediaResolution
-  if (model === MODEL_GEMINI_FLASH_LITE) {
-    const budget = Math.max(0, Math.min(24576, thinkingBudget ?? 24576));
-    return { thinkingBudget: budget };
-  }
-
-  // Default fallback - use ThinkingLevel
+  // All other supported models use full ThinkingLevel (MINIMAL, LOW, MEDIUM, HIGH)
   return { thinkingLevel: getThinkingLevel(thinkingLevel) };
 };
 
 // Check if model supports mediaResolution
-const supportsMediaResolution = (model: string): boolean => {
-  // Gemini Flash Lite does NOT support mediaResolution
-  return (
-    model !== MODEL_GEMINI_FLASH_LITE && model !== MODEL_GEMINI_3_1_FLASH_LITE
-  );
+const supportsMediaResolution = (_model: string): boolean => {
+  return true;
 };
 
 // Map config string to MediaResolution enum
@@ -228,8 +203,7 @@ const translateVideoBatch = async (
       systemInstruction: getEffectiveSystemPrompt(config),
       thinkingConfig: getThinkingConfig(
         config.model,
-        config.thinkingLevel,
-        config.thinkingBudget
+        config.thinkingLevel
       ),
     };
 
