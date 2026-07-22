@@ -3,6 +3,7 @@ import { View, StyleSheet, Switch, TouchableOpacity, ScrollView, Modal } from "r
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import type { DebugSettings } from "@src/types";
@@ -16,12 +17,21 @@ interface DebugSectionProps {
   onDebugChange: (settings: DebugSettings) => void;
 }
 
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
 export const DebugSection: React.FC<DebugSectionProps> = ({
   debugSettings,
   onDebugChange,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const themedStyles = useThemedStyles(debugThemedStyles);
   const [logFiles, setLogFiles] = useState<LogFileInfo[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -62,6 +72,25 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
             showAlert(t("common.success"), t("settings.debug.clearLogsSuccess"), [
               { text: t("common.ok") },
             ]);
+          },
+        },
+      ],
+      "warning"
+    );
+  };
+
+  const handleDeleteSingleLog = (file: LogFileInfo) => {
+    showAlert(
+      t("common.delete"),
+      `${t("common.delete")} ${file.name}?`,
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: async () => {
+            await logger.deleteLogFile(file.path);
+            await loadInfo();
           },
         },
       ],
@@ -117,20 +146,35 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
         </View>
       </View>
 
-      {/* Log Files list / Action Buttons */}
+      {/* Log Files list */}
       {logFiles.length > 0 && (
         <View style={styles.logListContainer}>
           <Text style={themedStyles.sectionSubtitle}>{t("settings.debug.viewLogs")}</Text>
           {logFiles.map((file) => (
-            <TouchableOpacity
-              key={file.name}
-              style={themedStyles.logFileItem}
-              onPress={() => handleViewLog(file)}
-            >
-              <MaterialCommunityIcons name="file-document-outline" size={18} color={colors.primary} />
-              <Text style={themedStyles.fileName}>{file.name}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            <View key={file.name} style={themedStyles.logFileItem}>
+              <TouchableOpacity
+                style={styles.fileItemMain}
+                onPress={() => handleViewLog(file)}
+              >
+                <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.primary} />
+                <View style={styles.fileNameContainer}>
+                  <Text style={themedStyles.fileName} numberOfLines={1}>
+                    {file.name}
+                  </Text>
+                  {file.size > 0 && (
+                    <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteSingleBtn}
+                onPress={() => handleDeleteSingleLog(file)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.error} />
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
       )}
@@ -148,16 +192,39 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
       )}
 
       {/* Viewer Modal */}
-      <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+        statusBarTranslucent
+      >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedFile}</Text>
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
+          <View
+            style={[
+              styles.modalHeader,
+              {
+                backgroundColor: colors.surfaceElevated,
+                borderBottomColor: colors.border,
+                paddingTop: Math.max(insets.top + 8, 20),
+              },
+            ]}
+          >
+            <View style={styles.headerTitleWrapper}>
+              <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.primary} />
+              <Text style={[styles.modalTitle, { color: colors.text }]} numberOfLines={1}>
+                {selectedFile}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.closeHeaderBtn}
+              onPress={() => setModalVisible(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <MaterialCommunityIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalBody}>
-            <Text style={[styles.logText, { color: colors.text }]}>
+          <ScrollView style={styles.modalBody} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+            <Text selectable style={[styles.logText, { color: colors.textSecondary }]}>
               {fileContent || t("common.loading")}
             </Text>
           </ScrollView>
@@ -170,6 +237,7 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 8,
+    paddingBottom: 24,
   },
   toggleInfo: {
     flexDirection: "row",
@@ -188,8 +256,30 @@ const styles = StyleSheet.create({
   logListContainer: {
     marginTop: 16,
   },
+  fileItemMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 8,
+  },
+  fileNameContainer: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  fileSizeText: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  deleteSingleBtn: {
+    padding: 6,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   actionRow: {
-    marginTop: 12,
+    marginTop: 16,
+    marginBottom: 16,
     alignItems: "flex-start",
   },
   modalContainer: {
@@ -199,12 +289,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
+  },
+  headerTitleWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 8,
+    marginRight: 12,
   },
   modalTitle: {
     fontSize: 16,
     fontWeight: "bold",
+    flex: 1,
+  },
+  closeHeaderBtn: {
+    padding: 4,
   },
   modalBody: {
     flex: 1,
@@ -271,17 +373,17 @@ const debugThemedStyles = createThemedStyles((colors) =>
     logFileItem: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "space-between",
       backgroundColor: colors.surfaceElevated,
       paddingVertical: 10,
       paddingHorizontal: 12,
-      borderRadius: 6,
-      marginBottom: 6,
+      borderRadius: 8,
+      marginBottom: 8,
     },
     fileName: {
-      flex: 1,
       fontSize: 13,
+      fontWeight: "600",
       color: colors.text,
-      marginLeft: 8,
     },
   })
 );

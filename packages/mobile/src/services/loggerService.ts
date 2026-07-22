@@ -286,6 +286,25 @@ class LoggerService {
   }
 
   /**
+   * Delete a single log file by path or filename
+   */
+  async deleteLogFile(pathOrFilename: string): Promise<void> {
+    try {
+      if (pathOrFilename.startsWith("content://")) {
+        await FileSystem.StorageAccessFramework.deleteAsync(pathOrFilename);
+      } else if (pathOrFilename.startsWith("file://") || pathOrFilename.startsWith("/")) {
+        await FileSystem.deleteAsync(pathOrFilename, { idempotent: true });
+      } else {
+        const basePath = (await storageService.getBackupPath()) || `${FileSystem.documentDirectory}ziasub_backup`;
+        const filePath = `${basePath}/debug/${pathOrFilename}`;
+        await FileSystem.deleteAsync(filePath, { idempotent: true });
+      }
+    } catch (error) {
+      console.error("[LoggerService] Error deleting log file:", error);
+    }
+  }
+
+  /**
    * Delete all debug log files
    */
   async clearLogs(): Promise<void> {
