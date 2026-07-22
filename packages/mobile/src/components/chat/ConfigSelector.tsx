@@ -151,7 +151,7 @@ const configSelectorThemedStyles = createThemedStyles((colors) => ({
   },
   itemActive: {
     borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
+    backgroundColor: colors.primarySoft,
   },
   itemName: { color: colors.text, fontSize: 15, fontWeight: "500" },
   itemNameActive: { color: colors.primary },

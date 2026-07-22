@@ -149,18 +149,40 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
   // Get status color and icon
   const getStatusStyle = () => {
     if (isActivelyTranslating)
-      return { color: colors.primary, icon: "translate" as const };
-    if (isPaused) return { color: colors.warning, icon: "pause" as const };
+      return {
+        color: colors.primary,
+        onColor: colors.onPrimary,
+        icon: "translate" as const,
+      };
+    if (isPaused)
+      return {
+        color: colors.warning,
+        onColor: colors.onWarning,
+        icon: "pause" as const,
+      };
     if (isWaitingInQueue)
       return {
         color: colors.primary,
+        onColor: colors.onPrimary,
         icon: "clock-outline" as const,
       };
     if (item.status === "completed")
-      return { color: colors.success, icon: "check-circle" as const };
+      return {
+        color: colors.success,
+        onColor: colors.onSuccess,
+        icon: "check-circle" as const,
+      };
     if (item.status === "error")
-      return { color: colors.error, icon: "alert-circle" as const };
-    return { color: colors.textMuted, icon: "clock-outline" as const }; // pending
+      return {
+        color: colors.error,
+        onColor: colors.onError,
+        icon: "alert-circle" as const,
+      };
+    return {
+      color: colors.textMuted,
+      onColor: colors.onPrimary,
+      icon: "clock-outline" as const,
+    }; // pending
   };
 
   const statusStyle = getStatusStyle();
@@ -213,7 +235,7 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
             <MaterialCommunityIcons
               name={statusStyle.icon}
               size={12}
-              color="#fff"
+              color={statusStyle.onColor}
             />
           </View>
         </View>
@@ -264,7 +286,7 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
                 <View
                   style={[
                     styles.settingsBadge,
-                    { backgroundColor: colors.warning + "30" },
+                    { backgroundColor: colors.warningBg },
                   ]}
                 >
                   <MaterialCommunityIcons
@@ -298,7 +320,7 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
                 <View
                   style={[
                     styles.settingsBadge,
-                    { backgroundColor: colors.primary + "30" },
+                    { backgroundColor: colors.primarySoft },
                   ]}
                 >
                   <MaterialCommunityIcons
@@ -585,7 +607,7 @@ const themedStyles = createThemedStyles((colors) => ({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: colors.border,
   },
   progressBar: {
     height: "100%" as const,
@@ -608,7 +630,7 @@ const themedStyles = createThemedStyles((colors) => ({
     position: "absolute" as const,
     bottom: 4,
     right: 4,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: colors.scrim,
     borderRadius: 4,
     paddingHorizontal: 5,
     paddingVertical: 2,
@@ -650,7 +672,7 @@ const themedStyles = createThemedStyles((colors) => ({
   presetBadge: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: colors.primarySoft,
     borderRadius: 4,
     paddingHorizontal: 4,
     paddingVertical: 1,

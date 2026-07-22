@@ -63,8 +63,8 @@ const Fab3D: React.FC<Fab3DProps> = ({
     : isDark
     ? colors.border
     : colors.borderLight;
-  // Always use white for active state icon
-  const iconColor = active ? "#FFFFFF" : colors.text;
+  // On-primary color for active state icon (sits on primary fill)
+  const iconColor = active ? colors.onPrimary : colors.text;
 
   return (
     <View
@@ -177,7 +177,11 @@ const ChatFab: React.FC<{ onPress: () => void; isLoading: boolean }> = ({
             },
           ]}
         >
-          <MaterialCommunityIcons name="robot" size={20} color="#FFFFFF" />
+          <MaterialCommunityIcons
+            name="robot"
+            size={20}
+            color={colors.onPrimary}
+          />
         </View>
       </View>
     </Pressable>
@@ -265,7 +269,9 @@ const TranslatingFab: React.FC<{
           <View
             style={[styles.progressBadge, { backgroundColor: colors.success }]}
           >
-            <Animated.Text style={[styles.progressText, { color: "#FFFFFF" }]}>
+            <Animated.Text
+              style={[styles.progressText, { color: colors.onSuccess }]}
+            >
               {progressText}
             </Animated.Text>
           </View>
@@ -353,7 +359,9 @@ const WaitingFab: React.FC<{
           <View
             style={[styles.progressBadge, { backgroundColor: colors.warning }]}
           >
-            <Animated.Text style={[styles.progressText, { color: "#FFFFFF" }]}>
+            <Animated.Text
+              style={[styles.progressText, { color: colors.onWarning }]}
+            >
               #{position}
             </Animated.Text>
           </View>
@@ -404,7 +412,9 @@ const PausedFab: React.FC<{
               { backgroundColor: colors.textMuted },
             ]}
           >
-            <Animated.Text style={[styles.progressText, { color: "#FFFFFF" }]}>
+            <Animated.Text
+              style={[styles.progressText, { color: colors.onPrimary }]}
+            >
               {progressText}
             </Animated.Text>
           </View>
@@ -472,7 +482,13 @@ const FloatingButton: React.FC<FloatingButtonProps> = (props) => {
           <Fab3D onPress={onSettingsPress} icon="cog" size={40} iconSize={20} />
           {hasUpdate && (
             <View
-              style={[styles.updateBadge, { backgroundColor: colors.error }]}
+              style={[
+                styles.updateBadge,
+                {
+                  backgroundColor: colors.error,
+                  borderColor: colors.border,
+                },
+              ]}
             />
           )}
         </View>
@@ -491,7 +507,7 @@ const FloatingButton: React.FC<FloatingButtonProps> = (props) => {
                 style={[styles.queueBadge, { backgroundColor: colors.primary }]}
               >
                 <Animated.Text
-                  style={[styles.queueBadgeText, { color: "#FFFFFF" }]}
+                  style={[styles.queueBadgeText, { color: colors.onPrimary }]}
                 >
                   {queueCount}
                 </Animated.Text>
@@ -570,7 +586,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: "#fff",
   },
   queueRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   queueRowHorizontal: {

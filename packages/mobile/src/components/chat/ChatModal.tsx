@@ -619,7 +619,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
           </Reanimated.View>
           {drawerOpen && (
             <TouchableOpacity
-              style={styles.drawerOverlay}
+              style={[styles.drawerOverlay, { backgroundColor: colors.overlay }]}
               activeOpacity={1}
               onPress={toggleDrawer}
             />
@@ -680,7 +680,6 @@ const styles = StyleSheet.create({
   taskList: { padding: 16, paddingBottom: 8, flexGrow: 1 },
   drawerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
   },
 });
 

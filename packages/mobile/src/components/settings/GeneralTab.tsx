@@ -321,7 +321,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                       themedStyles.iconContainer,
                       isExpanded && themedStyles.iconContainerExpanded,
                       showUpdateBadge && {
-                        backgroundColor: `${colors.error}20`,
+                        backgroundColor: colors.errorBg,
                       },
                     ]}
                   >
@@ -341,7 +341,10 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                     <View
                       style={[
                         styles.updateBadge,
-                        { backgroundColor: colors.error },
+                        {
+                          backgroundColor: colors.error,
+                          borderColor: colors.border,
+                        },
                       ]}
                     />
                   )}
@@ -415,7 +418,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 2,
-    borderColor: "#fff",
   },
   groupInfo: { flex: 1 },
   groupContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 },
@@ -454,7 +456,7 @@ const generalThemedStyles = createThemedStyles((colors) => ({
     justifyContent: "center",
   },
   iconContainerExpanded: {
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: colors.primarySoft,
   },
   groupTitle: {
     fontSize: 15,

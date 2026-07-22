@@ -204,7 +204,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   <MaterialCommunityIcons
                     name="clock-outline"
                     size={10}
-                    color="#FFFFFF"
+                    color={colors.onPrimary}
                   />
                   <Text style={themedStyles.timeRangeTagText}>
                     {formatTimeRange(task.videoTimeRange)}
@@ -364,7 +364,7 @@ const taskCardThemedStyles = createThemedStyles((colors) => ({
     backgroundColor: colors.primary,
     borderRadius: 8,
   },
-  timeRangeTagText: { color: "#FFFFFF", fontSize: 10, fontWeight: "500" },
+  timeRangeTagText: { color: colors.onPrimary, fontSize: 10, fontWeight: "500" },
   taskResult: { padding: 14, borderTopWidth: 1, borderTopColor: colors.border },
   taskLoading: {
     flexDirection: "row",

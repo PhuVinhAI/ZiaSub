@@ -1397,7 +1397,7 @@ const translateTabThemedStyles = createThemedStyles((colors) => ({
   warningContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,183,77,0.15)",
+    backgroundColor: colors.warningBg,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -1407,7 +1407,7 @@ const translateTabThemedStyles = createThemedStyles((colors) => ({
   },
   warningText: { color: colors.warning, fontSize: 13, flex: 1 },
   longVideoWarningContainer: {
-    backgroundColor: "rgba(255,183,77,0.15)",
+    backgroundColor: colors.warningBg,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -1421,7 +1421,7 @@ const translateTabThemedStyles = createThemedStyles((colors) => ({
     gap: 10,
   },
   waitingContainer: {
-    backgroundColor: "rgba(255,183,77,0.15)",
+    backgroundColor: colors.warningBg,
     borderRadius: 12,
     padding: 12,
     gap: 10,

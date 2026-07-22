@@ -150,9 +150,9 @@ const updateThemedStyles = createThemedStyles((colors) => ({
     color: colors.text,
   },
   updateBox: {
-    backgroundColor: `${colors.primary}15`,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: `${colors.primary}30`,
+    borderColor: colors.primary,
   },
   updateTitle: {
     fontSize: 14,

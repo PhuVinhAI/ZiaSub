@@ -78,7 +78,7 @@ const TTSSection: React.FC<TTSSectionProps> = ({
           value={ttsSettings.enabled}
           onValueChange={handleTTSEnabledChange}
           trackColor={{ false: colors.border, true: colors.success }}
-          thumbColor={ttsSettings.enabled ? "#FFFFFF" : colors.surfaceElevated}
+          thumbColor={ttsSettings.enabled ? colors.onPrimary : colors.surfaceElevated}
         />
       </View>
       {ttsSettings.enabled && (
@@ -104,7 +104,7 @@ const TTSSection: React.FC<TTSSectionProps> = ({
               onValueChange={handleAutoRateChange}
               trackColor={{ false: colors.border, true: colors.success }}
               thumbColor={
-                ttsSettings.autoRate ? "#FFFFFF" : colors.surfaceElevated
+                ttsSettings.autoRate ? colors.onPrimary : colors.surfaceElevated
               }
             />
           </View>
@@ -170,7 +170,7 @@ const TTSSection: React.FC<TTSSectionProps> = ({
               onValueChange={handleDuckVideoChange}
               trackColor={{ false: colors.border, true: colors.success }}
               thumbColor={
-                ttsSettings.duckVideo ? "#FFFFFF" : colors.surfaceElevated
+                ttsSettings.duckVideo ? colors.onPrimary : colors.surfaceElevated
               }
             />
           </View>

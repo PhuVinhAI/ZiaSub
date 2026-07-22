@@ -441,7 +441,7 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                         <View
                           style={[
                             styles.settingsBadge,
-                            { backgroundColor: colors.primary + "15" },
+                            { backgroundColor: colors.primarySoft },
                           ]}
                         >
                           <MaterialCommunityIcons
@@ -531,10 +531,10 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                             style={{
                               backgroundColor:
                                 batchRetranslateJob?.status === "processing"
-                                  ? colors.primary + "15"
+                                  ? colors.primarySoft
                                   : pausedBatchRetranslation
-                                  ? colors.warning + "15"
-                                  : colors.primary + "10",
+                                  ? colors.warningBg
+                                  : colors.primarySoft,
                               borderRadius: 8,
                               padding: 10,
                               marginBottom: 10,
@@ -544,7 +544,7 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                   ? colors.primary
                                   : pausedBatchRetranslation
                                   ? colors.warning
-                                  : colors.primary + "50",
+                                  : colors.border,
                             }}
                           >
                             <View
@@ -667,11 +667,11 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                     <MaterialCommunityIcons
                                       name="pause"
                                       size={16}
-                                      color="#fff"
+                                      color={colors.onWarning}
                                     />
                                     <Text
                                       style={{
-                                        color: "#fff",
+                                        color: colors.onWarning,
                                         fontSize: 12,
                                         fontWeight: "600",
                                       }}
@@ -702,11 +702,11 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                     <MaterialCommunityIcons
                                       name="close"
                                       size={16}
-                                      color="#fff"
+                                      color={colors.onError}
                                     />
                                     <Text
                                       style={{
-                                        color: "#fff",
+                                        color: colors.onError,
                                         fontSize: 12,
                                         fontWeight: "600",
                                       }}
@@ -738,11 +738,11 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                     <MaterialCommunityIcons
                                       name="close"
                                       size={16}
-                                      color="#fff"
+                                      color={colors.onError}
                                     />
                                     <Text
                                       style={{
-                                        color: "#fff",
+                                        color: colors.onError,
                                         fontSize: 12,
                                         fontWeight: "600",
                                       }}
@@ -773,11 +773,11 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                     <MaterialCommunityIcons
                                       name="play"
                                       size={16}
-                                      color="#fff"
+                                      color={colors.onSuccess}
                                     />
                                     <Text
                                       style={{
-                                        color: "#fff",
+                                        color: colors.onSuccess,
                                         fontSize: 12,
                                         fontWeight: "600",
                                       }}
@@ -809,11 +809,11 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                     <MaterialCommunityIcons
                                       name="close"
                                       size={16}
-                                      color="#fff"
+                                      color={colors.onError}
                                     />
                                     <Text
                                       style={{
-                                        color: "#fff",
+                                        color: colors.onError,
                                         fontSize: 12,
                                         fontWeight: "600",
                                       }}
@@ -969,8 +969,8 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                     : isPaused
                                     ? colors.warning
                                     : isWaiting
-                                    ? colors.primary + "80"
-                                    : colors.primary + "50",
+                                    ? colors.primary
+                                    : colors.border,
                                   borderRadius: 8,
                                   borderStyle: "dashed",
                                   padding: 2,
@@ -1007,19 +1007,19 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                   <MaterialCommunityIcons
                                     name="translate"
                                     size={12}
-                                    color="#fff"
+                                    color={colors.onPrimary}
                                   />
                                 ) : isPaused ? (
                                   <MaterialCommunityIcons
                                     name="pause"
                                     size={12}
-                                    color="#fff"
+                                    color={colors.onWarning}
                                   />
                                 ) : isWaiting ? (
                                   <MaterialCommunityIcons
                                     name="clock-outline"
                                     size={12}
-                                    color="#fff"
+                                    color={colors.primary}
                                   />
                                 ) : (
                                   <Text
@@ -1045,10 +1045,10 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                                     isError && styles.batchChipTimeError,
                                     isPresubBatch && styles.batchChipTimePresub,
                                     isProcessing &&
-                                      !isPresubBatch && { color: "#fff" },
-                                    isPaused && { color: "#fff" },
+                                      !isPresubBatch && { color: colors.onPrimary },
+                                    isPaused && { color: colors.onWarning },
                                     isWaiting &&
-                                      !isPresubBatch && { color: "#fff" },
+                                      !isPresubBatch && { color: colors.primary },
                                   ]}
                                 >
                                   {formatTime(batch.startTime)} -{" "}
@@ -1121,7 +1121,7 @@ const SavedTranslationsList: React.FC<SavedTranslationsListProps> = ({
                       <MaterialCommunityIcons
                         name="check"
                         size={18}
-                        color="#FFFFFF"
+                        color={colors.onPrimary}
                       />
                       <Text style={styles.expandedActionBtnTextPrimary}>
                         {t("subtitleModal.translate.useThis")}

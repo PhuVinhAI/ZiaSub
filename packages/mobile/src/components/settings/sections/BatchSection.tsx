@@ -313,7 +313,7 @@ const batchThemedStyles = createThemedStyles((colors) => ({
     borderBottomColor: colors.border,
   },
   configOptionActive: {
-    backgroundColor: colors.warning + "15",
+    backgroundColor: colors.warningBg,
   },
   configOptionText: {
     color: colors.text,

@@ -50,7 +50,7 @@ export const createQueueStyles = (colors: ThemeColors) =>
     badgeProcessing: { backgroundColor: colors.warning },
     badgePaused: { backgroundColor: colors.textMuted },
     badgeCompleted: { backgroundColor: colors.success },
-    badgeText: { color: colors.background, fontSize: 11, fontWeight: "600" },
+    badgeText: { color: colors.onPrimary, fontSize: 11, fontWeight: "600" },
 
     // Queue item styles
     queueItem: {
@@ -74,11 +74,11 @@ export const createQueueStyles = (colors: ThemeColors) =>
       top: 0,
       width: 120,
       height: 68,
-      backgroundColor: "rgba(0,0,0,0.6)",
+      backgroundColor: colors.scrim,
       justifyContent: "center",
       alignItems: "center",
     },
-    progressText: { color: colors.text, fontSize: 14, fontWeight: "700" },
+    progressText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
     itemInfo: { flex: 1, padding: 10 },
     itemTitle: {
       color: colors.text,
@@ -164,7 +164,7 @@ export const createQueueStyles = (colors: ThemeColors) =>
     warningContainer: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "rgba(255,183,77,0.15)",
+      backgroundColor: colors.warningBg,
       borderRadius: 10,
       padding: 10,
       marginBottom: 8,
@@ -201,7 +201,3 @@ export const useQueueStyles = () => {
   const { colors } = useTheme();
   return useThemedStyles(() => createQueueStyles(colors));
 };
-
-// Legacy export for backward compatibility
-import { darkColors } from "@src/contexts";
-export const queueStyles = createQueueStyles(darkColors);

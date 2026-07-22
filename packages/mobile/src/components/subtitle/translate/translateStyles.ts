@@ -60,7 +60,7 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 3,
-      backgroundColor: colors.primary + "18",
+      backgroundColor: colors.primarySoft,
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 4,
@@ -142,7 +142,7 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       minWidth: 54,
     },
     batchChipCompleted: {
-      backgroundColor: colors.success + "20",
+      backgroundColor: colors.successBg,
       borderColor: colors.success,
     },
     batchChipProcessing: {
@@ -155,7 +155,7 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       borderStyle: "dashed",
     },
     batchChipError: {
-      backgroundColor: colors.error + "20",
+      backgroundColor: colors.errorBg,
       borderColor: colors.error,
     },
     batchChipPaused: {
@@ -163,12 +163,12 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       borderColor: colors.warning,
     },
     batchChipWaiting: {
-      backgroundColor: colors.primary + "80",
+      backgroundColor: colors.primarySoft,
       borderColor: colors.primary,
     },
     batchChipPresub: {
-      backgroundColor: colors.warning + "20", // Warning with 20% opacity like completed
-      borderColor: colors.warning, // Warning border
+      backgroundColor: colors.warningBg,
+      borderColor: colors.warning,
     },
     batchChipText: {
       color: colors.textMuted,
@@ -239,14 +239,14 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       backgroundColor: colors.primary,
     },
     expandedActionBtnDanger: {
-      backgroundColor: colors.error + "15",
+      backgroundColor: colors.errorBg,
       borderWidth: 1,
       borderColor: colors.error,
       flex: 0,
       paddingHorizontal: 12,
     },
     expandedActionBtnTextPrimary: {
-      color: "#FFFFFF",
+      color: colors.onPrimary,
       fontSize: 13,
       fontWeight: "600",
     },
@@ -464,7 +464,7 @@ export const createTranslateStyles = (colors: ThemeColors) =>
     warningContainer: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "rgba(255,183,77,0.15)",
+      backgroundColor: colors.warningBg,
       borderRadius: 10,
       padding: 12,
       marginBottom: 12,
@@ -478,7 +478,3 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       flex: 1,
     },
   });
-
-// Legacy export for backward compatibility - components should use createTranslateStyles with useTheme
-import { darkColors } from "@src/contexts";
-export const translateStyles = createTranslateStyles(darkColors);

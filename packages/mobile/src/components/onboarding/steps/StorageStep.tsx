@@ -195,7 +195,7 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
           <View
             style={[
               styles.dataInfoContainer,
-              { backgroundColor: `${colors.success}20` },
+              { backgroundColor: colors.successBg },
             ]}
           >
             <Ionicons

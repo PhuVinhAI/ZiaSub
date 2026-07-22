@@ -68,7 +68,7 @@ const TranslationProgress: React.FC<TranslationProgressProps> = ({
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconContainer}>
-            <MaterialCommunityIcons name="translate" size={20} color="#fff" />
+            <MaterialCommunityIcons name="translate" size={20} color={colors.onPrimary} />
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.title}>
@@ -152,19 +152,19 @@ const TranslationProgress: React.FC<TranslationProgressProps> = ({
                     <MaterialCommunityIcons
                       name="check"
                       size={14}
-                      color="#fff"
+                      color={colors.onSuccess}
                     />
                   ) : isProcessing ? (
                     <MaterialCommunityIcons
                       name="translate"
                       size={14}
-                      color="#fff"
+                      color={isPresubBatch ? colors.warning : colors.onPrimary}
                     />
                   ) : isError ? (
                     <MaterialCommunityIcons
                       name="close"
                       size={14}
-                      color="#fff"
+                      color={colors.onError}
                     />
                   ) : (
                     <Text style={styles.batchNumber}>{index + 1}</Text>
@@ -207,19 +207,19 @@ const TranslationProgress: React.FC<TranslationProgressProps> = ({
                       <MaterialCommunityIcons
                         name="check"
                         size={14}
-                        color="#fff"
+                        color={colors.onSuccess}
                       />
                     ) : isProcessing ? (
                       <MaterialCommunityIcons
                         name="translate"
                         size={14}
-                        color="#fff"
+                        color={colors.onPrimary}
                       />
                     ) : isError ? (
                       <MaterialCommunityIcons
                         name="close"
                         size={14}
-                        color="#fff"
+                        color={colors.onError}
                       />
                     ) : (
                       <Text style={styles.batchNumber}>{index + 1}</Text>
@@ -270,7 +270,7 @@ const TranslationProgress: React.FC<TranslationProgressProps> = ({
 
 const themedStyles = createThemedStyles((colors) => ({
   container: {
-    backgroundColor: colors.primary + "15",
+    backgroundColor: colors.primarySoft,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
@@ -313,7 +313,7 @@ const themedStyles = createThemedStyles((colors) => ({
   timeRangeBadge: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    backgroundColor: colors.primary + "20",
+    backgroundColor: colors.primarySoft,
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -367,7 +367,7 @@ const themedStyles = createThemedStyles((colors) => ({
     borderColor: colors.primary,
   },
   batchPresub: {
-    backgroundColor: colors.warning + "20", // Warning with 20% opacity
+    backgroundColor: colors.warningBg,
     borderColor: colors.warning, // Warning border
   },
   batchError: {

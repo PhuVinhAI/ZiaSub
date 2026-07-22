@@ -71,7 +71,7 @@ const chatEmptyThemedStyles = createThemedStyles((colors) => ({
   warningContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,183,77,0.15)",
+    backgroundColor: colors.warningBg,
     borderRadius: 12,
     padding: 12,
     marginBottom: 20,

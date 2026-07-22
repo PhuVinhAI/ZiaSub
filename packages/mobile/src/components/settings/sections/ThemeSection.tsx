@@ -107,7 +107,7 @@ const themeThemedStyles = createThemedStyles((colors) => ({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  themeItemActive: { backgroundColor: `${colors.primary}15` },
+  themeItemActive: { backgroundColor: colors.primarySoft },
   themeName: { color: colors.text, fontSize: 15 },
   themeNameActive: { color: colors.primary, fontWeight: "600" },
 }));

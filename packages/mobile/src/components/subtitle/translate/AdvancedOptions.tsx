@@ -218,7 +218,7 @@ const AdvancedOptions: React.FC<AdvancedOptionsProps> = ({
               value={streamingMode}
               onValueChange={onStreamingModeChange}
               trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={streamingMode ? "#FFFFFF" : colors.surfaceElevated}
+              thumbColor={streamingMode ? colors.onPrimary : colors.surfaceElevated}
             />
           </View>
           <View style={styles.advancedRow}>
@@ -241,7 +241,7 @@ const AdvancedOptions: React.FC<AdvancedOptionsProps> = ({
               value={presubMode}
               onValueChange={onPresubModeChange}
               trackColor={{ false: colors.border, true: colors.warning }}
-              thumbColor={presubMode ? "#FFFFFF" : colors.surfaceElevated}
+              thumbColor={presubMode ? colors.onPrimary : colors.surfaceElevated}
             />
           </View>
           <View
@@ -269,7 +269,7 @@ const AdvancedOptions: React.FC<AdvancedOptionsProps> = ({
               value={useCustomRange}
               onValueChange={onUseCustomRangeChange}
               trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={useCustomRange ? "#FFFFFF" : colors.surfaceElevated}
+              thumbColor={useCustomRange ? colors.onPrimary : colors.surfaceElevated}
             />
           </View>
           {useCustomRange && (

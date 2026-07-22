@@ -349,7 +349,7 @@ export const DataSection: React.FC = () => {
           style={[
             styles.actionButton,
             {
-              backgroundColor: colors.primary + "15",
+              backgroundColor: colors.primarySoft,
               borderColor: colors.primary,
             },
           ]}

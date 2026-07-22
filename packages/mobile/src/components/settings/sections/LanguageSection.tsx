@@ -83,7 +83,7 @@ const languageThemedStyles = createThemedStyles((colors) => ({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  languageItemActive: { backgroundColor: `${colors.primary}15` },
+  languageItemActive: { backgroundColor: colors.primarySoft },
   languageName: { color: colors.text, fontSize: 15 },
   languageNameActive: { color: colors.primary, fontWeight: "600" },
 }));

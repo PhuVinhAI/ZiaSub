@@ -62,11 +62,17 @@ const SubtitleSection: React.FC<SubtitleSectionProps> = ({
 
   return (
     <>
-      <View style={styles.previewContainer}>
+      <View
+        style={[
+          styles.previewContainer,
+          { backgroundColor: colors.previewBg },
+        ]}
+      >
         <RNText
           style={[
             styles.previewText,
             {
+              color: colors.previewText,
               fontSize: subtitleSettings.fontSize,
               fontWeight:
                 subtitleSettings.fontWeight === "bold" ? "700" : "400",
@@ -202,7 +208,6 @@ const styles = StyleSheet.create({
   slider: { width: "100%", height: 40 },
   styleButtonsRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
   previewContainer: {
-    backgroundColor: "#1a1a2e",
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
@@ -211,7 +216,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   previewText: {
-    color: "#ffffff",
     textShadowColor: "rgba(0,0,0,0.9)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
@@ -239,7 +243,7 @@ const subtitleThemedStyles = createThemedStyles((colors) => ({
     borderColor: colors.border,
   },
   styleButtonActive: {
-    backgroundColor: `${colors.primary}15`,
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
   },
   styleButtonText: {

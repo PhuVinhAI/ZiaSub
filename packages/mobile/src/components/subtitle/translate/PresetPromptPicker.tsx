@@ -112,7 +112,7 @@ const PresetPromptPicker: React.FC<PresetPromptPickerProps> = ({
             <MaterialCommunityIcons
               name={(currentPreset?.icon as any) || "file-document-outline"}
               size={20}
-              color="#FFFFFF"
+              color={colors.onPrimary}
             />
           </View>
           <View style={styles.pickerTextContainer}>
@@ -198,7 +198,7 @@ const PresetPromptPicker: React.FC<PresetPromptPickerProps> = ({
                   <MaterialCommunityIcons
                     name="pencil-outline"
                     size={22}
-                    color={isCustomSelected ? "#FFFFFF" : colors.textSecondary}
+                    color={isCustomSelected ? colors.onPrimary : colors.textSecondary}
                   />
                 </View>
                 <View style={styles.presetInfo}>
@@ -256,7 +256,7 @@ const PresetPromptPicker: React.FC<PresetPromptPickerProps> = ({
                       <MaterialCommunityIcons
                         name={preset.icon as any}
                         size={22}
-                        color={isSelected ? "#FFFFFF" : colors.textSecondary}
+                        color={isSelected ? colors.onPrimary : colors.textSecondary}
                       />
                     </View>
                     <View style={styles.presetInfo}>
@@ -337,7 +337,7 @@ const themedStyles = createThemedStyles((colors) => ({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: colors.overlay,
   },
   bottomSheet: {
     borderTopLeftRadius: 24,
@@ -394,7 +394,7 @@ const themedStyles = createThemedStyles((colors) => ({
     gap: 12,
   },
   presetItemSelected: {
-    backgroundColor: colors.primary + "15",
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
     borderWidth: 1.5,
   },

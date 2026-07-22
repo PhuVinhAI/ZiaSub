@@ -81,7 +81,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 <MaterialCommunityIcons
                   name="clock-outline"
                   size={12}
-                  color="#FFFFFF"
+                  color={colors.onPrimary}
                 />
                 <Text style={themedStyles.timeRangeText}>
                   {formatTimeRange(videoTimeRange)}
@@ -145,7 +145,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <View style={styles.inputSpacer} />
           {isLoading ? (
             <TouchableOpacity style={themedStyles.stopBtn} onPress={onStop}>
-              <MaterialCommunityIcons name="stop" size={18} color="#FFFFFF" />
+              <MaterialCommunityIcons name="stop" size={18} color={colors.onError} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -160,7 +160,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 name="arrow-up"
                 size={20}
                 color={
-                  inputText.trim() && !disabled ? "#FFFFFF" : colors.textMuted
+                  inputText.trim() && !disabled
+                    ? colors.onPrimary
+                    : colors.textMuted
                 }
               />
             </TouchableOpacity>
@@ -226,7 +228,7 @@ const chatInputThemedStyles = createThemedStyles((colors) => ({
   },
   timeRangeText: {
     fontSize: 11,
-    color: "#FFFFFF",
+    color: colors.onPrimary,
     fontWeight: "500",
   },
   timeRangeBtn: {

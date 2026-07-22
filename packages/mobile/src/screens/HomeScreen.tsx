@@ -518,7 +518,7 @@ const HomeScreen = () => {
                 <MaterialCommunityIcons
                   name="subtitles"
                   size={12}
-                  color="#FFFFFF"
+                  color={colors.onPrimary}
                 />
               </View>
               <Text style={[styles.brandText, themedStyles.brandText]}>
@@ -715,7 +715,7 @@ const homeThemedStyles = createThemedStyles((colors, isDark) => ({
   container: { backgroundColor: colors.background },
   headerContainer: {
     backgroundColor: colors.surface,
-    borderBottomColor: isDark ? "rgba(155,126,217,0.3)" : colors.border,
+    borderBottomColor: colors.border,
   },
   logoContainer: { backgroundColor: colors.primary },
   urlBar: {
@@ -728,9 +728,7 @@ const homeThemedStyles = createThemedStyles((colors, isDark) => ({
   urlText: { color: colors.textSecondary },
   brandText: { color: colors.primary },
   modeToggleBtnActive: {
-    backgroundColor: isDark
-      ? "rgba(155,126,217,0.2)"
-      : "rgba(155,126,217,0.15)",
+    backgroundColor: colors.primarySoft,
     borderRadius: 8,
   },
 }));

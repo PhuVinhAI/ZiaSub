@@ -198,7 +198,7 @@ export const ApiKeyStep: React.FC<StepProps> = ({
               <Text
                 style={[
                   styles.addButtonText,
-                  { color: apiKey.trim() ? "#fff" : colors.textMuted },
+                  { color: apiKey.trim() ? colors.onPrimary : colors.textMuted },
                 ]}
               >
                 {isAdding

@@ -252,7 +252,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
       animationType="fade"
       onRequestClose={handleDismiss}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
         <View style={[styles.container, { backgroundColor: colors.surface }]}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -333,7 +333,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <View
               style={[
                 styles.errorBox,
-                { backgroundColor: `${colors.error}15` },
+                { backgroundColor: colors.errorBg },
               ]}
             >
               <Ionicons name="alert-circle" size={16} color={colors.error} />
@@ -415,7 +415,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,

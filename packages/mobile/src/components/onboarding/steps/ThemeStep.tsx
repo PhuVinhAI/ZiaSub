@@ -98,7 +98,7 @@ export const ThemeStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
                     { backgroundColor: colors.primary },
                   ]}
                 >
-                  <Ionicons name="checkmark" size={14} color="#fff" />
+                  <Ionicons name="checkmark" size={14} color={colors.onPrimary} />
                 </View>
               )}
             </TouchableOpacity>

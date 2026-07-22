@@ -80,7 +80,7 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({
         onValueChange={onValueChange}
         disabled={disabled}
         trackColor={{ false: colors.border, true: colors.success }}
-        thumbColor={value ? "#FFFFFF" : colors.surfaceElevated}
+        thumbColor={value ? colors.onPrimary : colors.surfaceElevated}
       />
     </View>
   );
@@ -226,7 +226,7 @@ const notificationThemedStyles = createThemedStyles((colors) => ({
     textTransform: "uppercase",
   },
   permissionWarning: {
-    backgroundColor: `${colors.warning}20`,
+    backgroundColor: colors.warningBg,
     padding: 12,
     borderRadius: 8,
     gap: 8,

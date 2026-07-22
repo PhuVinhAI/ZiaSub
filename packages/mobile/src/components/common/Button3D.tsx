@@ -69,9 +69,9 @@ const Button3D: React.FC<Button3DProps> = ({
   const getColors = useMemo(() => {
     if (disabled) {
       return {
-        bg: colors.surfaceLight,
+        bg: colors.disabled,
         shadow: colors.border,
-        text: colors.textMuted,
+        text: colors.disabledText,
         border: colors.border,
       };
     }
@@ -83,14 +83,14 @@ const Button3D: React.FC<Button3DProps> = ({
         return {
           bg: isActive ? colors.primary : colors.primary,
           shadow: isActive ? colors.primaryDark : colors.primaryDark,
-          text: "#FFFFFF",
+          text: colors.onPrimary,
           border: "transparent",
         };
       case "secondary":
         return {
           bg: isActive ? colors.primaryDark : colors.surfaceElevated,
           shadow: isActive ? colors.primaryDark : colors.background,
-          text: colors.text,
+          text: isActive ? colors.onPrimary : colors.text,
           border: isActive ? colors.primary : colors.border,
         };
       case "outline":
@@ -110,15 +110,15 @@ const Button3D: React.FC<Button3DProps> = ({
       case "destructive":
         return {
           bg: colors.error,
-          shadow: "#8B0000",
-          text: "#FFFFFF",
+          shadow: colors.errorBg,
+          text: colors.onError,
           border: "transparent",
         };
       case "warning":
         return {
           bg: colors.warning,
-          shadow: "#CC8800",
-          text: "#FFFFFF",
+          shadow: colors.warningBg,
+          text: colors.onWarning,
           border: "transparent",
         };
       default:

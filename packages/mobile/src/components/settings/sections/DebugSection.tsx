@@ -128,7 +128,7 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
           value={debugSettings.enabled}
           onValueChange={handleToggleEnabled}
           trackColor={{ false: colors.border, true: colors.success }}
-          thumbColor={debugSettings.enabled ? "#FFFFFF" : colors.surfaceElevated}
+          thumbColor={debugSettings.enabled ? colors.onPrimary : colors.surfaceElevated}
         />
       </View>
 
@@ -162,7 +162,7 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
                     {file.name}
                   </Text>
                   {file.size > 0 && (
-                    <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>
+                    <Text style={[styles.fileSizeText, { color: colors.textMuted }]}>{formatBytes(file.size)}</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -268,7 +268,6 @@ const styles = StyleSheet.create({
   },
   fileSizeText: {
     fontSize: 11,
-    color: "#94A3B8",
     marginTop: 2,
   },
   deleteSingleBtn: {

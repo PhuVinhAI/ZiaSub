@@ -6,6 +6,7 @@ import {
   Text,
   AppState,
   AppStateStatus,
+  StatusBar,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -151,15 +152,35 @@ const AppContent = () => {
     colors: {
       ...(isDark ? MD3DarkTheme.colors : MD3LightTheme.colors),
       primary: colors.primary,
+      onPrimary: colors.onPrimary,
+      primaryContainer: colors.primarySoft,
+      secondary: colors.accent,
+      onSecondary: colors.onAccent,
+      secondaryContainer: colors.accentSoft,
       background: colors.background,
+      onBackground: colors.text,
       surface: colors.surface,
       onSurface: colors.text,
       onSurfaceVariant: colors.textSecondary,
       surfaceVariant: colors.surfaceLight,
+      surfaceDisabled: colors.disabled,
+      onSurfaceDisabled: colors.disabledText,
+      error: colors.error,
+      onError: colors.onError,
+      errorContainer: colors.errorBg,
       outline: colors.border,
       outlineVariant: colors.borderLight,
+      backdrop: colors.overlay,
     },
   };
+
+  const statusBar = (
+    <StatusBar
+      barStyle={isDark ? "light-content" : "dark-content"}
+      backgroundColor={colors.background}
+      translucent
+    />
+  );
 
   // Loading state
   if (initState === "loading") {
@@ -170,6 +191,7 @@ const AppContent = () => {
           { backgroundColor: colors.background },
         ]}
       >
+        {statusBar}
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
           {loadingMessage}
@@ -187,6 +209,7 @@ const AppContent = () => {
           { backgroundColor: colors.background },
         ]}
       >
+        {statusBar}
         <Text style={[styles.errorText, { color: colors.error }]}>
           Có lỗi xảy ra khi khởi động app
         </Text>
@@ -201,6 +224,7 @@ const AppContent = () => {
   if (initState === "onboarding") {
     return (
       <PaperProvider theme={paperTheme}>
+        {statusBar}
         <AlertProvider>
           <OnboardingScreen onComplete={handleOnboardingComplete} />
         </AlertProvider>
@@ -211,6 +235,7 @@ const AppContent = () => {
   // Ready state
   return (
     <PaperProvider theme={paperTheme}>
+      {statusBar}
       <AlertProvider>
         <HomeScreen />
         <UpdateModal
