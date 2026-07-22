@@ -3,7 +3,7 @@
  *
  * Tách từ HomeScreen.tsx — chỉ di chuyển code, không sửa đổi logic.
  */
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -67,6 +67,17 @@ export const HomeHeader = ({
   currentUrl,
 }: HomeHeaderProps) => {
   const isAIStudio = isAIStudioPage(currentUrl);
+  const lastYouTubeUrlRef = useRef<string>("");
+  const lastAIStudioUrlRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!currentUrl) return;
+    if (isAIStudioPage(currentUrl)) {
+      lastAIStudioUrlRef.current = currentUrl;
+    } else {
+      lastYouTubeUrlRef.current = currentUrl;
+    }
+  }, [currentUrl]);
 
   const handleOpenUrlInput = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -81,11 +92,15 @@ export const HomeHeader = ({
 
   const handleToggleAIStudio = () => {
     if (isAIStudio) {
-      navigateToUrl(
-        isDesktopMode ? "https://www.youtube.com" : "https://m.youtube.com"
-      );
+      const targetUrl =
+        lastYouTubeUrlRef.current ||
+        (isDesktopMode ? "https://www.youtube.com" : "https://m.youtube.com");
+      navigateToUrl(targetUrl);
     } else {
-      navigateToUrl("https://aistudio.google.com/prompts/new_chat");
+      const targetUrl =
+        lastAIStudioUrlRef.current ||
+        "https://aistudio.google.com/prompts/new_chat";
+      navigateToUrl(targetUrl);
     }
   };
 
