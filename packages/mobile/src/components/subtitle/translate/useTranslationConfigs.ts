@@ -20,26 +20,21 @@ export function useTranslationConfigs() {
   const [currentPresetId, setCurrentPresetId] = useState<
     PresetPromptType | undefined
   >();
-  const prevConfigIdRef = useRef<string>("");
-
-  // Detect current preset ONLY when user selects a different config
+  // Initialize preset ONLY once on initial load when currentPresetId is undefined
   useEffect(() => {
-    if (!selectedConfigId) return;
-    if (selectedConfigId !== prevConfigIdRef.current) {
-      prevConfigIdRef.current = selectedConfigId;
-      const selectedConfig = geminiConfigs.find((c) => c.id === selectedConfigId);
-      if (selectedConfig) {
-        if (selectedConfig.presetId) {
-          setCurrentPresetId(selectedConfig.presetId as PresetPromptType);
-        } else {
-          const matchingPreset = PRESET_PROMPTS.find(
-            (p) => p.prompt === selectedConfig.systemPrompt
-          );
-          setCurrentPresetId(matchingPreset?.id || "custom");
-        }
+    if (!selectedConfigId || currentPresetId !== undefined) return;
+    const selectedConfig = geminiConfigs.find((c) => c.id === selectedConfigId);
+    if (selectedConfig) {
+      if (selectedConfig.presetId) {
+        setCurrentPresetId(selectedConfig.presetId as PresetPromptType);
+      } else {
+        const matchingPreset = PRESET_PROMPTS.find(
+          (p) => p.prompt === selectedConfig.systemPrompt
+        );
+        setCurrentPresetId(matchingPreset?.id || "custom");
       }
     }
-  }, [selectedConfigId, geminiConfigs]);
+  }, [selectedConfigId, geminiConfigs, currentPresetId]);
 
   const loadConfigs = async () => {
     const configs = await getGeminiConfigs();
