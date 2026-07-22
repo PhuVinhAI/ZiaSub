@@ -9,6 +9,7 @@ import { saveTranslation, savePartialTranslation } from "@utils/storage";
 import { translateVideoWithGemini } from "./geminiService";
 import { notificationService } from "./notificationService";
 import { backgroundService } from "./backgroundService";
+import { logger } from "./loggerService";
 
 type TranslationListener = (job: TranslationJob) => void;
 
@@ -106,6 +107,19 @@ class TranslationManager {
     }
 
     const jobId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    logger.info(
+      "TranslationManager",
+      `Starting translation job ${jobId} for: ${videoUrl}`,
+      {
+        configName: config.name,
+        model: config.model,
+        videoDuration,
+        rangeStart,
+        rangeEnd,
+        presubMode: !!presubConfig,
+      }
+    );
+
     this.currentJob = {
       id: jobId,
       videoUrl,
@@ -165,6 +179,11 @@ class TranslationManager {
               this.currentJob.id === jobId &&
               !this.isAborted
             ) {
+              const pct = Math.round((progress.currentBatch / Math.max(1, progress.totalBatches)) * 100);
+              logger.debug(
+                "TranslationManager",
+                `Progress: Batch ${progress.currentBatch}/${progress.totalBatches} (${pct}%)`
+              );
               // Update batch statuses from progress
               currentBatchStatuses = progress.batchStatuses.map((s) =>
                 s === "processing"
@@ -198,6 +217,10 @@ class TranslationManager {
               this.currentJob.id === jobId &&
               !this.isAborted
             ) {
+              logger.info(
+                "TranslationManager",
+                `Batch ${batchIndex + 1}/${totalBatches} completed successfully`
+              );
               accumulatedSrt = partialSrt;
               completedRanges = newCompletedRanges;
               // Update batch statuses - mark completed batch
@@ -251,6 +274,11 @@ class TranslationManager {
       );
 
       if (this.currentJob && this.currentJob.id === jobId && !this.isAborted) {
+        const elapsedSec = Math.round((Date.now() - (this.currentJob.startedAt || Date.now())) / 1000);
+        logger.info(
+          "TranslationManager",
+          `Translation COMPLETED successfully for ${videoUrl}. Duration: ${elapsedSec}s`
+        );
         this.currentJob = {
           ...this.currentJob,
           status: "completed",
@@ -309,6 +337,11 @@ class TranslationManager {
 
         // Update job status for real errors
         if (this.currentJob && this.currentJob.id === jobId) {
+          logger.error(
+            "TranslationManager",
+            `Translation FAILED for ${videoUrl}: ${error.message || error}`,
+            error
+          );
           this.currentJob = {
             ...this.currentJob,
             status: "error",

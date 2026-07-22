@@ -257,6 +257,13 @@ export interface NotificationSettings {
 }
 
 // ============================================
+// DEBUG SETTINGS TYPES
+// ============================================
+export interface DebugSettings {
+  enabled: boolean;
+}
+
+// ============================================
 // APP SETTINGS TYPES
 // ============================================
 export interface AppSettings {
@@ -266,6 +273,7 @@ export interface AppSettings {
   tts: TTSSettings;
   floatingUI: FloatingUISettings;
   notification: NotificationSettings;
+  debug: DebugSettings;
 }
 
 // ============================================

@@ -14,6 +14,7 @@ import {
   getPartialTranslation,
   getVideoTranslations,
 } from "@utils/storage";
+import { logger } from "./loggerService";
 
 // Re-export types for backward compatibility
 export type { QueueItem, QueueStatus } from "@src/types";
@@ -216,6 +217,11 @@ class QueueManager {
     this.items.unshift(item);
     await this.save();
     this.notify();
+
+    logger.info("QueueManager", `Item added to queue: ${item.title} (${videoId})`, {
+      videoUrl,
+      duration,
+    });
 
     const pendingCount = this.items.filter(
       (i) => i.status === "pending"

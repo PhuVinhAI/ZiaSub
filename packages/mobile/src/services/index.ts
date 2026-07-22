@@ -11,3 +11,5 @@ export { ttsService } from "./ttsService";
 export { updateService } from "./updateService";
 export type { ReleaseInfo, UpdateCheckResult } from "./updateService";
 export { backgroundService } from "./backgroundService";
+export { logger } from "./loggerService";
+export type { LogFileInfo, LogLevel } from "./loggerService";

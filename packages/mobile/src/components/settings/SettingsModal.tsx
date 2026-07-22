@@ -21,6 +21,7 @@ import type {
   GeminiConfig,
   FloatingUISettings,
   NotificationSettings,
+  DebugSettings,
 } from "@src/types";
 import { getGeminiConfigs, saveGeminiConfigs } from "@utils/storage";
 import GeneralTab from "./GeneralTab";
@@ -47,6 +48,8 @@ interface SettingsModalProps {
   onFloatingUISettingsChange: (settings: FloatingUISettings) => void;
   notificationSettings: NotificationSettings;
   onNotificationSettingsChange: (settings: NotificationSettings) => void;
+  debugSettings?: DebugSettings;
+  onDebugSettingsChange?: (settings: DebugSettings) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -64,6 +67,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onFloatingUISettingsChange,
   notificationSettings,
   onNotificationSettingsChange,
+  debugSettings,
+  onDebugSettingsChange,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -179,6 +184,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           onFloatingUIChange={onFloatingUISettingsChange}
           notificationSettings={notificationSettings}
           onNotificationChange={onNotificationSettingsChange}
+          debugSettings={debugSettings}
+          onDebugChange={onDebugSettingsChange}
         />
       );
     }

@@ -4,6 +4,7 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import { storageService } from "./storageService";
+import { logger } from "./loggerService";
 
 const BACKUP_FILENAME = "ziasub_backup.json";
 const DATA_MARKER_FILE = ".ziasub_data";
@@ -146,7 +147,7 @@ class BackupService {
     }
 
     await storageService.setLastBackupTime(Date.now());
-    console.log("[BackupService] Backup created successfully");
+    logger.info("BackupService", `Backup created successfully at: ${backupPath}`);
   }
 
   private async writeBackupLocal(

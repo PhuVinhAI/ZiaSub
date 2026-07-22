@@ -9,6 +9,7 @@ import type {
   TTSSettings,
   FloatingUISettings,
   NotificationSettings,
+  DebugSettings,
 } from "@src/types";
 import { storageService } from "@services/storageService";
 import {
@@ -17,6 +18,7 @@ import {
   DEFAULT_TTS_SETTINGS,
   DEFAULT_FLOATING_UI_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
+  DEFAULT_DEBUG_SETTINGS,
 } from "@constants/defaults";
 import { keyManager } from "@services/keyManager";
 import { ttsService } from "@services/ttsService";
@@ -35,6 +37,8 @@ export const useAppSettings = () => {
     useState<FloatingUISettings>(DEFAULT_FLOATING_UI_SETTINGS);
   const [notificationSettings, setNotificationSettings] =
     useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+  const [debugSettings, setDebugSettings] =
+    useState<DebugSettings>(DEFAULT_DEBUG_SETTINGS);
   const [apiKeys, setApiKeys] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -53,6 +57,7 @@ export const useAppSettings = () => {
         setNotificationSettings(
           settings.notification || DEFAULT_NOTIFICATION_SETTINGS
         );
+        setDebugSettings(settings.debug || DEFAULT_DEBUG_SETTINGS);
 
         const keys = settings.apiKeys?.keys || [];
         setApiKeys(keys);
@@ -136,12 +141,23 @@ export const useAppSettings = () => {
     []
   );
 
+  const updateDebugSettings = useCallback(
+    async (newSettings: DebugSettings) => {
+      setDebugSettings(newSettings);
+      const settings = storageService.getSettings();
+      settings.debug = newSettings;
+      await storageService.setSettings(settings);
+    },
+    []
+  );
+
   return {
     subtitleSettings,
     batchSettings,
     ttsSettings,
     floatingUISettings,
     notificationSettings,
+    debugSettings,
     apiKeys,
     isLoading,
     updateSubtitleSettings,
@@ -149,6 +165,7 @@ export const useAppSettings = () => {
     updateTTSSettings,
     updateFloatingUISettings,
     updateNotificationSettings,
+    updateDebugSettings,
     updateApiKeys,
   };
 };

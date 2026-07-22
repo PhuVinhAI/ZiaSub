@@ -6,6 +6,7 @@ import type {
   AppSettings,
   FloatingUISettings,
   NotificationSettings,
+  DebugSettings,
 } from "../types";
 
 // ============================================
@@ -79,6 +80,13 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 // ============================================
+// DEFAULT DEBUG SETTINGS
+// ============================================
+export const DEFAULT_DEBUG_SETTINGS: DebugSettings = {
+  enabled: false,
+};
+
+// ============================================
 // DEFAULT APP SETTINGS
 // ============================================
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -88,6 +96,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   tts: DEFAULT_TTS_SETTINGS,
   floatingUI: DEFAULT_FLOATING_UI_SETTINGS,
   notification: DEFAULT_NOTIFICATION_SETTINGS,
+  debug: DEFAULT_DEBUG_SETTINGS,
 };
 
 // ============================================

@@ -9,6 +9,7 @@ import { DEFAULT_BATCH_SETTINGS, PRESET_PROMPTS } from "@constants/defaults";
 import { mergeSrtContents, adjustSrtTimestamps } from "@utils/srtParser";
 import { normalizeYouTubeUrl, isShortsUrl } from "@utils/videoUtils";
 import { keyManager } from "./keyManager";
+import { logger } from "./loggerService";
 
 // Get effective system prompt - use preset if set, otherwise use custom systemPrompt
 const getEffectiveSystemPrompt = (config: GeminiConfig): string => {
@@ -359,23 +360,17 @@ export const translateVideoWithGemini = async (
     ? rangeEnd - rangeStart
     : options?.videoDuration;
 
-  console.log("[Gemini] Starting video translation...");
-  console.log("[Gemini] Normalized URL:", normalizedUrl);
-  console.log("[Gemini] Is Shorts:", isShorts);
-  console.log("[Gemini] Using key:", keyManager.getCurrentKeyMasked());
-  console.log("[Gemini] Max duration per batch:", maxDuration, "seconds");
-  console.log("[Gemini] Batch offset tolerance:", batchOffset, "seconds");
-  console.log("[Gemini] Video duration:", options?.videoDuration || "unknown");
-  console.log("[Gemini] Range:", rangeStart, "-", rangeEnd || "end");
-  console.log("[Gemini] Streaming mode:", streamingMode);
-  console.log(
-    "[Gemini] Presub mode:",
+  logger.info("GeminiService", `Starting video translation for: ${normalizedUrl}`, {
+    isShorts,
+    apiKeyMasked: keyManager.getCurrentKeyMasked(),
+    maxDuration,
+    batchOffset,
+    videoDuration: options?.videoDuration || "unknown",
+    range: `${rangeStart} - ${rangeEnd || "end"}`,
+    streamingMode,
     presubMode,
-    presubMode ? `(${presubDuration}s)` : ""
-  );
-  if (presubMode && options?.presubConfig) {
-    console.log("[Gemini] Presub config:", options.presubConfig.name);
-  }
+    model: config.model,
+  });
 
   try {
     // Shorts videos are typically under 60 seconds, so skip batching for them

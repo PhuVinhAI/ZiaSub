@@ -86,12 +86,14 @@ const HomeScreen = () => {
     ttsSettings,
     floatingUISettings,
     notificationSettings,
+    debugSettings,
     apiKeys,
     updateSubtitleSettings,
     updateBatchSettings,
     updateTTSSettings,
     updateFloatingUISettings,
     updateNotificationSettings,
+    updateDebugSettings,
     updateApiKeys,
   } = useAppSettings();
 
@@ -598,6 +600,8 @@ const HomeScreen = () => {
         onFloatingUISettingsChange={updateFloatingUISettings}
         notificationSettings={notificationSettings}
         onNotificationSettingsChange={updateNotificationSettings}
+        debugSettings={debugSettings}
+        onDebugSettingsChange={updateDebugSettings}
       />
 
       <TranslationQueueModal

@@ -14,6 +14,7 @@ import {
   DEFAULT_CHAT_CONFIG_ID,
   DEFAULT_SYSTEM_PROMPT,
 } from "@constants/defaults";
+import { logger } from "./loggerService";
 
 // Storage keys
 const KEYS = {
@@ -94,13 +95,15 @@ class StorageService {
       await this.ensureDefaultConfigs();
 
       this.initialized = true;
-      console.log("[StorageService] Initialized successfully");
+      logger.setDebugEnabled(!!this.cache.settings?.debug?.enabled);
+      logger.info("StorageService", "StorageService initialized successfully");
     } catch (error) {
       console.error("[StorageService] Init error:", error);
       this.cache.settings = { ...DEFAULT_APP_SETTINGS };
       this.cache.geminiConfigs = [];
       this.cache.chatSessions = [];
       this.initialized = true;
+      logger.setDebugEnabled(!!this.cache.settings?.debug?.enabled);
     }
   }
 
@@ -136,6 +139,10 @@ class StorageService {
       notification: {
         ...DEFAULT_APP_SETTINGS.notification,
         ...settings.notification,
+      },
+      debug: {
+        ...DEFAULT_APP_SETTINGS.debug,
+        ...settings.debug,
       },
     };
   }
@@ -188,6 +195,8 @@ class StorageService {
   async setSettings(settings: AppSettings): Promise<void> {
     this.cache.settings = settings;
     await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+    logger.setDebugEnabled(!!settings.debug?.enabled);
+    logger.info("StorageService", `Settings updated. Debug mode: ${settings.debug?.enabled ? "ON" : "OFF"}`);
   }
 
   getApiKeys(): string[] {

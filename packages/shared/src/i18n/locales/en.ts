@@ -176,6 +176,22 @@ export default {
       disabled: "Disabled",
       floatingUIDesc: "Position, layout of floating buttons",
       notificationDesc: "{{status}}",
+      debugDesc: "{{status}} - .txt log files",
+    },
+
+    // Debug Log
+    debug: {
+      title: "Debug Logs",
+      description: "Automatically log system events to .txt files in debug folder",
+      enabled: "Enable Debug Logs",
+      enabledHint: "Save detailed translation process and state logs into debug folder",
+      pathInfo: "Log files location",
+      viewLogs: "View log files",
+      clearLogs: "Clear log files",
+      clearLogsConfirm: "Are you sure you want to delete all debug log files?",
+      clearLogsSuccess: "All debug log files cleared!",
+      noLogs: "No log files found",
+      logCount: "{{count}} log file(s) (.txt)",
     },
 
     // Notification

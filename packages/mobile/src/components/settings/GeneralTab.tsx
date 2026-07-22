@@ -20,6 +20,7 @@ import type {
   TTSSettings,
   FloatingUISettings,
   NotificationSettings,
+  DebugSettings,
 } from "@src/types";
 import {
   DEFAULT_SUBTITLE_SETTINGS,
@@ -27,6 +28,7 @@ import {
   DEFAULT_TTS_SETTINGS,
   DEFAULT_FLOATING_UI_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
+  DEFAULT_DEBUG_SETTINGS,
 } from "@constants/defaults";
 import {
   ApiKeysSection,
@@ -39,6 +41,7 @@ import {
   DataSection,
   FloatingUISection,
   NotificationSection,
+  DebugSection,
 } from "./sections";
 import Button3D from "@components/common/Button3D";
 
@@ -63,6 +66,8 @@ interface GeneralTabProps {
   onFloatingUIChange: (settings: FloatingUISettings) => void;
   notificationSettings: NotificationSettings;
   onNotificationChange: (settings: NotificationSettings) => void;
+  debugSettings?: DebugSettings;
+  onDebugChange?: (settings: DebugSettings) => void;
 }
 
 type SettingGroup =
@@ -73,6 +78,7 @@ type SettingGroup =
   | "tts"
   | "floatingUI"
   | "notification"
+  | "debug"
   | "data"
   | "update"
   | null;
@@ -97,6 +103,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onFloatingUIChange,
   notificationSettings,
   onNotificationChange,
+  debugSettings = { enabled: false },
+  onDebugChange,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -151,6 +159,16 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
       labelKey: "settings.notification.title",
       description: t("settings.groups.notificationDesc", {
         status: notificationSettings.enabled
+          ? t("settings.groups.enabled")
+          : t("settings.groups.disabled"),
+      }),
+    },
+    {
+      key: "debug",
+      icon: "bug-outline",
+      labelKey: "settings.debug.title",
+      description: t("settings.groups.debugDesc", {
+        status: (debugSettings?.enabled ?? false)
           ? t("settings.groups.enabled")
           : t("settings.groups.disabled"),
       }),
@@ -251,6 +269,15 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             <NotificationSection
               notificationSettings={notificationSettings}
               onNotificationChange={onNotificationChange}
+            />
+          </View>
+        );
+      case "debug":
+        return (
+          <View style={styles.groupContent}>
+            <DebugSection
+              debugSettings={debugSettings}
+              onDebugChange={(newDebug) => onDebugChange && onDebugChange(newDebug)}
             />
           </View>
         );

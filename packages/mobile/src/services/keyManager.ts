@@ -4,6 +4,7 @@
  */
 import { GoogleGenAI } from "@google/genai";
 import type { KeyStatusCallback } from "@src/types";
+import { logger } from "./loggerService";
 
 class GeminiKeyManager {
   private keys: string[] = [];
@@ -112,11 +113,11 @@ class GeminiKeyManager {
       return false;
     }
 
+    const prevKeyIndex = this.currentKeyIndex;
     this.currentKeyIndex = (this.currentKeyIndex + 1) % this.keys.length;
-    console.log(
-      `[KeyManager] Rotated to key #${this.currentKeyIndex + 1}/${
-        this.keys.length
-      }`
+    logger.warn(
+      "KeyManager",
+      `Rotated API key from #${prevKeyIndex + 1} to #${this.currentKeyIndex + 1} of ${this.keys.length}`
     );
     this.notifyStatus(`Đang thử key ${this.currentKeyIndex + 1}...`);
     return true;
@@ -139,6 +140,7 @@ class GeminiKeyManager {
     operation: (ai: GoogleGenAI, keyIndex: number) => Promise<T>
   ): Promise<T> {
     if (this.keys.length === 0) {
+      logger.error("KeyManager", "Execution failed: No API keys configured");
       throw new Error("Thêm key trong Cài đặt trước nhé");
     }
 
@@ -165,10 +167,9 @@ class GeminiKeyManager {
 
         // Thành công
         if (triedKeys > 0) {
-          console.log(
-            `[KeyManager] ✅ Thành công với key #${
-              this.currentKeyIndex + 1
-            } sau ${triedKeys + 1} lần thử`
+          logger.info(
+            "KeyManager",
+            `Success with key #${this.currentKeyIndex + 1} after ${triedKeys + 1} attempts`
           );
           this.notifyStatus(`✅ Key ${this.currentKeyIndex + 1} hoạt động`);
         }
@@ -179,10 +180,10 @@ class GeminiKeyManager {
         const errorCode = error?.status || error?.code;
         const errorMsg = error?.message || "Unknown error";
 
-        console.log(
-          `[KeyManager] ❌ Key #${
-            this.currentKeyIndex + 1
-          } lỗi: ${errorCode} - ${errorMsg}`
+        logger.error(
+          "KeyManager",
+          `Key #${this.currentKeyIndex + 1} error (${errorCode}): ${errorMsg}`,
+          error
         );
 
         // Kiểm tra lỗi mạng - không cần thử key khác

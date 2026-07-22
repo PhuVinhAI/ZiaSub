@@ -176,6 +176,22 @@ export default {
       disabled: "Đang tắt",
       floatingUIDesc: "Vị trí, bố cục nút nổi",
       notificationDesc: "{{status}}",
+      debugDesc: "{{status}} - File log .txt",
+    },
+
+    // Debug Log
+    debug: {
+      title: "Nhật ký Debug",
+      description: "Ghi log tự động vào file .txt trong thư mục debug",
+      enabled: "Bật nhật ký Debug Log",
+      enabledHint: "Lưu nhật ký chi tiết quá trình dịch và trạng thái vào thư mục debug",
+      pathInfo: "Thư mục lưu file log",
+      viewLogs: "Xem danh sách file log",
+      clearLogs: "Xóa tất cả file log",
+      clearLogsConfirm: "Bạn có chắc chắn muốn xóa tất cả các file debug log?",
+      clearLogsSuccess: "Đã xóa sạch các file log!",
+      noLogs: "Chưa có file log nào",
+      logCount: "{{count}} file log (.txt)",
     },
 
     // Notification
