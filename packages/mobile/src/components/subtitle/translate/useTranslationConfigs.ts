@@ -3,7 +3,7 @@
  *
  * Tách từ TranslateTab.tsx — chỉ di chuyển code, không sửa đổi logic.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { GeminiConfig } from "@src/types";
 import {
   getGeminiConfigs,
@@ -20,19 +20,23 @@ export function useTranslationConfigs() {
   const [currentPresetId, setCurrentPresetId] = useState<
     PresetPromptType | undefined
   >();
+  const prevConfigIdRef = useRef<string>("");
 
-  // Detect current preset from selected config
+  // Detect current preset ONLY when user selects a different config
   useEffect(() => {
-    const selectedConfig = geminiConfigs.find((c) => c.id === selectedConfigId);
-    if (selectedConfig) {
-      // Use presetId if set, otherwise check if systemPrompt matches any preset
-      if (selectedConfig.presetId) {
-        setCurrentPresetId(selectedConfig.presetId as PresetPromptType);
-      } else {
-        const matchingPreset = PRESET_PROMPTS.find(
-          (p) => p.prompt === selectedConfig.systemPrompt
-        );
-        setCurrentPresetId(matchingPreset?.id || "custom");
+    if (!selectedConfigId) return;
+    if (selectedConfigId !== prevConfigIdRef.current) {
+      prevConfigIdRef.current = selectedConfigId;
+      const selectedConfig = geminiConfigs.find((c) => c.id === selectedConfigId);
+      if (selectedConfig) {
+        if (selectedConfig.presetId) {
+          setCurrentPresetId(selectedConfig.presetId as PresetPromptType);
+        } else {
+          const matchingPreset = PRESET_PROMPTS.find(
+            (p) => p.prompt === selectedConfig.systemPrompt
+          );
+          setCurrentPresetId(matchingPreset?.id || "custom");
+        }
       }
     }
   }, [selectedConfigId, geminiConfigs]);
