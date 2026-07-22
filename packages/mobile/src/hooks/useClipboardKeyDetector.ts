@@ -14,6 +14,8 @@ import {
   saveTranslation,
   getLastCopiedVideoUrlFromStorage,
   saveLastCopiedVideoUrlToStorage,
+  getApiKeys,
+  saveApiKeys,
 } from "@utils/storage";
 import { alert, confirm } from "@components/common/CustomAlert";
 
@@ -52,20 +54,30 @@ export const useClipboardKeyDetector = ({
 
       // 1. Check if text is a valid Gemini API Key (starts with AIza or AQ.)
       if (isValidApiKey(trimmed)) {
+        // ALWAYS fetch latest saved keys directly from storage to avoid stale/empty state on initial app load
+        const savedKeys = await getApiKeys();
+        if (savedKeys.includes(trimmed) || apiKeys.includes(trimmed)) {
+          lastCheckedClipboardRef.current = trimmed;
+          return;
+        }
+
         // Mark as checked
         lastCheckedClipboardRef.current = trimmed;
-
-        // Skip if key already exists in app's apiKeys
-        if (apiKeys.includes(trimmed)) return;
 
         // Prompt user to add API Key
         confirm(
           "Thêm API Key mới?",
           `Tìm thấy key: ${maskKey(trimmed)}`,
-          () => {
-            const newKeys = [...apiKeys, trimmed];
-            updateApiKeys(newKeys);
-            alert("Thành công", "Đã thêm API Key mới!");
+          async () => {
+            const currentKeys = await getApiKeys();
+            if (!currentKeys.includes(trimmed)) {
+              const newKeys = [...currentKeys, trimmed];
+              await saveApiKeys(newKeys);
+              updateApiKeys(newKeys);
+              alert("Thành công", "Đã thêm API Key mới!");
+            } else {
+              alert("Thông báo", "API Key này đã có trong danh sách.");
+            }
           },
           "Thêm ngay",
           "Bỏ qua"
