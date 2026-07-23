@@ -166,6 +166,10 @@ export default {
     language: "Ngôn ngữ",
     selectLanguage: "Chọn ngôn ngữ",
     editConfig: "Chỉnh kiểu dịch",
+    tabs: {
+      general: "Cài đặt chung",
+      geminiConfigs: "Kiểu dịch",
+    },
 
     // Groups
     groups: {
@@ -383,6 +387,12 @@ export default {
       systemPrompt: "Hướng dẫn dịch",
       systemPromptPlaceholder: "Nhập hướng dẫn cho AI...",
       addNew: "Thêm kiểu dịch",
+      addTitle: "Thêm kiểu dịch",
+      editTitle: "Chỉnh kiểu dịch",
+      validationTitle: "Thông tin chưa hợp lệ",
+      validationNameEmpty: "Vui lòng nhập tên kiểu dịch.",
+      cannotDeleteTitle: "Không thể xóa",
+      cannotDeleteDefault: "Cấu hình mặc định không thể bị xóa.",
       deleteTitle: "Xóa kiểu dịch",
       deleteConfirm: "Bạn muốn xóa kiểu dịch này?",
       cannotDelete: "Không xóa được",
@@ -725,6 +735,11 @@ export default {
   faq: {
     title: "Câu hỏi thường gặp",
     madeBy: "Phát triển bởi",
+    aboutApp: "Về ứng dụng",
+    appName: "Tên ứng dụng",
+    version: "Phiên bản",
+    author: "Tác giả",
+    contact: "Liên hệ",
     adWarning: {
       question: "Tại sao không nên bấm dịch khi có quảng cáo?",
       answer:

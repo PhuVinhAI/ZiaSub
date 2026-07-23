@@ -166,6 +166,10 @@ export default {
     language: "Language",
     selectLanguage: "Select language",
     editConfig: "Edit translation style",
+    tabs: {
+      general: "General settings",
+      geminiConfigs: "Translation styles",
+    },
 
     // Groups
     groups: {
@@ -385,6 +389,12 @@ export default {
       systemPrompt: "Translation instructions",
       systemPromptPlaceholder: "Enter instructions for AI...",
       addNew: "Add translation style",
+      addTitle: "Add translation style",
+      editTitle: "Edit translation style",
+      validationTitle: "Invalid input",
+      validationNameEmpty: "Please enter a style name.",
+      cannotDeleteTitle: "Cannot delete",
+      cannotDeleteDefault: "Default configuration cannot be deleted.",
       deleteTitle: "Delete style",
       deleteConfirm: "Do you want to delete this translation style?",
       cannotDelete: "Cannot delete",
@@ -727,6 +737,11 @@ export default {
   faq: {
     title: "Frequently Asked Questions",
     madeBy: "Made by",
+    aboutApp: "About App",
+    appName: "App Name",
+    version: "Version",
+    author: "Author",
+    contact: "Contact",
     adWarning: {
       question: "Why shouldn't I translate during ads?",
       answer:
