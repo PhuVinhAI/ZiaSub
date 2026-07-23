@@ -30,6 +30,8 @@ export interface BottomSheetModalProps {
   showDragHandle?: boolean;
   showCloseButton?: boolean;
   containerStyle?: ViewStyle;
+  wrapperComponent?: React.ComponentType<any>;
+  wrapperStyle?: any;
 }
 
 export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
@@ -45,6 +47,8 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
   showDragHandle = true,
   showCloseButton = true,
   containerStyle,
+  wrapperComponent: WrapperComponent,
+  wrapperStyle,
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -91,6 +95,61 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
 
   if (!modalVisible) return null;
 
+  const renderSheetContent = () => (
+    <Animated.View
+      style={[
+        styles.bottomSheet,
+        themedStyles.bottomSheet,
+        {
+          maxHeight: sheetMaxHeight,
+          paddingBottom: Math.max(insets.bottom, 20),
+          transform: [{ translateY: slideAnim }],
+        },
+        containerStyle,
+      ]}
+    >
+      {showDragHandle && <View style={themedStyles.dragHandle} />}
+
+      {(title || showCloseButton || headerRight) && (
+        <View style={themedStyles.sheetHeader}>
+          <View style={styles.headerLeft}>
+            {iconName && (
+              <MaterialCommunityIcons
+                name={iconName}
+                size={24}
+                color={iconColor || colors.primary}
+              />
+            )}
+            <View style={styles.headerTitleGroup}>
+              {title && <Text style={themedStyles.title}>{title}</Text>}
+              {subtitle && (
+                <Text style={themedStyles.subtitle}>{subtitle}</Text>
+              )}
+            </View>
+          </View>
+          <View style={styles.headerRightGroup}>
+            {headerRight}
+            {showCloseButton && (
+              <TouchableOpacity
+                onPress={onClose}
+                style={themedStyles.closeButton}
+              >
+                <MaterialCommunityIcons
+                  name="close"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Children Content */}
+      {children}
+    </Animated.View>
+  );
+
   return (
     <Modal
       visible={modalVisible}
@@ -115,58 +174,13 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
         </Animated.View>
 
         {/* Bottom Sheet Card */}
-        <Animated.View
-          style={[
-            styles.bottomSheet,
-            themedStyles.bottomSheet,
-            {
-              maxHeight: sheetMaxHeight,
-              paddingBottom: Math.max(insets.bottom, 20),
-              transform: [{ translateY: slideAnim }],
-            },
-            containerStyle,
-          ]}
-        >
-          {showDragHandle && <View style={themedStyles.dragHandle} />}
-
-          {(title || showCloseButton || headerRight) && (
-            <View style={themedStyles.sheetHeader}>
-              <View style={styles.headerLeft}>
-                {iconName && (
-                  <MaterialCommunityIcons
-                    name={iconName}
-                    size={24}
-                    color={iconColor || colors.primary}
-                  />
-                )}
-                <View style={styles.headerTitleGroup}>
-                  {title && <Text style={themedStyles.title}>{title}</Text>}
-                  {subtitle && (
-                    <Text style={themedStyles.subtitle}>{subtitle}</Text>
-                  )}
-                </View>
-              </View>
-              <View style={styles.headerRightGroup}>
-                {headerRight}
-                {showCloseButton && (
-                  <TouchableOpacity
-                    onPress={onClose}
-                    style={themedStyles.closeButton}
-                  >
-                    <MaterialCommunityIcons
-                      name="close"
-                      size={24}
-                      color={colors.text}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Children Content */}
-          {children}
-        </Animated.View>
+        {WrapperComponent ? (
+          <WrapperComponent style={wrapperStyle}>
+            {renderSheetContent()}
+          </WrapperComponent>
+        ) : (
+          renderSheetContent()
+        )}
       </View>
     </Modal>
   );

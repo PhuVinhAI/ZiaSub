@@ -13,6 +13,7 @@ import Reanimated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { alert, confirm } from "../common/CustomAlert";
+import BottomSheetModal from "../common/BottomSheetModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -390,147 +391,107 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
   }, [visible, activeTab, checkClipboard]);
 
   return (
-    <Modal
-      animationType="none"
-      transparent
+    <BottomSheetModal
       visible={visible}
-      onRequestClose={handleClose}
-      statusBarTranslucent
+      onClose={handleClose}
+      title={t("subtitleModal.title")}
+      maxHeightRatio={0.8}
+      wrapperComponent={Reanimated.View}
+      wrapperStyle={[styles.keyboardAvoidingContainer, animatedBottomStyle]}
     >
-      <View style={styles.modalOverlay}>
-        <Animated.View style={[styles.modalBackdrop, { opacity: fadeAnim }]}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={handleClose}
-          />
-        </Animated.View>
-        <Reanimated.View
-          style={[styles.keyboardAvoidingContainer, animatedBottomStyle]}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === "translate" && styles.tabActive,
+          ]}
+          onPress={() => setActiveTab("translate")}
         >
-          <Animated.View
+          <MaterialCommunityIcons
+            name="translate"
+            size={18}
+            color={
+              activeTab === "translate"
+                ? colors.primary
+                : colors.textMuted
+            }
+          />
+          <Text
             style={[
-              styles.bottomSheet,
-              {
-                paddingBottom: Math.max(insets.bottom, 20),
-                transform: [{ translateY: slideAnim }],
-              },
+              styles.tabText,
+              activeTab === "translate" && styles.tabTextActive,
             ]}
           >
-            <View style={styles.sheetHeader}>
-              <View style={styles.dragHandle} />
-              <Text style={styles.title}>{t("subtitleModal.title")}</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleClose}
-              >
-                <MaterialCommunityIcons
-                  name="close"
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.tabBar}>
-              <TouchableOpacity
-                style={[
-                  styles.tab,
-                  activeTab === "translate" && styles.tabActive,
-                ]}
-                onPress={() => setActiveTab("translate")}
-              >
-                <MaterialCommunityIcons
-                  name="translate"
-                  size={18}
-                  color={
-                    activeTab === "translate"
-                      ? colors.primary
-                      : colors.textMuted
-                  }
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "translate" && styles.tabTextActive,
-                  ]}
-                >
-                  {t("subtitleModal.tabs.translate")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, activeTab === "srt" && styles.tabActive]}
-                onPress={() => setActiveTab("srt")}
-              >
-                <MaterialCommunityIcons
-                  name="file-document-outline"
-                  size={18}
-                  color={
-                    activeTab === "srt" ? colors.primary : colors.textMuted
-                  }
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "srt" && styles.tabTextActive,
-                  ]}
-                >
-                  {t("subtitleModal.tabs.srt")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View
-              style={{
-                display: activeTab === "srt" ? "flex" : "none",
-                flex: 1,
-              }}
-            >
-              <SrtTab
-                srtContent={srtContent}
-                setSrtContent={setSrtContent}
-                onLoadSubtitles={onLoadSubtitles}
-                videoTitle={videoTitle}
-                configName={activeConfigName}
-                presetName={activePresetName}
-              />
-            </View>
-            <View
-              style={{
-                display: activeTab === "translate" ? "flex" : "none",
-                flex: 1,
-              }}
-            >
-              <TranslateTab
-                videoUrl={videoUrl}
-                videoTitle={videoTitle}
-                videoDuration={videoDuration}
-                batchSettings={batchSettings}
-                isTranslating={isTranslating}
-                isWaitingInQueue={isWaitingInQueue}
-                isPausedInQueue={isPausedInQueue}
-                queuePosition={queuePosition}
-                pausedProgress={pausedProgress}
-                translateStatus={translateStatus}
-                keyStatus={keyStatus}
-                batchProgress={batchProgress}
-                onClose={handleClose}
-                onSelectTranslation={(srt) => {
-                  setSrtContent(srt);
-                  onApplySubtitles?.(srt);
-                }}
-                onBatchSettingsChange={onBatchSettingsChange}
-                onTranslationDeleted={() => {
-                  setSrtContent("");
-                  onClearSubtitles?.();
-                }}
-                onReloadRef={reloadTranslationsRef}
-                visible={visible}
-                onCancelQueue={handleCancelQueue}
-              />
-            </View>
-          </Animated.View>
-        </Reanimated.View>
+            {t("subtitleModal.tabs.translate")}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "srt" && styles.tabActive]}
+          onPress={() => setActiveTab("srt")}
+        >
+          <MaterialCommunityIcons
+            name="file-document-outline"
+            size={18}
+            color={
+              activeTab === "srt" ? colors.primary : colors.textMuted
+            }
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "srt" && styles.tabTextActive,
+            ]}
+          >
+            {t("subtitleModal.tabs.srt")}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+      <View
+        style={{
+          display: activeTab === "srt" ? "flex" : "none",
+          flex: 1,
+        }}
+      >
+        <SrtTab
+          srtContent={srtContent}
+          setSrtContent={setSrtContent}
+          onLoadSubtitles={onLoadSubtitles}
+          videoTitle={videoTitle}
+          configName={activeConfigName}
+          presetName={activePresetName}
+        />
+      </View>
+      <View
+        style={{
+          display: activeTab === "translate" ? "flex" : "none",
+          flex: 1,
+        }}
+      >
+        <TranslateTab
+          videoUrl={videoUrl}
+          videoTitle={videoTitle}
+          videoDuration={videoDuration}
+          batchSettings={batchSettings}
+          isTranslating={isTranslating}
+          isWaitingInQueue={isWaitingInQueue}
+          isPausedInQueue={isPausedInQueue}
+          queuePosition={queuePosition}
+          pausedProgress={pausedProgress}
+          translateStatus={translateStatus}
+          keyStatus={keyStatus}
+          batchProgress={batchProgress}
+          onClose={handleClose}
+          onSelectTranslation={(srt) => {
+            setSrtContent(srt);
+            onApplySubtitles?.(srt);
+          }}
+          onBatchSettingsChange={onBatchSettingsChange}
+          onReloadRef={reloadTranslationsRef}
+          visible={visible}
+          onCancelQueue={handleCancelQueue}
+        />
+      </View>
+    </BottomSheetModal>
   );
 };
 
