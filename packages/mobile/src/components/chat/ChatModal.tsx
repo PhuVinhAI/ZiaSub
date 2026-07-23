@@ -192,7 +192,9 @@ const ChatModal: React.FC<ChatModalProps> = ({
               />
             }
           />
-          <Reanimated.View style={keyboardAnimatedStyle}>
+          <Reanimated.View
+            style={[styles.inputFloatingContainer, keyboardAnimatedStyle]}
+          >
             <ChatInput
               inputText={inputText}
               onChangeText={setInputText}

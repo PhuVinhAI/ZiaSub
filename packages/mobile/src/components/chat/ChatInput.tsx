@@ -174,7 +174,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 };
 
 const styles = StyleSheet.create({
-  inputArea: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 },
+  inputArea: {
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    paddingBottom: 10,
+    backgroundColor: "transparent",
+  },
   inputDisabled: { opacity: 0.5 },
   inputBottomRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   videoBtn: {
@@ -189,11 +194,18 @@ const styles = StyleSheet.create({
 
 const chatInputThemedStyles = createThemedStyles((colors) => ({
   inputBox: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
   },
   attachmentBar: {
     flexDirection: "row",
