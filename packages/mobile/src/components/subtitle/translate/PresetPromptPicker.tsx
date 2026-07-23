@@ -345,7 +345,7 @@ const themedStyles = createThemedStyles((colors) => ({
     paddingHorizontal: 16,
     paddingTop: 12,
     width: "100%" as const,
-    height: SHEET_HEIGHT,
+    maxHeight: SHEET_HEIGHT,
     backgroundColor: colors.surface,
   },
   sheetHeader: {
@@ -377,7 +377,7 @@ const themedStyles = createThemedStyles((colors) => ({
 
   // Preset List - style giống QueueItemCard
   presetList: {
-    flex: 1,
+    maxHeight: 380,
   },
   presetListContent: {
     paddingBottom: 20,
@@ -388,7 +388,7 @@ const themedStyles = createThemedStyles((colors) => ({
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
     borderColor: colors.border,
     gap: 12,
