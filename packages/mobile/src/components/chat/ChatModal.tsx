@@ -150,7 +150,6 @@ const ChatModal: React.FC<ChatModalProps> = ({
             themedStyles.container,
             {
               paddingTop: topPadding,
-              paddingBottom: bottomPadding,
               transform: [{ translateY: slideAnim }],
             },
           ]}

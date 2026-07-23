@@ -7,6 +7,8 @@ import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import type { VideoTimeRange } from "@src/types";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 interface ChatInputProps {
   inputText: string;
   onChangeText: (text: string) => void;
@@ -43,6 +45,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(chatInputThemedStyles);
+  const insets = useSafeAreaInsets();
 
   // Format time range for display
   const formatTimeRange = (range: VideoTimeRange) => {
@@ -61,7 +64,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <View style={styles.inputArea}>
+    <View
+      style={[
+        styles.inputArea,
+        { paddingBottom: Math.max(insets.bottom, 14) },
+      ]}
+    >
       <View style={themedStyles.inputBox}>
         {attachVideo && videoUrl && (
           <View style={themedStyles.attachmentBar}>
