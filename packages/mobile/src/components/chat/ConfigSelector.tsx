@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxHeight: SHEET_HEIGHT,
   },
-  list: { flex: 1 },
+  list: { maxHeight: 380 },
   itemContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
   itemText: { flex: 1 },
 });
