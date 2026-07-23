@@ -50,6 +50,9 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
     setStoragePath(path);
   };
 
+  const isSafPath = storagePath.startsWith("content://");
+  const logDirPath = isSafPath ? storagePath : `${storagePath}/debug`;
+
   const handleToggleEnabled = (value: boolean) => {
     onDebugChange({ ...debugSettings, enabled: value });
   };
@@ -138,7 +141,7 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
         <View style={styles.infoTextWrapper}>
           <Text style={themedStyles.infoTitle}>{t("settings.debug.pathInfo")}</Text>
           <Text style={themedStyles.infoPath} numberOfLines={2}>
-            {storagePath}/debug/
+            {logDirPath}/
           </Text>
           <Text style={themedStyles.infoCount}>
             {t("settings.debug.logCount", { count: logFiles.length })}
