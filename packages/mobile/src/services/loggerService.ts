@@ -1,13 +1,9 @@
 /**
- * Logger Service - Handles debug logging to .txt files in a local debug/ subfolder.
- * Logs are always written to the app's document directory, NEVER to the backup
- * SAF directory, to avoid polluting or corrupting backup data.
+ * Logger Service - Handles debug logging to .txt files in debug/ subfolder
+ * Logs are written to <backup_path>/debug/debug_YYYY-MM-DD.txt when debug setting is enabled.
  */
 import * as FileSystem from "expo-file-system/legacy";
 import { storageService } from "./storageService";
-
-/** Fixed local directory for log files — independent of backup path. */
-const LOG_BASE_DIR = `${FileSystem.documentDirectory}ziasub_logs`;
 
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
 
@@ -137,7 +133,7 @@ class LoggerService {
   }
 
   /**
-   * Flush pending logs to file (always writes to local document directory).
+   * Flush pending logs to file
    */
   async flushLogs(): Promise<void> {
     if (this.isWriting || this.logBuffer.length === 0) return;
@@ -151,7 +147,13 @@ class LoggerService {
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `debug_${dateStr}.txt`;
 
-      await this.appendLogLocal(LOG_BASE_DIR, filename, content);
+      const basePath = (await storageService.getBackupPath()) || `${FileSystem.documentDirectory}ziasub_backup`;
+
+      if (basePath.startsWith("content://")) {
+        await this.appendLogSaf(basePath, filename, content);
+      } else {
+        await this.appendLogLocal(basePath, filename, content);
+      }
     } catch (err) {
       console.error("[LoggerService] Failed to flush logs to disk:", err);
     } finally {
@@ -163,8 +165,7 @@ class LoggerService {
   }
 
   /**
-   * Append log to local file system (<basePath>/debug/<filename>).
-   * This is the only log write path — logs are always local.
+   * Append log to local file system (<basePath>/debug/<filename>)
    */
   private async appendLogLocal(basePath: string, filename: string, content: string): Promise<void> {
     const debugDir = `${basePath}/debug`;
@@ -189,32 +190,73 @@ class LoggerService {
   }
 
   /**
-   * Get log directory path (for UI display).
+   * Append log to SAF directory URI.
+   * SAF does not support subdirectories, so log files are stored in the
+   * root with a debug_ prefix (debug_YYYY-MM-DD.txt).
    */
-  getLogDirectory(): string {
-    return `${LOG_BASE_DIR}/debug`;
+  private async appendLogSaf(directoryUri: string, filename: string, content: string): Promise<void> {
+    try {
+      const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(directoryUri);
+
+      // Find existing log file by matching the last path segment
+      let targetFileUri = files.find((f) => {
+        const lastSegment = decodeURIComponent(f.split("/").pop() || "");
+        return lastSegment === filename;
+      });
+
+      if (targetFileUri) {
+        const existing = await FileSystem.StorageAccessFramework.readAsStringAsync(targetFileUri);
+        await FileSystem.StorageAccessFramework.writeAsStringAsync(targetFileUri, existing + content);
+      } else {
+        targetFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          directoryUri,
+          filename,
+          "text/plain"
+        );
+        await FileSystem.StorageAccessFramework.writeAsStringAsync(targetFileUri, content);
+      }
+    } catch (err) {
+      console.error("[LoggerService] SAF write error:", err);
+    }
   }
 
   /**
-   * Get list of debug log files (always from local document directory).
+   * Get list of debug log files
    */
   async getLogFiles(): Promise<LogFileInfo[]> {
     try {
+      const basePath = (await storageService.getBackupPath()) || `${FileSystem.documentDirectory}ziasub_backup`;
       const result: LogFileInfo[] = [];
-      const debugDir = `${LOG_BASE_DIR}/debug`;
-      const dirInfo = await FileSystem.getInfoAsync(debugDir);
-      if (dirInfo.exists && dirInfo.isDirectory) {
-        const files = await FileSystem.readDirectoryAsync(debugDir);
-        for (const file of files) {
-          if (file.endsWith(".txt")) {
-            const filePath = `${debugDir}/${file}`;
-            const info = await FileSystem.getInfoAsync(filePath);
+
+      if (basePath.startsWith("content://")) {
+        // SAF: logs are stored flat in root with debug_ prefix (no subdirectory support)
+        const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
+        for (const fileUri of files) {
+          const name = decodeURIComponent(fileUri.split("/").pop() || "");
+          if (name.startsWith("debug_") && name.endsWith(".txt")) {
             result.push({
-              name: file,
-              path: filePath,
-              size: info.exists && !info.isDirectory ? info.size || 0 : 0,
-              modificationTime: info.exists && !info.isDirectory ? info.modificationTime : undefined,
+              name,
+              path: fileUri,
+              size: 0,
             });
+          }
+        }
+      } else {
+        const debugDir = `${basePath}/debug`;
+        const dirInfo = await FileSystem.getInfoAsync(debugDir);
+        if (dirInfo.exists && dirInfo.isDirectory) {
+          const files = await FileSystem.readDirectoryAsync(debugDir);
+          for (const file of files) {
+            if (file.endsWith(".txt")) {
+              const filePath = `${debugDir}/${file}`;
+              const info = await FileSystem.getInfoAsync(filePath);
+              result.push({
+                name: file,
+                path: filePath,
+                size: info.exists && !info.isDirectory ? info.size || 0 : 0,
+                modificationTime: info.exists && !info.isDirectory ? info.modificationTime : undefined,
+              });
+            }
           }
         }
       }
@@ -237,8 +279,20 @@ class LoggerService {
       if (pathOrFilename.startsWith("file://") || pathOrFilename.startsWith("/")) {
         return await FileSystem.readAsStringAsync(pathOrFilename);
       }
-      // Plain filename — look in local log directory
-      const filePath = `${LOG_BASE_DIR}/debug/${pathOrFilename}`;
+      const basePath = (await storageService.getBackupPath()) || `${FileSystem.documentDirectory}ziasub_backup`;
+      // SAF basePath can't have a debug/ subfolder
+      if (basePath.startsWith("content://")) {
+        const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
+        const target = files.find((f) => {
+          const name = decodeURIComponent(f.split("/").pop() || "");
+          return name === pathOrFilename;
+        });
+        if (target) {
+          return await FileSystem.StorageAccessFramework.readAsStringAsync(target);
+        }
+        return `File not found: ${pathOrFilename}`;
+      }
+      const filePath = `${basePath}/debug/${pathOrFilename}`;
       return await FileSystem.readAsStringAsync(filePath);
     } catch (error) {
       console.error("[LoggerService] Error reading log file:", error);
@@ -256,9 +310,22 @@ class LoggerService {
       } else if (pathOrFilename.startsWith("file://") || pathOrFilename.startsWith("/")) {
         await FileSystem.deleteAsync(pathOrFilename, { idempotent: true });
       } else {
-        // Plain filename — look in local log directory
-        const filePath = `${LOG_BASE_DIR}/debug/${pathOrFilename}`;
-        await FileSystem.deleteAsync(filePath, { idempotent: true });
+        const basePath = (await storageService.getBackupPath()) || `${FileSystem.documentDirectory}ziasub_backup`;
+        // SAF basePath can't have a debug/ subfolder; local paths use debug/ subfolder
+        if (basePath.startsWith("content://")) {
+          // For SAF, look up the file URI in the root directory
+          const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
+          const target = files.find((f) => {
+            const name = decodeURIComponent(f.split("/").pop() || "");
+            return name === pathOrFilename;
+          });
+          if (target) {
+            await FileSystem.StorageAccessFramework.deleteAsync(target);
+          }
+        } else {
+          const filePath = `${basePath}/debug/${pathOrFilename}`;
+          await FileSystem.deleteAsync(filePath, { idempotent: true });
+        }
       }
     } catch (error) {
       console.error("[LoggerService] Error deleting log file:", error);
@@ -271,22 +338,38 @@ class LoggerService {
   async clearLogs(): Promise<void> {
     try {
       // Cancel any pending flush and drain the in-memory buffer
+      // to prevent logs from being written to disk after clearing.
       if (this.writeTimer) {
         clearTimeout(this.writeTimer);
         this.writeTimer = null;
       }
       this.logBuffer = [];
 
-      const debugDir = `${LOG_BASE_DIR}/debug`;
-      const dirInfo = await FileSystem.getInfoAsync(debugDir);
-      if (dirInfo.exists && dirInfo.isDirectory) {
-        const dirFiles = await FileSystem.readDirectoryAsync(debugDir);
-        for (const file of dirFiles) {
-          if (file.endsWith(".txt")) {
-            await FileSystem.deleteAsync(`${debugDir}/${file}`, { idempotent: true });
+      const basePath = (await storageService.getBackupPath()) || `${FileSystem.documentDirectory}ziasub_backup`;
+
+      if (basePath.startsWith("content://")) {
+        // SAF: only delete files whose name starts with debug_ and ends with .txt
+        const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
+        for (const fileUri of files) {
+          const name = decodeURIComponent(fileUri.split("/").pop() || "");
+          if (name.startsWith("debug_") && name.endsWith(".txt")) {
+            await FileSystem.StorageAccessFramework.deleteAsync(fileUri);
           }
         }
-        await FileSystem.deleteAsync(debugDir, { idempotent: true });
+      } else {
+        const debugDir = `${basePath}/debug`;
+        const dirInfo = await FileSystem.getInfoAsync(debugDir);
+        if (dirInfo.exists && dirInfo.isDirectory) {
+          // Delete individual .txt files, then remove the empty directory
+          const dirFiles = await FileSystem.readDirectoryAsync(debugDir);
+          for (const file of dirFiles) {
+            if (file.endsWith(".txt")) {
+              await FileSystem.deleteAsync(`${debugDir}/${file}`, { idempotent: true });
+            }
+          }
+          // Remove the debug/ directory itself (idempotent — safe if already gone)
+          await FileSystem.deleteAsync(debugDir, { idempotent: true });
+        }
       }
       // Use console.log instead of this.info to avoid re-creating a log file
       console.log("[LoggerService] All debug log files cleared.");

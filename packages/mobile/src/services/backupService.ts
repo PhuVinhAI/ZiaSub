@@ -10,7 +10,7 @@ const BACKUP_FILENAME = "ziasub_backup.json";
 /** Hidden .ziasub_data marker for LOCAL paths (dot-files work fine on local fs). */
 const DATA_MARKER_FILE = ".ziasub_data";
 /** Non-hidden _ziasub_data marker for SAF paths (SAF readDirectoryAsync does NOT return hidden dot-files). */
-const SAF_MARKER_FILE = "_ziasub_data";
+const SAF_MARKER_FILE = "_ziasub_data.json";
 
 type BackupType = "local" | "saf";
 
