@@ -289,6 +289,9 @@ export default {
       concurrent: "Translate simultaneously: {{count}} parts",
       concurrentHint:
         "Translate multiple parts at once (faster but uses more keys)",
+      maxConcurrent: "Translate simultaneously: {{count}} parts",
+      maxConcurrentHint:
+        "Translate multiple parts at once (faster but uses more keys)",
       offset: "Tolerance: {{minutes}} min {{seconds}}s",
       offsetHint:
         "Slightly longer videos still translate in one go (e.g., 10m + 1m tolerance = 11m video not split)",

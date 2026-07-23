@@ -287,6 +287,8 @@ export default {
       batchDurationHint: "Video dài hơn sẽ được chia nhỏ để dịch",
       concurrent: "Dịch cùng lúc: {{count}} phần",
       concurrentHint: "Dịch nhiều phần cùng lúc (nhanh hơn nhưng tốn key)",
+      maxConcurrent: "Dịch cùng lúc: {{count}} phần",
+      maxConcurrentHint: "Dịch nhiều phần cùng lúc (nhanh hơn nhưng tốn key)",
       offset: "Dung sai thêm: {{minutes}} phút {{seconds}}s",
       offsetHint:
         "Video dài hơn một chút vẫn dịch 1 lần (VD: 10p + 1p dung sai = video 11p không bị chia nhỏ)",
