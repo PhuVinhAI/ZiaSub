@@ -7,7 +7,10 @@ import { storageService } from "./storageService";
 import { logger } from "./loggerService";
 
 const BACKUP_FILENAME = "ziasub_backup.json";
+/** Hidden .ziasub_data marker for LOCAL paths (dot-files work fine on local fs). */
 const DATA_MARKER_FILE = ".ziasub_data";
+/** Non-hidden _ziasub_data marker for SAF paths (SAF readDirectoryAsync does NOT return hidden dot-files). */
+const SAF_MARKER_FILE = "_ziasub_data";
 
 type BackupType = "local" | "saf";
 
@@ -202,8 +205,8 @@ class BackupService {
       );
     }
 
-    // Write marker file
-    let markerUri = this.findSafFile(files, DATA_MARKER_FILE);
+    // Write marker file (use non-hidden name so SAF readDirectoryAsync can find it)
+    let markerUri = this.findSafFile(files, SAF_MARKER_FILE);
     const markerContent = JSON.stringify({
       createdAt: Date.now(),
       version: "2.0",
@@ -217,7 +220,7 @@ class BackupService {
     } else {
       markerUri = await FileSystem.StorageAccessFramework.createFileAsync(
         directoryUri,
-        DATA_MARKER_FILE,
+        SAF_MARKER_FILE,
         "application/json"
       );
       await FileSystem.StorageAccessFramework.writeAsStringAsync(

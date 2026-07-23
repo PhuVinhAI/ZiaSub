@@ -9,7 +9,7 @@ import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import type { DebugSettings } from "@src/types";
 import Button3D from "@components/common/Button3D";
 import { logger, LogFileInfo } from "@services/loggerService";
-import { storageService } from "@services/storageService";
+
 import { showAlert } from "@components/common/CustomAlert";
 
 interface DebugSectionProps {
@@ -37,8 +37,6 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [storagePath, setStoragePath] = useState<string>("");
-
   useEffect(() => {
     loadInfo();
   }, [debugSettings.enabled]);
@@ -46,12 +44,9 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
   const loadInfo = async () => {
     const files = await logger.getLogFiles();
     setLogFiles(files);
-    const path = (await storageService.getBackupPath()) || "Mặc định (Default)";
-    setStoragePath(path);
   };
 
-  const isSafPath = storagePath.startsWith("content://");
-  const logDirPath = isSafPath ? storagePath : `${storagePath}/debug`;
+  const logDirPath = logger.getLogDirectory();
 
   const handleToggleEnabled = (value: boolean) => {
     onDebugChange({ ...debugSettings, enabled: value });
