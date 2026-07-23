@@ -176,14 +176,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <BottomSheetModal
-      visible={visible}
-      onClose={onClose}
-      title={editingConfig ? t("settings.editConfig") : t("settings.title")}
-      maxHeightRatio={0.85}
-      fixedHeight={true}
-    >
-      {!editingConfig && (
+    <>
+      <BottomSheetModal
+        visible={visible}
+        onClose={onClose}
+        title={t("settings.title")}
+        maxHeightRatio={0.85}
+        fixedHeight={true}
+      >
         <View style={[styles.tabBar, themedStyles.tabBar]}>
           <TouchableOpacity
             style={[
@@ -235,19 +235,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </Text>
           </TouchableOpacity>
         </View>
-      )}
 
-      {editingConfig ? (
+        {renderTabContent()}
+      </BottomSheetModal>
+
+      {editingConfig && (
         <GeminiEdit
+          visible={Boolean(editingConfig)}
           config={editingConfig}
           onChange={setEditingConfig}
           onSave={handleSaveConfig}
           onCancel={() => setEditingConfig(null)}
         />
-      ) : (
-        renderTabContent()
       )}
-    </BottomSheetModal>
+    </>
   );
 };
 
