@@ -137,9 +137,6 @@ export const useClipboardKeyDetector = ({
                 }
                 await clearLastCopiedVideoUrl();
                 await setHandledSrt(trimmed);
-                try {
-                  await Clipboard.setStringAsync("");
-                } catch {}
                 alert(
                   "Thành công",
                   "Đã tự động lưu bản dịch 'AI Studio' cho video!"
