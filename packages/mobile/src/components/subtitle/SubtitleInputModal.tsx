@@ -487,6 +487,10 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
             onApplySubtitles?.(srt);
           }}
           onBatchSettingsChange={onBatchSettingsChange}
+          onTranslationDeleted={() => {
+            setSrtContent("");
+            onClearSubtitles?.();
+          }}
           onReloadRef={reloadTranslationsRef}
           visible={visible}
           onCancelQueue={handleCancelQueue}

@@ -1,25 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  Animated,
-  Dimensions,
-} from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Text } from "react-native-paper";
 import Slider from "@react-native-community/slider";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import { BottomSheetModal } from "@components/common";
 import type { BatchSettings, GeminiConfig } from "@src/types";
 import { saveBatchSettings, getGeminiConfigs } from "@utils/storage";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.65;
 
 interface BatchSectionProps {
   batchSettings: BatchSettings;
@@ -34,55 +23,17 @@ const BatchSection: React.FC<BatchSectionProps> = ({
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(batchThemedStyles);
   const themedSheetStyles = useThemedStyles(sheetThemedStyles);
-  const insets = useSafeAreaInsets();
   const [geminiConfigs, setGeminiConfigs] = useState<GeminiConfig[]>([]);
   const [showConfigPicker, setShowConfigPicker] = useState(false);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
-    const loadConfigs = async () => {
-      const configs = await getGeminiConfigs();
-      // Filter out chat config
-      setGeminiConfigs(configs.filter((c) => c.id !== "default-chat-config"));
-    };
     loadConfigs();
   }, []);
 
-  useEffect(() => {
-    if (showConfigPicker) {
-      setModalVisible(true);
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: SHEET_HEIGHT,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setModalVisible(false);
-      });
-    }
-  }, [showConfigPicker, slideAnim, fadeAnim]);
+  const loadConfigs = async () => {
+    const configs = await getGeminiConfigs();
+    setGeminiConfigs(configs);
+  };
 
   // Get selected presub config name
   const selectedPresubConfig = geminiConfigs.find(
@@ -189,130 +140,80 @@ const BatchSection: React.FC<BatchSectionProps> = ({
         </TouchableOpacity>
       </View>
 
-      {modalVisible && (
-        <Modal
-          visible={modalVisible}
-          transparent
-          animationType="none"
-          onRequestClose={() => setShowConfigPicker(false)}
-          statusBarTranslucent
-        >
-          <View style={sheetStyles.modalContainer}>
-            <Animated.View
+      <BottomSheetModal
+        visible={showConfigPicker}
+        onClose={() => setShowConfigPicker(false)}
+        title={t("settings.batch.presubConfig")}
+        maxHeightRatio={0.65}
+      >
+        <ScrollView style={sheetStyles.list} showsVerticalScrollIndicator={false}>
+          <TouchableOpacity
+            style={[
+              themedSheetStyles.item,
+              !batchSettings.presubConfigId && themedSheetStyles.itemActive,
+            ]}
+            onPress={() => handlePresubConfigChange(undefined)}
+          >
+            <Text
               style={[
-                sheetStyles.modalOverlay,
-                themedSheetStyles.modalOverlay,
-                { opacity: fadeAnim },
+                themedSheetStyles.itemName,
+                !batchSettings.presubConfigId &&
+                  themedSheetStyles.itemNameActive,
               ]}
             >
-              <TouchableOpacity
-                style={StyleSheet.absoluteFill}
-                activeOpacity={1}
-                onPress={() => setShowConfigPicker(false)}
+              {t("settings.batch.presubConfigSame")}
+            </Text>
+            {!batchSettings.presubConfigId && (
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={20}
+                color={colors.primary}
               />
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                sheetStyles.bottomSheet,
-                themedSheetStyles.bottomSheet,
-                {
-                  paddingBottom: Math.max(insets.bottom, 20),
-                  transform: [{ translateY: slideAnim }],
-                },
-              ]}
-            >
-              <View style={themedSheetStyles.dragHandle} />
-              <View style={themedSheetStyles.sheetHeader}>
-                <Text style={themedSheetStyles.title}>
-                  {t("settings.batch.presubConfig")}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setShowConfigPicker(false)}
-                  style={themedSheetStyles.closeButton}
-                >
-                  <MaterialCommunityIcons
-                    name="close"
-                    size={24}
-                    color={colors.text}
-                  />
-                </TouchableOpacity>
-              </View>
-              <ScrollView
-                style={sheetStyles.list}
-                showsVerticalScrollIndicator={false}
+            )}
+          </TouchableOpacity>
+          {geminiConfigs.map((config) => {
+            const isActive = batchSettings.presubConfigId === config.id;
+            return (
+              <TouchableOpacity
+                key={config.id}
+                style={[
+                  themedSheetStyles.item,
+                  isActive && themedSheetStyles.itemActive,
+                ]}
+                onPress={() => handlePresubConfigChange(config.id)}
               >
-                <TouchableOpacity
-                  style={[
-                    themedSheetStyles.item,
-                    !batchSettings.presubConfigId &&
-                      themedSheetStyles.itemActive,
-                  ]}
-                  onPress={() => handlePresubConfigChange(undefined)}
-                >
-                  <Text
-                    style={[
-                      themedSheetStyles.itemName,
-                      !batchSettings.presubConfigId &&
-                        themedSheetStyles.itemNameActive,
-                    ]}
-                  >
-                    {t("settings.batch.presubConfigSame")}
-                  </Text>
-                  {!batchSettings.presubConfigId && (
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-                {geminiConfigs.map((config) => {
-                  const isActive = batchSettings.presubConfigId === config.id;
-                  return (
-                    <TouchableOpacity
-                      key={config.id}
+                <View style={sheetStyles.itemContent}>
+                  <MaterialCommunityIcons
+                    name="lightning-bolt"
+                    size={20}
+                    color={isActive ? colors.warning : colors.textMuted}
+                  />
+                  <View style={sheetStyles.itemText}>
+                    <Text
                       style={[
-                        themedSheetStyles.item,
-                        isActive && themedSheetStyles.itemActive,
+                        themedSheetStyles.itemName,
+                        isActive && themedSheetStyles.itemNameActive,
                       ]}
-                      onPress={() => handlePresubConfigChange(config.id)}
                     >
-                      <View style={sheetStyles.itemContent}>
-                        <MaterialCommunityIcons
-                          name="lightning-bolt"
-                          size={20}
-                          color={isActive ? colors.warning : colors.textMuted}
-                        />
-                        <View style={sheetStyles.itemText}>
-                          <Text
-                            style={[
-                              themedSheetStyles.itemName,
-                              isActive && themedSheetStyles.itemNameActive,
-                            ]}
-                          >
-                            {config.name}
-                          </Text>
-                          <Text style={themedSheetStyles.itemModel}>
-                            {config.model.replace("models/", "")}
-                          </Text>
-                        </View>
-                      </View>
-                      {isActive && (
-                        <MaterialCommunityIcons
-                          name="check-circle"
-                          size={20}
-                          color={colors.primary}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </Animated.View>
-          </View>
-        </Modal>
-      )}
+                      {config.name}
+                    </Text>
+                    <Text style={themedSheetStyles.itemModel}>
+                      {config.model.replace("models/", "")}
+                    </Text>
+                  </View>
+                </View>
+                {isActive && (
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    size={20}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </BottomSheetModal>
     </>
   );
 };
@@ -329,55 +230,12 @@ const styles = StyleSheet.create({
 });
 
 const sheetStyles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  bottomSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    width: "100%",
-    maxHeight: SHEET_HEIGHT,
-  },
   list: { maxHeight: 380 },
   itemContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
   itemText: { flex: 1 },
 });
 
 const sheetThemedStyles = createThemedStyles((colors) => ({
-  modalOverlay: {
-    backgroundColor: colors.overlay,
-  },
-  bottomSheet: {
-    backgroundColor: colors.surface,
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: "center",
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  title: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   item: {
     flexDirection: "row",
     alignItems: "center",
