@@ -16,63 +16,54 @@ import { BottomSheetModal } from "./BottomSheetModal";
 
 interface FAQItem {
   id: string;
-  questionVi: string;
-  questionEn: string;
-  answerVi: string;
-  answerEn: string;
+  questionKey: string;
+  answerKey: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
 }
 
 const FAQ_ITEMS: FAQItem[] = [
   {
-    id: "gemini-key",
-    questionVi: "Làm sao để lấy Gemini API Key?",
-    questionEn: "How to get a Gemini API Key?",
-    answerVi:
-      "Bạn truy cập Google AI Studio (aistudio.google.com), đăng nhập tài khoản Google và bấm 'Create API key'. Copy key dán vào Cài đặt -> Quản lý Key trong ứng dụng.",
-    answerEn:
-      "Go to Google AI Studio (aistudio.google.com), sign in with Google account and click 'Create API key'. Copy and paste the key into Settings -> Key Management.",
+    id: "ad_warning",
+    questionKey: "faq.adWarning.question",
+    answerKey: "faq.adWarning.answer",
+    icon: "advertisements-off",
   },
   {
-    id: "batch-translation",
-    questionVi: "Tính năng Dịch đợt (Batch) hoạt động thế nào?",
-    questionEn: "How does Batch Translation work?",
-    answerVi:
-      "Dịch đợt chia video dài thành các đợt nhỏ (mặc định 10-20 phút), dịch song song để tăng tốc độ và tránh quá tải context của model AI. Bạn có thể chỉnh thời lượng đợt trong Cài đặt.",
-    answerEn:
-      "Batch translation splits long videos into smaller chunks (default 10-20 mins), translating in parallel for faster speed and preventing AI model context limit. Adjustable in Settings.",
+    id: "video_error",
+    questionKey: "faq.videoError.question",
+    answerKey: "faq.videoError.answer",
+    icon: "alert-circle-outline",
   },
   {
-    id: "supported-formats",
-    questionVi: "Ứng dụng hỗ trợ những định dạng phụ đề nào?",
-    questionEn: "What subtitle formats are supported?",
-    answerVi:
-      "Hiện tại hỗ trợ file SRT, VTT, ASS/SSA. Bạn có thể xuất kết quả ra file SRT hoặc VTT.",
-    answerEn:
-      "Currently supports SRT, VTT, ASS/SSA files. You can export results to SRT or VTT files.",
+    id: "how_translate",
+    questionKey: "faq.howTranslate.question",
+    answerKey: "faq.howTranslate.answer",
+    icon: "translate",
   },
   {
-    id: "multiple-keys",
-    questionVi: "Tại sao nên thêm nhiều API Key?",
-    questionEn: "Why add multiple API Keys?",
-    answerVi:
-      "Google Gemini có giới hạn request/phút (Rate Limit). Thêm nhiều Key giúp ứng dụng tự động xoay vòng (round-robin), tránh bị gián đoạn khi dịch file lớn.",
-    answerEn:
-      "Google Gemini has rate limits per minute. Adding multiple keys enables automatic round-robin rotation, preventing interruptions when translating large files.",
+    id: "api_key",
+    questionKey: "faq.apiKey.question",
+    answerKey: "faq.apiKey.answer",
+    icon: "key-outline",
   },
   {
-    id: "pre-sub",
-    questionVi: "Phụ đề gốc (Pre-sub) là gì?",
-    questionEn: "What is Original Subtitle (Pre-sub)?",
-    answerVi:
-      "Nếu video chỉ có âm thanh (chưa có phụ đề), tính năng Pre-sub sẽ dùng Gemini để tạo phụ đề bằng ngôn ngữ gốc trước, sau đó mới dịch sang ngôn ngữ đích.",
-    answerEn:
-      "If the video only has audio (no subtitles), Pre-sub uses Gemini to generate original-language subtitles first, then translates to the target language.",
+    id: "queue",
+    questionKey: "faq.queue.question",
+    answerKey: "faq.queue.answer",
+    icon: "playlist-play",
+  },
+  {
+    id: "subtitle_position",
+    questionKey: "faq.subtitlePosition.question",
+    answerKey: "faq.subtitlePosition.answer",
+    icon: "subtitles-outline",
   },
 ];
 
 const GITHUB_URL = "https://github.com/PhuVinhAI/ZiaSub";
-const FACEBOOK_URL = "https://facebook.com";
-const ZALO_URL = "https://zalo.me";
+const FACEBOOK_URL = "https://www.facebook.com/TomiSakaeAnime/";
+const ZALO_URL = "https://zalo.me/0762605309";
+const AUTHOR = "TomiSakae";
 
 interface FAQModalProps {
   visible: boolean;
@@ -80,10 +71,9 @@ interface FAQModalProps {
 }
 
 const FAQModal: React.FC<FAQModalProps> = ({ visible, onClose }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { colors } = useTheme();
-  const [expandedId, setExpandedId] = useState<string | null>("gemini-key");
-  const isVi = i18n.language === "vi";
+  const [expandedId, setExpandedId] = useState<string | null>("ad_warning");
   const styles = useThemedStyles(faqThemedStyles);
 
   const toggleExpand = (id: string) => {
@@ -108,8 +98,8 @@ const FAQModal: React.FC<FAQModalProps> = ({ visible, onClose }) => {
       onClose={onClose}
       title={t("faq.title")}
       iconName="help-circle"
-      maxHeightRatio={0.8}
       fixedHeight={true}
+      heightRatio={0.8}
     >
       <ScrollView
         style={staticStyles.scrollView}
@@ -122,60 +112,50 @@ const FAQModal: React.FC<FAQModalProps> = ({ visible, onClose }) => {
               onPress={() => toggleExpand(item.id)}
               style={staticStyles.questionRow}
             >
-              <Text
-                style={[
-                  staticStyles.questionText,
-                  styles.questionText,
-                  expandedId === item.id && styles.questionActive,
-                ]}
-              >
-                {isVi ? item.questionVi : item.questionEn}
-              </Text>
+              <View style={staticStyles.questionLeft}>
+                <MaterialCommunityIcons
+                  name={item.icon}
+                  size={20}
+                  color={
+                    expandedId === item.id ? colors.primary : colors.textMuted
+                  }
+                />
+                <Text
+                  style={[
+                    styles.questionText,
+                    expandedId === item.id && styles.questionActive,
+                  ]}
+                >
+                  {t(item.questionKey)}
+                </Text>
+              </View>
               <MaterialCommunityIcons
                 name={expandedId === item.id ? "chevron-up" : "chevron-down"}
                 size={20}
-                color={
-                  expandedId === item.id ? colors.primary : colors.textMuted
-                }
+                color={colors.textMuted}
               />
             </Pressable>
-
             {expandedId === item.id && (
               <View
                 style={[staticStyles.answerContainer, styles.answerContainer]}
               >
-                <Text style={styles.answerText}>
-                  {isVi ? item.answerVi : item.answerEn}
-                </Text>
+                <Text style={styles.answerText}>{t(item.answerKey)}</Text>
               </View>
             )}
           </View>
         ))}
 
-        {/* About App & Links */}
+        {/* Author & Social Links */}
         <View style={[staticStyles.aboutSection, styles.aboutSection]}>
-          <Text style={styles.title}>{t("faq.aboutApp")}</Text>
-
-          <View style={staticStyles.infoRow}>
-            <Text style={styles.aboutLabel}>{t("faq.appName")}:</Text>
-            <Text style={styles.aboutValue}>ZiaSub Mobile</Text>
+          <View style={staticStyles.aboutRow}>
+            <MaterialCommunityIcons
+              name="account"
+              size={18}
+              color={colors.textMuted}
+            />
+            <Text style={styles.aboutLabel}>{t("faq.madeBy")}</Text>
+            <Text style={styles.aboutValue}>{AUTHOR}</Text>
           </View>
-
-          <View style={staticStyles.infoRow}>
-            <Text style={styles.aboutLabel}>{t("faq.version")}:</Text>
-            <Text style={styles.aboutValue}>1.0.0 (Build 100)</Text>
-          </View>
-
-          <View style={staticStyles.infoRow}>
-            <Text style={styles.aboutLabel}>{t("faq.author")}:</Text>
-            <Text style={styles.aboutValue}>PhuVinhAI</Text>
-          </View>
-
-          {/* Social Links */}
-          <Text style={[styles.title, { marginTop: 12 }]}>
-            {t("faq.contact")}
-          </Text>
-
           <View style={staticStyles.socialRow}>
             <TouchableOpacity
               style={staticStyles.socialBtn}
@@ -188,7 +168,6 @@ const FAQModal: React.FC<FAQModalProps> = ({ visible, onClose }) => {
               />
               <Text style={styles.socialText}>GitHub</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={staticStyles.socialBtn}
               onPress={handleOpenFacebook}
@@ -200,7 +179,6 @@ const FAQModal: React.FC<FAQModalProps> = ({ visible, onClose }) => {
               />
               <Text style={styles.socialText}>Facebook</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={staticStyles.socialBtn}
               onPress={handleOpenZalo}
@@ -228,7 +206,7 @@ const staticStyles = StyleSheet.create({
   },
   faqItem: {
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 12,
     overflow: "hidden",
   },
   questionRow: {
@@ -237,40 +215,40 @@ const staticStyles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 14,
   },
-  questionText: {
+  questionLeft: {
     flex: 1,
-    paddingRight: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   answerContainer: {
     paddingHorizontal: 14,
     paddingBottom: 14,
-    paddingTop: 4,
+    paddingTop: 12,
+    marginHorizontal: 14,
+    marginLeft: 46,
     borderTopWidth: 1,
   },
   aboutSection: {
-    marginTop: 16,
+    marginTop: 8,
     paddingTop: 16,
     borderTopWidth: 1,
-    gap: 8,
   },
-  infoRow: {
+  aboutRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
   },
   socialRow: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 12,
-    marginTop: 4,
   },
   socialBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: "rgba(99, 102, 241, 0.1)",
   },
 });
 
@@ -284,6 +262,7 @@ const faqThemedStyles = createThemedStyles((colors) => ({
     backgroundColor: colors.surfaceLight,
   },
   questionText: {
+    flex: 1,
     fontSize: 14,
     fontWeight: "500",
     color: colors.text,
