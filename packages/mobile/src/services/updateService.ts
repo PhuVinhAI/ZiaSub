@@ -6,7 +6,7 @@ import { Linking, Platform } from "react-native";
 import * as Application from "expo-application";
 import * as IntentLauncher from "expo-intent-launcher";
 
-const GITHUB_OWNER = "TomiWixoss";
+const GITHUB_OWNER = "PhuVinhAI";
 const GITHUB_REPO = "ZiaSub";
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 

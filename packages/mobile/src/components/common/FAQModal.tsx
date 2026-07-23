@@ -20,7 +20,7 @@ import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.7;
 
-const GITHUB_URL = "https://github.com/TomiWixoss/ZiaSub";
+const GITHUB_URL = "https://github.com/PhuVinhAI/ZiaSub";
 const FACEBOOK_URL = "https://www.facebook.com/TomiSakaeAnime/";
 const ZALO_URL = "https://zalo.me/0762605309";
 const AUTHOR = "TomiSakae";
