@@ -25,6 +25,8 @@ export interface BottomSheetModalProps {
   iconName?: keyof typeof MaterialCommunityIcons.glyphMap;
   iconColor?: string;
   maxHeightRatio?: number; // Default: 0.75 (75% of screen height)
+  heightRatio?: number; // Fixed height ratio if provided
+  fixedHeight?: boolean; // If true, sets explicit height to maxHeightRatio
   children: React.ReactNode;
   headerRight?: React.ReactNode;
   showDragHandle?: boolean;
@@ -42,6 +44,8 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
   iconName,
   iconColor,
   maxHeightRatio = 0.75,
+  heightRatio,
+  fixedHeight = false,
   children,
   headerRight,
   showDragHandle = true,
@@ -55,6 +59,12 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
   const themedStyles = useThemedStyles(bottomSheetThemedStyles);
 
   const sheetMaxHeight = SCREEN_HEIGHT * maxHeightRatio;
+  const sheetHeight = heightRatio
+    ? SCREEN_HEIGHT * heightRatio
+    : fixedHeight
+    ? sheetMaxHeight
+    : undefined;
+
   const [modalVisible, setModalVisible] = useState(visible);
 
   const slideAnim = useRef(new Animated.Value(sheetMaxHeight)).current;
@@ -101,6 +111,7 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
         styles.bottomSheet,
         themedStyles.bottomSheet,
         {
+          height: sheetHeight,
           maxHeight: sheetMaxHeight,
           paddingBottom: Math.max(insets.bottom, 20),
           transform: [{ translateY: slideAnim }],

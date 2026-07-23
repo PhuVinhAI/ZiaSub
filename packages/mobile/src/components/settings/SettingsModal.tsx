@@ -181,6 +181,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       onClose={onClose}
       title={editingConfig ? t("settings.editConfig") : t("settings.title")}
       maxHeightRatio={0.85}
+      fixedHeight={true}
     >
       {!editingConfig && (
         <View style={[styles.tabBar, themedStyles.tabBar]}>

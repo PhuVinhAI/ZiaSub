@@ -396,6 +396,7 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
       onClose={handleClose}
       title={t("subtitleModal.title")}
       maxHeightRatio={0.8}
+      fixedHeight={true}
       wrapperComponent={Reanimated.View}
       wrapperStyle={[styles.keyboardAvoidingContainer, animatedBottomStyle]}
     >

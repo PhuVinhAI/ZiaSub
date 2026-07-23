@@ -109,6 +109,7 @@ const FAQModal: React.FC<FAQModalProps> = ({ visible, onClose }) => {
       title={t("faq.title")}
       iconName="help-circle"
       maxHeightRatio={0.8}
+      fixedHeight={true}
     >
       <ScrollView
         style={staticStyles.scrollView}
