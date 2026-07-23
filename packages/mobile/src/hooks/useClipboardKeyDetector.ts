@@ -145,17 +145,11 @@ export const useClipboardKeyDetector = ({
                   "Đã tự động lưu bản dịch 'AI Studio' cho video!"
                 );
               } catch {
-                await clearLastCopiedVideoUrl();
-                await setHandledSrt(trimmed);
                 alert("Lỗi", "Không thể lưu phụ đề vào video.");
               }
             },
             "Lưu bản dịch",
-            "Bỏ qua",
-            async () => {
-              await clearLastCopiedVideoUrl();
-              await setHandledSrt(trimmed);
-            }
+            "Bỏ qua"
           );
         }
       }
