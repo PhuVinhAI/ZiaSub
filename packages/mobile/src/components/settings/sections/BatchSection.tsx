@@ -1,13 +1,25 @@
-import React, { useState, useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Animated,
+  Dimensions,
+} from "react-native";
 import { Text } from "react-native-paper";
 import Slider from "@react-native-community/slider";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import type { BatchSettings, GeminiConfig } from "@src/types";
 import { saveBatchSettings, getGeminiConfigs } from "@utils/storage";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.65;
 
 interface BatchSectionProps {
   batchSettings: BatchSettings;
@@ -21,8 +33,14 @@ const BatchSection: React.FC<BatchSectionProps> = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(batchThemedStyles);
+  const themedSheetStyles = useThemedStyles(sheetThemedStyles);
+  const insets = useSafeAreaInsets();
   const [geminiConfigs, setGeminiConfigs] = useState<GeminiConfig[]>([]);
   const [showConfigPicker, setShowConfigPicker] = useState(false);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loadConfigs = async () => {
@@ -32,6 +50,39 @@ const BatchSection: React.FC<BatchSectionProps> = ({
     };
     loadConfigs();
   }, []);
+
+  useEffect(() => {
+    if (showConfigPicker) {
+      setModalVisible(true);
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: SHEET_HEIGHT,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false);
+      });
+    }
+  }, [showConfigPicker, slideAnim, fadeAnim]);
 
   // Get selected presub config name
   const selectedPresubConfig = geminiConfigs.find(
@@ -52,18 +103,6 @@ const BatchSection: React.FC<BatchSectionProps> = ({
     saveBatchSettings(newSettings);
   };
 
-  const handleOffsetChange = (value: number) => {
-    const newSettings = { ...batchSettings, batchOffset: value };
-    onBatchChange(newSettings);
-    saveBatchSettings(newSettings);
-  };
-
-  const handlePresubDurationChange = (value: number) => {
-    const newSettings = { ...batchSettings, presubDuration: value };
-    onBatchChange(newSettings);
-    saveBatchSettings(newSettings);
-  };
-
   const handlePresubConfigChange = (configId: string | undefined) => {
     const newSettings = { ...batchSettings, presubConfigId: configId };
     onBatchChange(newSettings);
@@ -73,10 +112,11 @@ const BatchSection: React.FC<BatchSectionProps> = ({
 
   return (
     <>
+      {/* Batch Duration Slider */}
       <View style={styles.settingGroup}>
         <Text style={themedStyles.settingLabel}>
           {t("settings.batch.batchDuration", {
-            minutes: Math.floor(batchSettings.maxVideoDuration / 60),
+            minutes: Math.round(batchSettings.maxVideoDuration / 60),
           })}
         </Text>
         <Text style={themedStyles.settingHint}>
@@ -84,24 +124,26 @@ const BatchSection: React.FC<BatchSectionProps> = ({
         </Text>
         <Slider
           style={styles.slider}
-          minimumValue={300}
+          minimumValue={60}
           maximumValue={1800}
           step={60}
           value={batchSettings.maxVideoDuration}
-          onValueChange={handleBatchDurationChange}
+          onSlidingComplete={handleBatchDurationChange}
           minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.primary}
         />
       </View>
+
+      {/* Concurrent Batches Slider */}
       <View style={styles.settingGroup}>
         <Text style={themedStyles.settingLabel}>
-          {t("settings.batch.concurrent", {
+          {t("settings.batch.maxConcurrent", {
             count: batchSettings.maxConcurrentBatches,
           })}
         </Text>
         <Text style={themedStyles.settingHint}>
-          {t("settings.batch.concurrentHint")}
+          {t("settings.batch.maxConcurrentHint")}
         </Text>
         <Slider
           style={styles.slider}
@@ -109,56 +151,14 @@ const BatchSection: React.FC<BatchSectionProps> = ({
           maximumValue={5}
           step={1}
           value={batchSettings.maxConcurrentBatches}
-          onValueChange={handleConcurrentChange}
+          onSlidingComplete={handleConcurrentChange}
           minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.primary}
         />
       </View>
-      <View style={styles.settingGroup}>
-        <Text style={themedStyles.settingLabel}>
-          {t("settings.batch.offset", {
-            minutes: Math.floor((batchSettings.batchOffset ?? 60) / 60),
-            seconds: (batchSettings.batchOffset ?? 60) % 60,
-          })}
-        </Text>
-        <Text style={themedStyles.settingHint}>
-          {t("settings.batch.offsetHint")}
-        </Text>
-        <Slider
-          style={styles.slider}
-          minimumValue={0}
-          maximumValue={300}
-          step={30}
-          value={batchSettings.batchOffset ?? 60}
-          onValueChange={handleOffsetChange}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.primary}
-        />
-      </View>
-      <View style={styles.settingGroup}>
-        <Text style={themedStyles.settingLabel}>
-          {t("settings.batch.presubDuration", {
-            minutes: Math.floor((batchSettings.presubDuration ?? 120) / 60),
-            seconds: (batchSettings.presubDuration ?? 120) % 60,
-          })}
-        </Text>
-        <Text style={themedStyles.settingHint}>
-          {t("settings.batch.presubDurationHint")}
-        </Text>
-        <Slider
-          style={styles.slider}
-          minimumValue={60}
-          maximumValue={300}
-          step={30}
-          value={batchSettings.presubDuration ?? 120}
-          onValueChange={handlePresubDurationChange}
-          minimumTrackTintColor={colors.warning}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.warning}
-        />
-      </View>
+
+      {/* Pre-sub Config Picker */}
       <View style={styles.settingGroup}>
         <Text style={themedStyles.settingLabel}>
           {t("settings.batch.presubConfig")}
@@ -187,73 +187,132 @@ const BatchSection: React.FC<BatchSectionProps> = ({
             color={colors.textMuted}
           />
         </TouchableOpacity>
-        {showConfigPicker && (
-          <View style={themedStyles.configDropdown}>
-            <TouchableOpacity
+      </View>
+
+      {modalVisible && (
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="none"
+          onRequestClose={() => setShowConfigPicker(false)}
+          statusBarTranslucent
+        >
+          <View style={sheetStyles.modalContainer}>
+            <Animated.View
               style={[
-                themedStyles.configOption,
-                !batchSettings.presubConfigId &&
-                  themedStyles.configOptionActive,
+                sheetStyles.modalOverlay,
+                themedSheetStyles.modalOverlay,
+                { opacity: fadeAnim },
               ]}
-              onPress={() => handlePresubConfigChange(undefined)}
             >
-              <Text
-                style={[
-                  themedStyles.configOptionText,
-                  !batchSettings.presubConfigId &&
-                    themedStyles.configOptionTextActive,
-                ]}
-              >
-                {t("settings.batch.presubConfigSame")}
-              </Text>
-              {!batchSettings.presubConfigId && (
-                <MaterialCommunityIcons
-                  name="check"
-                  size={18}
-                  color={colors.warning}
-                />
-              )}
-            </TouchableOpacity>
-            {geminiConfigs.map((config) => (
               <TouchableOpacity
-                key={config.id}
-                style={[
-                  themedStyles.configOption,
-                  batchSettings.presubConfigId === config.id &&
-                    themedStyles.configOptionActive,
-                ]}
-                onPress={() => handlePresubConfigChange(config.id)}
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={() => setShowConfigPicker(false)}
+              />
+            </Animated.View>
+
+            <Animated.View
+              style={[
+                sheetStyles.bottomSheet,
+                themedSheetStyles.bottomSheet,
+                {
+                  paddingBottom: Math.max(insets.bottom, 20),
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              <View style={themedSheetStyles.dragHandle} />
+              <View style={themedSheetStyles.sheetHeader}>
+                <Text style={themedSheetStyles.title}>
+                  {t("settings.batch.presubConfig")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowConfigPicker(false)}
+                  style={themedSheetStyles.closeButton}
+                >
+                  <MaterialCommunityIcons
+                    name="close"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={sheetStyles.list}
+                showsVerticalScrollIndicator={false}
               >
-                <View style={styles.configOptionContent}>
+                <TouchableOpacity
+                  style={[
+                    themedSheetStyles.item,
+                    !batchSettings.presubConfigId &&
+                      themedSheetStyles.itemActive,
+                  ]}
+                  onPress={() => handlePresubConfigChange(undefined)}
+                >
                   <Text
                     style={[
-                      themedStyles.configOptionText,
-                      batchSettings.presubConfigId === config.id &&
-                        themedStyles.configOptionTextActive,
+                      themedSheetStyles.itemName,
+                      !batchSettings.presubConfigId &&
+                        themedSheetStyles.itemNameActive,
                     ]}
-                    numberOfLines={1}
                   >
-                    {config.name}
+                    {t("settings.batch.presubConfigSame")}
                   </Text>
-                  <Text
-                    style={themedStyles.configOptionModel}
-                    numberOfLines={1}
-                  >
-                    {config.model.replace("models/", "")}
-                  </Text>
-                </View>
-                {batchSettings.presubConfigId === config.id && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={18}
-                    color={colors.warning}
-                  />
-                )}
-              </TouchableOpacity>
-            ))}
+                  {!batchSettings.presubConfigId && (
+                    <MaterialCommunityIcons
+                      name="check-circle"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  )}
+                </TouchableOpacity>
+                {geminiConfigs.map((config) => {
+                  const isActive = batchSettings.presubConfigId === config.id;
+                  return (
+                    <TouchableOpacity
+                      key={config.id}
+                      style={[
+                        themedSheetStyles.item,
+                        isActive && themedSheetStyles.itemActive,
+                      ]}
+                      onPress={() => handlePresubConfigChange(config.id)}
+                    >
+                      <View style={sheetStyles.itemContent}>
+                        <MaterialCommunityIcons
+                          name="lightning-bolt"
+                          size={20}
+                          color={isActive ? colors.warning : colors.textMuted}
+                        />
+                        <View style={sheetStyles.itemText}>
+                          <Text
+                            style={[
+                              themedSheetStyles.itemName,
+                              isActive && themedSheetStyles.itemNameActive,
+                            ]}
+                          >
+                            {config.name}
+                          </Text>
+                          <Text style={themedSheetStyles.itemModel}>
+                            {config.model.replace("models/", "")}
+                          </Text>
+                        </View>
+                      </View>
+                      {isActive && (
+                        <MaterialCommunityIcons
+                          name="check-circle"
+                          size={20}
+                          color={colors.primary}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </Animated.View>
           </View>
-        )}
-      </View>
+        </Modal>
+      )}
     </>
   );
 };
@@ -267,10 +326,77 @@ const styles = StyleSheet.create({
     gap: 10,
     flex: 1,
   },
-  configOptionContent: {
-    flex: 1,
-  },
 });
+
+const sheetStyles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    width: "100%",
+    maxHeight: SHEET_HEIGHT,
+  },
+  list: { maxHeight: 380 },
+  itemContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
+  itemText: { flex: 1 },
+});
+
+const sheetThemedStyles = createThemedStyles((colors) => ({
+  modalOverlay: {
+    backgroundColor: colors.overlay,
+  },
+  bottomSheet: {
+    backgroundColor: colors.surface,
+  },
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: "center",
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  title: { color: colors.text, fontSize: 18, fontWeight: "700" },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  itemActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  itemName: { color: colors.text, fontSize: 15, fontWeight: "500" },
+  itemNameActive: { color: colors.primary },
+  itemModel: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+}));
 
 const batchThemedStyles = createThemedStyles((colors) => ({
   settingLabel: {
@@ -295,38 +421,6 @@ const batchThemedStyles = createThemedStyles((colors) => ({
     fontSize: 14,
     fontWeight: "500",
     flex: 1,
-  },
-  configDropdown: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 10,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
-  },
-  configOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  configOptionActive: {
-    backgroundColor: colors.warningBg,
-  },
-  configOptionText: {
-    color: colors.text,
-    fontSize: 14,
-  },
-  configOptionTextActive: {
-    color: colors.warning,
-    fontWeight: "600",
-  },
-  configOptionModel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    marginTop: 2,
   },
 }));
 
