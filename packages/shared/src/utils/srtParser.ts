@@ -65,17 +65,17 @@ export const fixSRT = (
       let endSec = timeToSeconds(fixedEnd);
 
       // Check for abrupt hour jumps (e.g. 00:00:45 -> 01:00:00 instead of 00:01:00)
-      if (
-        startSec >= 3600 &&
-        (prevSeconds < 3000 || startSec - prevSeconds > 600)
-      ) {
+      if (startSec >= 3600) {
         const shiftedStart = shiftTimeDown(fixedStart);
         const shiftedStartSec = timeToSeconds(shiftedStart);
 
+        const unshiftedDist = Math.abs(startSec - prevSeconds);
+        const shiftedDist = Math.abs(shiftedStartSec - prevSeconds);
+
         if (
           shiftedStartSec !== startSec &&
-          shiftedStartSec >= Math.max(0, prevSeconds - 5) &&
-          shiftedStartSec <= prevSeconds + 600
+          shiftedStartSec >= Math.max(0, prevSeconds - 30) &&
+          shiftedDist + 1200 < unshiftedDist
         ) {
           const duration = Math.max(1, endSec - startSec);
           fixedStart = shiftedStart;
