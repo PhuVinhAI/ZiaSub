@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity, Modal } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Modal,
+} from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@src/contexts";
 import Button3D from "../common/Button3D";
 import type { VideoTimeRange } from "@src/types";
@@ -38,6 +45,7 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [startValue, setStartValue] = useState(0);
   const [endValue, setEndValue] = useState(videoDuration);
@@ -92,36 +100,49 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
-        <View style={[styles.container, { backgroundColor: colors.surface }]}>
-          {/* Header */}
-          <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <View style={styles.headerIcon}>
-              <MaterialCommunityIcons
-                name="clock-outline"
-                size={28}
-                color={colors.primary}
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+          <TouchableWithoutFeedback>
+            <View
+              style={[
+                styles.container,
+                {
+                  backgroundColor: colors.surface,
+                  paddingBottom: Math.max(insets.bottom, 16),
+                },
+              ]}
+            >
+              <View
+                style={[styles.sheetHandle, { backgroundColor: colors.border }]}
               />
-            </View>
-            <View style={styles.headerText}>
-              <Text style={[styles.title, { color: colors.text }]}>
-                {t("chat.selectTimeRange")}
-              </Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                {t("chat.timeRangeHint")}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
+              {/* Header */}
+              <View style={[styles.header, { borderBottomColor: colors.border }]}>
+                <View style={styles.headerIcon}>
+                  <MaterialCommunityIcons
+                    name="clock-outline"
+                    size={28}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={styles.headerText}>
+                  <Text style={[styles.title, { color: colors.text }]}>
+                    {t("chat.selectTimeRange")}
+                  </Text>
+                  <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                    {t("chat.timeRangeHint")}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <MaterialCommunityIcons
+                    name="close"
+                    size={24}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
 
           {/* Time display */}
           <View
@@ -245,25 +266,35 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
                 onPress={handleConfirm}
               />
             </View>
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </View>
-    </Modal>
+    </TouchableWithoutFeedback>
+  </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-end",
     alignItems: "center",
-    padding: 20,
   },
   container: {
     width: "100%",
-    maxWidth: 360,
-    borderRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: "hidden",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 8,
   },
   header: {
     flexDirection: "row",
