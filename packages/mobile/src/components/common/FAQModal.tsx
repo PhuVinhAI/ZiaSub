@@ -311,12 +311,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   bottomSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingHorizontal: 20,
     width: "100%",
     height: SHEET_HEIGHT,
-    borderTopWidth: 1,
   },
   sheetHeader: {
     alignItems: "center",
@@ -327,7 +326,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: "row",
@@ -401,9 +400,8 @@ const faqThemedStyles = createThemedStyles((colors) => ({
   modalBackdrop: { backgroundColor: colors.overlay },
   bottomSheet: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
   },
-  dragHandle: { backgroundColor: colors.borderLight },
+  dragHandle: { backgroundColor: colors.border },
   title: {
     fontSize: 16,
     fontWeight: "600",
