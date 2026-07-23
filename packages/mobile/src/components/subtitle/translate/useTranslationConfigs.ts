@@ -8,6 +8,7 @@ import type { GeminiConfig } from "@src/types";
 import {
   getGeminiConfigs,
   getActiveTranslationConfig,
+  saveActiveTranslationConfigId,
   getApiKeys,
 } from "@utils/storage";
 import { PRESET_PROMPTS, type PresetPromptType } from "@constants/defaults";
@@ -62,6 +63,7 @@ export function useTranslationConfigs() {
 
   const handleSelectConfig = (configId: string) => {
     setSelectedConfigId(configId);
+    saveActiveTranslationConfigId(configId);
     setShowConfigPicker(false);
   };
 
