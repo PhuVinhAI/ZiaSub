@@ -180,6 +180,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           />
           <View style={styles.taskInfo}>
             <Text
+              selectable
               style={themedStyles.taskCommand}
               numberOfLines={expanded ? undefined : 1}
             >
@@ -226,7 +227,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
       </TouchableOpacity>
       {expanded && task.result && (
         <View style={themedStyles.taskResult}>
-          <Markdown style={markdownStyles}>{task.result}</Markdown>
+          <Text selectable>
+            <Markdown style={markdownStyles}>{task.result}</Markdown>
+          </Text>
           <View style={themedStyles.actionButtons}>
             <TouchableOpacity
               style={styles.actionBtn}
