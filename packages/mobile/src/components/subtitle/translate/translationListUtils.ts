@@ -84,6 +84,17 @@ export const getBatchesInfo = (
     const getBatchEnd = (batchIndex: number) => {
       const effectiveEnd = isTimeRangeTranslation ? rangeEnd : duration;
 
+      // The last batch always extends to the true end (video duration / range
+      // end), mirroring geminiService's splitting which caps the final batch at
+      // finalEnd. This also covers the single-batch tolerance case: when the
+      // duration exceeds maxVideoDuration but stays within batchOffset, the
+      // whole video is one batch, so its end must be the real duration
+      // (e.g. 10:25) rather than the default maxVideoDuration (10:00).
+      const isLastBatch = batchIndex === (item.totalBatches ?? 0) - 1;
+      if (isLastBatch && effectiveEnd > 0) {
+        return effectiveEnd;
+      }
+
       if (
         isPresubTranslation &&
         batchIndex === 0 &&

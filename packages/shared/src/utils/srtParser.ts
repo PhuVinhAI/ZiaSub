@@ -48,6 +48,7 @@ export const fixSRT = (
   const lines = data.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
   const fixedLines: string[] = [];
   let fixCount = 0;
+  let prevSeconds = 0;
 
   const timePattern = /^(.+?)\s*-->\s*(.+?)$/;
 
@@ -57,8 +58,40 @@ export const fixSRT = (
       const start = match[1].trim();
       const end = match[2].trim();
 
-      const fixedStart = fixTimeFormat(start);
-      const fixedEnd = fixTimeFormat(end);
+      let fixedStart = fixTimeFormat(start);
+      let fixedEnd = fixTimeFormat(end);
+
+      let startSec = timeToSeconds(fixedStart);
+      let endSec = timeToSeconds(fixedEnd);
+
+      // Check for abrupt hour jumps (e.g. 00:00:45 -> 01:00:00 instead of 00:01:00)
+      if (
+        startSec >= 3600 &&
+        (prevSeconds < 3000 || startSec - prevSeconds > 600)
+      ) {
+        const shiftedStart = shiftTimeDown(fixedStart);
+        const shiftedStartSec = timeToSeconds(shiftedStart);
+
+        if (
+          shiftedStartSec !== startSec &&
+          shiftedStartSec >= Math.max(0, prevSeconds - 5) &&
+          shiftedStartSec <= prevSeconds + 600
+        ) {
+          const duration = Math.max(1, endSec - startSec);
+          fixedStart = shiftedStart;
+
+          const shiftedEnd = shiftTimeDown(fixedEnd);
+          const shiftedEndSec = timeToSeconds(shiftedEnd);
+          if (shiftedEndSec > shiftedStartSec && shiftedEndSec !== endSec) {
+            fixedEnd = shiftedEnd;
+          } else {
+            fixedEnd = secondsToSrtTime(shiftedStartSec + duration);
+          }
+
+          startSec = timeToSeconds(fixedStart);
+          endSec = timeToSeconds(fixedEnd);
+        }
+      }
 
       if (fixedStart !== start || fixedEnd !== end) {
         fixCount++;
@@ -66,12 +99,36 @@ export const fixSRT = (
       } else {
         fixedLines.push(line);
       }
+
+      prevSeconds = endSec;
     } else {
       fixedLines.push(line);
     }
   }
 
   return { fixedData: fixedLines.join("\n"), fixCount };
+};
+
+export const shiftTimeDown = (timeStr: string): string => {
+  timeStr = timeStr.trim();
+  const regex = /^(\d{1,2}):(\d{2}):(\d{2})[,.:](\d{2,3})$/;
+  const match = timeStr.match(regex);
+  if (!match) return timeStr;
+
+  const h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const s = parseInt(match[3], 10);
+  const msStr = match[4].padStart(3, "0");
+
+  if (h <= 59 && m <= 59) {
+    const newH = "00";
+    const newM = h.toString().padStart(2, "0");
+    const newS = m.toString().padStart(2, "0");
+    const newMs = msStr;
+    return `${newH}:${newM}:${newS},${newMs}`;
+  }
+
+  return timeStr;
 };
 
 const fixTimeFormat = (timeStr: string): string => {
