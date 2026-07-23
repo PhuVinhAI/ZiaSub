@@ -190,6 +190,18 @@ class LoggerService {
   }
 
   /**
+   * Extract just the filename from a SAF URI.
+   * SAF URIs encode the full path in the last segment:
+   *   .../document/primary%3ADownload%2FZiaSub%2Fdebug_2024-07-23.txt
+   * decodeURIComponent gives "primary:Download/ZiaSub/debug_2024-07-23.txt"
+   * We need to split by "/" again to get just "debug_2024-07-23.txt".
+   */
+  private getSafFileName(fileUri: string): string {
+    const fullPath = decodeURIComponent(fileUri.split("/").pop() || "");
+    return fullPath.split("/").pop() || "";
+  }
+
+  /**
    * Append log to SAF directory URI.
    * SAF does not support subdirectories, so log files are stored in the
    * root with a debug_ prefix (debug_YYYY-MM-DD.txt).
@@ -198,10 +210,9 @@ class LoggerService {
     try {
       const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(directoryUri);
 
-      // Find existing log file by matching the last path segment
+      // Find existing log file by matching just the filename
       let targetFileUri = files.find((f) => {
-        const lastSegment = decodeURIComponent(f.split("/").pop() || "");
-        return lastSegment === filename;
+        return this.getSafFileName(f) === filename;
       });
 
       if (targetFileUri) {
@@ -232,7 +243,7 @@ class LoggerService {
         // SAF: logs are stored flat in root with debug_ prefix (no subdirectory support)
         const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
         for (const fileUri of files) {
-          const name = decodeURIComponent(fileUri.split("/").pop() || "");
+          const name = this.getSafFileName(fileUri);
           if (name.startsWith("debug_") && name.endsWith(".txt")) {
             result.push({
               name,
@@ -284,8 +295,7 @@ class LoggerService {
       if (basePath.startsWith("content://")) {
         const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
         const target = files.find((f) => {
-          const name = decodeURIComponent(f.split("/").pop() || "");
-          return name === pathOrFilename;
+          return this.getSafFileName(f) === pathOrFilename;
         });
         if (target) {
           return await FileSystem.StorageAccessFramework.readAsStringAsync(target);
@@ -316,8 +326,7 @@ class LoggerService {
           // For SAF, look up the file URI in the root directory
           const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
           const target = files.find((f) => {
-            const name = decodeURIComponent(f.split("/").pop() || "");
-            return name === pathOrFilename;
+            return this.getSafFileName(f) === pathOrFilename;
           });
           if (target) {
             await FileSystem.StorageAccessFramework.deleteAsync(target);
@@ -351,7 +360,7 @@ class LoggerService {
         // SAF: only delete files whose name starts with debug_ and ends with .txt
         const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(basePath);
         for (const fileUri of files) {
-          const name = decodeURIComponent(fileUri.split("/").pop() || "");
+          const name = this.getSafFileName(fileUri);
           if (name.startsWith("debug_") && name.endsWith(".txt")) {
             await FileSystem.StorageAccessFramework.deleteAsync(fileUri);
           }
