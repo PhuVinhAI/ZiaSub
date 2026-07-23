@@ -46,7 +46,8 @@ export const styles = StyleSheet.create({
   },
   drawerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 15,
+    zIndex: 20,
+    elevation: 10,
   },
 });
 

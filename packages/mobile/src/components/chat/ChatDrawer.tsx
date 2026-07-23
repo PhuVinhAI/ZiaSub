@@ -213,9 +213,12 @@ const styles = StyleSheet.create({
   drawer: {
     position: "absolute",
     left: 0,
+    top: 0,
     bottom: 0,
     width: "82%",
     paddingHorizontal: 16,
+    zIndex: 30,
+    elevation: 16,
   },
   drawerBrand: {
     flexDirection: "row",
