@@ -66,6 +66,8 @@ const THINKING_LEVEL_OPTIONS_PRO = [
   { id: "LOW", name: "Thấp (Low)" },
 ];
 
+import { BottomSheetModal } from "@components/common";
+
 interface SelectOption {
   id: string;
   name: string;
@@ -90,134 +92,59 @@ const SelectBottomSheet: React.FC<SelectBottomSheetProps> = ({
   onClose,
 }) => {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const themedSheetStyles = useThemedStyles(sheetThemedStyles);
 
-  const [modalVisible, setModalVisible] = useState(visible);
-  const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      setModalVisible(true);
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: SHEET_HEIGHT,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setModalVisible(false);
-      });
-    }
-  }, [visible, slideAnim, fadeAnim]);
-
-  if (!modalVisible) return null;
-
   return (
-    <Modal
-      visible={modalVisible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
+    <BottomSheetModal
+      visible={visible}
+      onClose={onClose}
+      title={title}
+      maxHeightRatio={0.65}
     >
-      <View style={sheetStyles.modalContainer}>
-        <Animated.View
-          style={[
-            sheetStyles.modalOverlay,
-            themedSheetStyles.modalOverlay,
-            { opacity: fadeAnim },
-          ]}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={onClose}
-          />
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            sheetStyles.bottomSheet,
-            themedSheetStyles.bottomSheet,
-            {
-              paddingBottom: Math.max(insets.bottom, 20),
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={themedSheetStyles.dragHandle} />
-          <View style={themedSheetStyles.sheetHeader}>
-            <Text style={themedSheetStyles.title}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={themedSheetStyles.closeButton}>
-              <MaterialCommunityIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={sheetStyles.list} showsVerticalScrollIndicator={false}>
-            {options.map((option) => {
-              const isActive = option.id === selectedId;
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    themedSheetStyles.item,
-                    isActive && themedSheetStyles.itemActive,
-                  ]}
-                  onPress={() => {
-                    onSelect(option.id);
-                    onClose();
-                  }}
-                >
-                  <View style={sheetStyles.itemContent}>
-                    <View style={sheetStyles.itemText}>
-                      <Text
-                        style={[
-                          themedSheetStyles.itemName,
-                          isActive && themedSheetStyles.itemNameActive,
-                        ]}
-                      >
-                        {option.name}
-                      </Text>
-                      {option.subText && (
-                        <Text style={themedSheetStyles.itemSubText}>
-                          {option.subText}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                  {isActive && (
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      size={20}
-                      color={colors.primary}
-                    />
+      <ScrollView style={sheetStyles.list} showsVerticalScrollIndicator={false}>
+        {options.map((option) => {
+          const isActive = option.id === selectedId;
+          return (
+            <TouchableOpacity
+              key={option.id}
+              style={[
+                themedSheetStyles.item,
+                isActive && themedSheetStyles.itemActive,
+              ]}
+              onPress={() => {
+                onSelect(option.id);
+                onClose();
+              }}
+            >
+              <View style={sheetStyles.itemContent}>
+                <View style={sheetStyles.itemText}>
+                  <Text
+                    style={[
+                      themedSheetStyles.itemName,
+                      isActive && themedSheetStyles.itemNameActive,
+                    ]}
+                  >
+                    {option.name}
+                  </Text>
+                  {option.subText && (
+                    <Text style={themedSheetStyles.itemSubText}>
+                      {option.subText}
+                    </Text>
                   )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+                </View>
+              </View>
+              {isActive && (
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={20}
+                  color={colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </BottomSheetModal>
   );
 };
 

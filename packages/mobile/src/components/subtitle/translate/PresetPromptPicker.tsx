@@ -1,25 +1,18 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Modal,
-  Animated,
-  Dimensions,
-  Pressable,
   ViewStyle,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import { BottomSheetModal } from "@components/common";
 import { PRESET_PROMPTS, type PresetPromptType } from "@constants/defaults";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
 
 // Custom option for user-defined prompt
 const CUSTOM_PRESET_ID = "custom" as PresetPromptType;
@@ -37,49 +30,11 @@ const PresetPromptPicker: React.FC<PresetPromptPickerProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const isVi = i18n.language === "vi";
   const styles = useThemedStyles(themedStyles);
 
-  const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 65,
-          friction: 11,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      slideAnim.setValue(SHEET_HEIGHT);
-      fadeAnim.setValue(0);
-    }
-  }, [visible]);
-
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: SHEET_HEIGHT,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setVisible(false));
-  };
+  const handleClose = () => setVisible(false);
 
   const handleSelect = (preset: (typeof PRESET_PROMPTS)[0]) => {
     onSelectPreset(preset.prompt, preset.id);
@@ -87,7 +42,6 @@ const PresetPromptPicker: React.FC<PresetPromptPickerProps> = ({
   };
 
   const handleSelectCustom = () => {
-    // Don't change the prompt, just mark as custom
     onSelectPreset("", CUSTOM_PRESET_ID);
     handleClose();
   };
@@ -137,86 +91,110 @@ const PresetPromptPicker: React.FC<PresetPromptPickerProps> = ({
         />
       </TouchableOpacity>
 
-      <Modal
+      <BottomSheetModal
         visible={visible}
-        transparent
-        animationType="none"
-        onRequestClose={handleClose}
-        statusBarTranslucent
+        onClose={handleClose}
+        title={t("settings.geminiConfig.selectPreset")}
+        maxHeightRatio={0.75}
       >
-        <View style={styles.modalOverlay}>
-          <Animated.View style={[styles.modalBackdrop, { opacity: fadeAnim }]}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-          </Animated.View>
-
-          <Animated.View
+        <ScrollView
+          style={styles.presetList}
+          contentContainerStyle={styles.presetListContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Custom option - use user's own system prompt */}
+          <TouchableOpacity
             style={[
-              styles.bottomSheet,
-              {
-                paddingBottom: Math.max(insets.bottom, 20),
-                transform: [{ translateY: slideAnim }],
-              },
+              styles.presetItem,
+              isCustomSelected && styles.presetItemSelected,
             ]}
+            onPress={handleSelectCustom}
+            activeOpacity={0.7}
           >
-            <View style={styles.dragHandle} />
-            <View style={styles.sheetHeader}>
-              <Text style={styles.title}>
-                {t("settings.geminiConfig.selectPreset")}
-              </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleClose}
-              >
-                <MaterialCommunityIcons
-                  name="close"
-                  size={24}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.presetList}
-              contentContainerStyle={styles.presetListContent}
-              showsVerticalScrollIndicator={false}
+            <View
+              style={[
+                styles.presetIcon,
+                isCustomSelected && styles.presetIconSelected,
+              ]}
             >
-              {/* Custom option - use user's own system prompt */}
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                size={22}
+                color={isCustomSelected ? colors.onPrimary : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.presetInfo}>
+              <Text
+                style={[
+                  styles.presetName,
+                  isCustomSelected && styles.presetNameSelected,
+                ]}
+              >
+                {isVi ? "Tùy chỉnh" : "Custom"}
+              </Text>
+              <Text style={styles.presetDesc} numberOfLines={1}>
+                {isVi
+                  ? "Sử dụng prompt tự định nghĩa trong cài đặt"
+                  : "Use your own prompt defined in settings"}
+              </Text>
+            </View>
+            {isCustomSelected && (
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={22}
+                color={colors.primary}
+              />
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>
+              {isVi ? "Mẫu có sẵn" : "Presets"}
+            </Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {PRESET_PROMPTS.map((preset) => {
+            const isSelected =
+              preset.id === currentPresetId && !isCustomSelected;
+            return (
               <TouchableOpacity
+                key={preset.id}
                 style={[
                   styles.presetItem,
-                  isCustomSelected && styles.presetItemSelected,
+                  isSelected && styles.presetItemSelected,
                 ]}
-                onPress={handleSelectCustom}
+                onPress={() => handleSelect(preset)}
                 activeOpacity={0.7}
               >
                 <View
                   style={[
                     styles.presetIcon,
-                    isCustomSelected && styles.presetIconSelected,
+                    isSelected && styles.presetIconSelected,
                   ]}
                 >
                   <MaterialCommunityIcons
-                    name="pencil-outline"
+                    name={preset.icon as any}
                     size={22}
-                    color={isCustomSelected ? colors.onPrimary : colors.textSecondary}
+                    color={isSelected ? colors.onPrimary : colors.textSecondary}
                   />
                 </View>
                 <View style={styles.presetInfo}>
                   <Text
                     style={[
                       styles.presetName,
-                      isCustomSelected && styles.presetNameSelected,
+                      isSelected && styles.presetNameSelected,
                     ]}
                   >
-                    {isVi ? "Tùy chỉnh" : "Custom"}
+                    {isVi ? preset.nameVi : preset.name}
                   </Text>
                   <Text style={styles.presetDesc} numberOfLines={1}>
-                    {isVi
-                      ? "Sử dụng prompt tự định nghĩa trong cài đặt"
-                      : "Use your own prompt defined in settings"}
+                    {preset.description}
                   </Text>
                 </View>
-                {isCustomSelected && (
+                {isSelected && (
                   <MaterialCommunityIcons
                     name="check-circle"
                     size={22}
@@ -224,74 +202,15 @@ const PresetPromptPicker: React.FC<PresetPromptPickerProps> = ({
                   />
                 )}
               </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>
-                  {isVi ? "Mẫu có sẵn" : "Presets"}
-                </Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {PRESET_PROMPTS.map((preset) => {
-                const isSelected =
-                  preset.id === currentPresetId && !isCustomSelected;
-                return (
-                  <TouchableOpacity
-                    key={preset.id}
-                    style={[
-                      styles.presetItem,
-                      isSelected && styles.presetItemSelected,
-                    ]}
-                    onPress={() => handleSelect(preset)}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      style={[
-                        styles.presetIcon,
-                        isSelected && styles.presetIconSelected,
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name={preset.icon as any}
-                        size={22}
-                        color={isSelected ? colors.onPrimary : colors.textSecondary}
-                      />
-                    </View>
-                    <View style={styles.presetInfo}>
-                      <Text
-                        style={[
-                          styles.presetName,
-                          isSelected && styles.presetNameSelected,
-                        ]}
-                      >
-                        {isVi ? preset.nameVi : preset.name}
-                      </Text>
-                      <Text style={styles.presetDesc} numberOfLines={1}>
-                        {preset.description}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <MaterialCommunityIcons
-                        name="check-circle"
-                        size={22}
-                        color={colors.primary}
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
-        </View>
-      </Modal>
+            );
+          })}
+        </ScrollView>
+      </BottomSheetModal>
     </>
   );
 };
 
 const themedStyles = createThemedStyles((colors) => ({
-  // Picker Button - style giống ConfigPicker
   pickerButton: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
@@ -329,53 +248,6 @@ const themedStyles = createThemedStyles((colors) => ({
     fontWeight: "600" as const,
     color: colors.text,
   },
-
-  // Modal - style giống TranslationQueueModal
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end" as const,
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.overlay,
-  },
-  bottomSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    width: "100%" as const,
-    maxHeight: SHEET_HEIGHT,
-    backgroundColor: colors.surface,
-  },
-  sheetHeader: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    justifyContent: "space-between" as const,
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: "center" as const,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "700" as const,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center" as const,
-    alignItems: "center" as const,
-  },
-
-  // Preset List - style giống QueueItemCard
   presetList: {
     maxHeight: 380,
   },
@@ -426,8 +298,6 @@ const themedStyles = createThemedStyles((colors) => ({
     color: colors.textSecondary,
     lineHeight: 16,
   },
-
-  // Divider
   divider: {
     flexDirection: "row" as const,
     alignItems: "center" as const,

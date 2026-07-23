@@ -1,23 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  Animated,
-  Dimensions,
-} from "react-native";
+import React from "react";
+import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import { BottomSheetModal } from "@components/common";
 import type { GeminiConfig } from "@src/types";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.65;
 
 interface ConfigSelectorProps {
   visible: boolean;
@@ -37,198 +26,67 @@ const ConfigSelector: React.FC<ConfigSelectorProps> = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(configSelectorThemedStyles);
-  const insets = useSafeAreaInsets();
-
-  const [modalVisible, setModalVisible] = useState(visible);
-  const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      setModalVisible(true);
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: SHEET_HEIGHT,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setModalVisible(false);
-      });
-    }
-  }, [visible, slideAnim, fadeAnim]);
-
-  const handleClose = () => {
-    onClose();
-  };
-
-  if (!modalVisible) return null;
 
   return (
-    <Modal
-      visible={modalVisible}
-      transparent
-      animationType="none"
-      onRequestClose={handleClose}
-      statusBarTranslucent
+    <BottomSheetModal
+      visible={visible}
+      onClose={onClose}
+      title={t("chat.selectConfig")}
+      maxHeightRatio={0.65}
     >
-      <View style={styles.modalContainer}>
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            themedStyles.modalOverlay,
-            { opacity: fadeAnim },
-          ]}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={handleClose}
-          />
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.bottomSheet,
-            themedStyles.bottomSheet,
-            {
-              paddingBottom: Math.max(insets.bottom, 20),
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={themedStyles.dragHandle} />
-          <View style={themedStyles.sheetHeader}>
-            <Text style={themedStyles.title}>{t("chat.selectConfig")}</Text>
-            <TouchableOpacity onPress={handleClose} style={themedStyles.closeButton}>
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={colors.text}
-              />
+      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+        {configs.map((config) => {
+          const isActive = activeConfig?.id === config.id;
+          return (
+            <TouchableOpacity
+              key={config.id}
+              style={[
+                themedStyles.item,
+                isActive && themedStyles.itemActive,
+              ]}
+              onPress={() => onSelect(config)}
+            >
+              <View style={styles.itemContent}>
+                <MaterialCommunityIcons
+                  name="robot"
+                  size={20}
+                  color={isActive ? colors.primary : colors.textMuted}
+                />
+                <View style={styles.itemText}>
+                  <Text
+                    style={[
+                      themedStyles.itemName,
+                      isActive && themedStyles.itemNameActive,
+                    ]}
+                  >
+                    {config.name}
+                  </Text>
+                  <Text style={themedStyles.itemModel}>{config.model}</Text>
+                </View>
+              </View>
+              {isActive && (
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={20}
+                  color={colors.primary}
+                />
+              )}
             </TouchableOpacity>
-          </View>
-          <ScrollView
-            style={styles.list}
-            showsVerticalScrollIndicator={false}
-          >
-            {configs.map((config) => {
-              const isActive = activeConfig?.id === config.id;
-              return (
-                <TouchableOpacity
-                  key={config.id}
-                  style={[
-                    themedStyles.item,
-                    isActive && themedStyles.itemActive,
-                  ]}
-                  onPress={() => onSelect(config)}
-                >
-                  <View style={styles.itemContent}>
-                    <MaterialCommunityIcons
-                      name="robot"
-                      size={20}
-                      color={isActive ? colors.primary : colors.textMuted}
-                    />
-                    <View style={styles.itemText}>
-                      <Text
-                        style={[
-                          themedStyles.itemName,
-                          isActive && themedStyles.itemNameActive,
-                        ]}
-                      >
-                        {config.name}
-                      </Text>
-                      <Text style={themedStyles.itemModel}>
-                        {config.model}
-                      </Text>
-                    </View>
-                  </View>
-                  {isActive && (
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-          <Text style={themedStyles.hint}>{t("chat.configHint")}</Text>
-        </Animated.View>
-      </View>
-    </Modal>
+          );
+        })}
+      </ScrollView>
+      <Text style={themedStyles.hint}>{t("chat.configHint")}</Text>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  bottomSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    width: "100%",
-    maxHeight: SHEET_HEIGHT,
-  },
   list: { maxHeight: 380 },
   itemContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
   itemText: { flex: 1 },
 });
 
 const configSelectorThemedStyles = createThemedStyles((colors) => ({
-  modalOverlay: {
-    backgroundColor: colors.overlay,
-  },
-  bottomSheet: {
-    backgroundColor: colors.surface,
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: "center",
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  title: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   item: {
     flexDirection: "row",
     alignItems: "center",

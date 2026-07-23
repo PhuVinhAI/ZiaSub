@@ -3,3 +3,4 @@ export { default as FloatingButton } from "./FloatingButton";
 export { default as FAQModal } from "./FAQModal";
 export { alert, confirm, confirmDestructive } from "./CustomAlert";
 export { default as WebViewErrorView } from "./WebViewErrorView";
+export { default as BottomSheetModal } from "./BottomSheetModal";
