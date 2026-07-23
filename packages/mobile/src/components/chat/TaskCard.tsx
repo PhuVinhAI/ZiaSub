@@ -134,6 +134,52 @@ const TaskCard: React.FC<TaskCardProps> = ({
     [colors]
   );
 
+  const markdownRules = useMemo(
+    () => ({
+      body: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.body}>
+          {children}
+        </Text>
+      ),
+      paragraph: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.paragraph}>
+          {children}
+        </Text>
+      ),
+      heading1: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.heading1}>
+          {children}
+        </Text>
+      ),
+      heading2: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.heading2}>
+          {children}
+        </Text>
+      ),
+      heading3: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.heading3}>
+          {children}
+        </Text>
+      ),
+      list_item: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.list_item}>
+          {children}
+        </Text>
+      ),
+      fence: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.fence}>
+          {node.content}
+        </Text>
+      ),
+      code_inline: (node: any, children: any, parent: any, styles: any) => (
+        <Text key={node.key} selectable style={styles.code_inline}>
+          {children}
+        </Text>
+      ),
+    }),
+    []
+  );
+
   const toggleExpand = () => {
     if (!task.result) return;
     Animated.timing(rotateAnim, {
@@ -227,9 +273,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
       </TouchableOpacity>
       {expanded && task.result && (
         <View style={themedStyles.taskResult}>
-          <Text selectable>
-            <Markdown style={markdownStyles}>{task.result}</Markdown>
-          </Text>
+          <Markdown style={markdownStyles} rules={markdownRules}>
+            {task.result}
+          </Markdown>
           <View style={themedStyles.actionButtons}>
             <TouchableOpacity
               style={styles.actionBtn}
