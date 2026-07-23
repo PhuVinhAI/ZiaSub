@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   Modal,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -12,8 +13,12 @@ import Slider from "@react-native-community/slider";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@src/contexts";
+import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import Button3D from "../common/Button3D";
 import type { VideoTimeRange } from "@src/types";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
 
 interface VideoTimeRangePickerProps {
   visible: boolean;
@@ -45,13 +50,19 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const themedStyles = useThemedStyles(videoTimeRangePickerThemedStyles);
   const insets = useSafeAreaInsets();
+
+  const [modalVisible, setModalVisible] = useState(visible);
+  const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [startValue, setStartValue] = useState(0);
   const [endValue, setEndValue] = useState(videoDuration);
 
   useEffect(() => {
     if (visible) {
+      setModalVisible(true);
       if (currentRange) {
         setStartValue(currentRange.startTime);
         setEndValue(currentRange.endTime);
@@ -59,17 +70,42 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
         setStartValue(0);
         setEndValue(videoDuration);
       }
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: SHEET_HEIGHT,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false);
+      });
     }
-  }, [visible, currentRange, videoDuration]);
+  }, [visible, currentRange, videoDuration, slideAnim, fadeAnim]);
 
   const handleStartChange = (value: number) => {
-    // Đảm bảo start không vượt quá end - 5 giây
     const maxStart = Math.max(0, endValue - 5);
     setStartValue(Math.min(value, maxStart));
   };
 
   const handleEndChange = (value: number) => {
-    // Đảm bảo end không nhỏ hơn start + 5 giây
     const minEnd = Math.min(videoDuration, startValue + 5);
     setEndValue(Math.max(value, minEnd));
   };
@@ -96,63 +132,76 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
     setEndValue(videoDuration);
   };
 
+  if (!modalVisible) return null;
+
   return (
     <Modal
-      visible={visible}
+      visible={modalVisible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
-          <TouchableWithoutFeedback>
-            <View
-              style={[
-                styles.container,
-                {
-                  backgroundColor: colors.surface,
-                  paddingBottom: Math.max(insets.bottom, 16),
-                },
-              ]}
-            >
-              <View
-                style={[styles.sheetHandle, { backgroundColor: colors.border }]}
+      <View style={styles.modalContainer}>
+        <Animated.View
+          style={[
+            styles.modalOverlay,
+            themedStyles.modalOverlay,
+            { opacity: fadeAnim },
+          ]}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            themedStyles.bottomSheet,
+            {
+              paddingBottom: Math.max(insets.bottom, 20),
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={themedStyles.dragHandle} />
+
+          {/* Header */}
+          <View style={themedStyles.sheetHeader}>
+            <View style={styles.headerLeft}>
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={24}
+                color={colors.primary}
               />
-              {/* Header */}
-              <View style={[styles.header, { borderBottomColor: colors.border }]}>
-                <View style={styles.headerIcon}>
-                  <MaterialCommunityIcons
-                    name="clock-outline"
-                    size={28}
-                    color={colors.primary}
-                  />
-                </View>
-                <View style={styles.headerText}>
-                  <Text style={[styles.title, { color: colors.text }]}>
-                    {t("chat.selectTimeRange")}
-                  </Text>
-                  <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                    {t("chat.timeRangeHint")}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <MaterialCommunityIcons
-                    name="close"
-                    size={24}
-                    color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
+              <View>
+                <Text style={themedStyles.title}>
+                  {t("chat.selectTimeRange")}
+                </Text>
+                <Text style={themedStyles.subtitle}>
+                  {t("chat.timeRangeHint")}
+                </Text>
               </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={themedStyles.closeButton}>
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
 
           {/* Time display */}
-          <View
-            style={[styles.timeBox, { backgroundColor: colors.surfaceLight }]}
-          >
+          <View style={themedStyles.timeBox}>
             <View style={styles.timeItem}>
-              <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>
+              <Text style={themedStyles.timeLabel}>
                 {t("chat.startTime")}
               </Text>
-              <Text style={[styles.timeValue, { color: colors.text }]}>
+              <Text style={themedStyles.timeValue}>
                 {formatTime(startValue)}
               </Text>
             </View>
@@ -162,10 +211,10 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
               color={colors.textMuted}
             />
             <View style={styles.timeItem}>
-              <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>
+              <Text style={themedStyles.timeLabel}>
                 {t("chat.endTime")}
               </Text>
-              <Text style={[styles.timeValue, { color: colors.text }]}>
+              <Text style={themedStyles.timeValue}>
                 {formatTime(endValue)}
               </Text>
             </View>
@@ -174,12 +223,10 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
           {/* Start Slider */}
           <View style={styles.sliderSection}>
             <View style={styles.sliderRow}>
-              <Text
-                style={[styles.sliderTitle, { color: colors.textSecondary }]}
-              >
+              <Text style={themedStyles.sliderTitle}>
                 {t("chat.startTime")}
               </Text>
-              <Text style={[styles.sliderValue, { color: colors.primary }]}>
+              <Text style={themedStyles.sliderValue}>
                 {formatTime(startValue)}
               </Text>
             </View>
@@ -199,12 +246,10 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
           {/* End Slider */}
           <View style={styles.sliderSection}>
             <View style={styles.sliderRow}>
-              <Text
-                style={[styles.sliderTitle, { color: colors.textSecondary }]}
-              >
+              <Text style={themedStyles.sliderTitle}>
                 {t("chat.endTime")}
               </Text>
-              <Text style={[styles.sliderValue, { color: colors.primary }]}>
+              <Text style={themedStyles.sliderValue}>
                 {formatTime(endValue)}
               </Text>
             </View>
@@ -224,26 +269,23 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
           {/* Info row */}
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              <Text style={themedStyles.infoLabel}>
                 {t("chat.selectedDuration")}
               </Text>
-              <Text style={[styles.infoValue, { color: colors.primary }]}>
+              <Text style={themedStyles.infoValue}>
                 {formatTime(endValue - startValue)}
               </Text>
             </View>
             <TouchableOpacity
               onPress={handleReset}
-              style={[
-                styles.resetBtn,
-                { backgroundColor: colors.surfaceLight },
-              ]}
+              style={themedStyles.resetBtn}
             >
               <MaterialCommunityIcons
                 name="refresh"
                 size={16}
                 color={colors.textSecondary}
               />
-              <Text style={[styles.resetText, { color: colors.textSecondary }]}>
+              <Text style={themedStyles.resetText}>
                 {t("common.reset")}
               </Text>
             </TouchableOpacity>
@@ -266,97 +308,48 @@ const VideoTimeRangePicker: React.FC<VideoTimeRangePickerProps> = ({
                 onPress={handleConfirm}
               />
             </View>
-            </View>
           </View>
-        </TouchableWithoutFeedback>
+        </Animated.View>
       </View>
-    </TouchableWithoutFeedback>
-  </Modal>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalContainer: {
     flex: 1,
     justifyContent: "flex-end",
-    alignItems: "center",
   },
-  container: {
-    width: "100%",
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    overflow: "hidden",
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    width: "100%",
+    maxHeight: SHEET_HEIGHT,
   },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 8,
-  },
-  header: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    gap: 12,
-  },
-  headerIcon: {},
-  headerText: {
+    gap: 10,
     flex: 1,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  subtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  timeBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 16,
-    marginBottom: 8,
-    padding: 14,
-    borderRadius: 12,
-    gap: 16,
   },
   timeItem: {
     alignItems: "center",
     minWidth: 80,
   },
-  timeLabel: {
-    fontSize: 11,
-    marginBottom: 4,
-  },
-  timeValue: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
   sliderSection: {
-    marginHorizontal: 16,
-    marginTop: 12,
+    marginHorizontal: 4,
+    marginTop: 8,
   },
   sliderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 4,
-  },
-  sliderTitle: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  sliderValue: {
-    fontSize: 14,
-    fontWeight: "600",
   },
   slider: {
     width: "100%",
@@ -366,8 +359,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginHorizontal: 16,
-    marginTop: 8,
+    marginHorizontal: 4,
+    marginTop: 4,
     marginBottom: 8,
   },
   infoItem: {
@@ -375,12 +368,94 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  buttonRow: {
+    flexDirection: "row",
+    paddingTop: 8,
+    gap: 12,
+  },
+  buttonWrapper: {
+    flex: 1,
+  },
+});
+
+const videoTimeRangePickerThemedStyles = createThemedStyles((colors) => ({
+  modalOverlay: {
+    backgroundColor: colors.overlay,
+  },
+  bottomSheet: {
+    backgroundColor: colors.surface,
+  },
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: "center",
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    marginTop: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  title: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  subtitle: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  timeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceLight,
+    gap: 16,
+  },
+  timeLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  timeValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  sliderTitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.textSecondary,
+  },
+  sliderValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+  },
   infoLabel: {
     fontSize: 13,
+    color: colors.textMuted,
   },
   infoValue: {
     fontSize: 15,
     fontWeight: "600",
+    color: colors.primary,
   },
   resetBtn: {
     flexDirection: "row",
@@ -389,20 +464,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
+    backgroundColor: colors.surfaceLight,
   },
   resetText: {
     fontSize: 13,
     fontWeight: "500",
+    color: colors.textSecondary,
   },
-  buttonRow: {
-    flexDirection: "row",
-    padding: 16,
-    paddingTop: 8,
-    gap: 12,
-  },
-  buttonWrapper: {
-    flex: 1,
-  },
-});
+}));
 
 export default VideoTimeRangePicker;
