@@ -69,12 +69,43 @@ export {
   getActiveGeminiConfig,
 } from "./geminiStorage";
 
-// Last Copied Video URL Storage
+import { setLastCopiedVideoUrl, setLastHandledSrt, getLastHandledSrt } from "@ziasub/shared";
+import {
+  clearLastCopiedVideoUrlFromStorage,
+  saveLastHandledSrtToStorage,
+  getLastHandledSrtFromStorage,
+  clearLastHandledSrtFromStorage,
+} from "./systemInstructionStorage";
+
+// Last Copied Video URL & Handled SRT Storage
 export {
   saveLastCopiedVideoUrlToStorage,
   getLastCopiedVideoUrlFromStorage,
+  clearLastCopiedVideoUrlFromStorage,
   LAST_COPIED_VIDEO_URL_KEY,
+  saveLastHandledSrtToStorage,
+  getLastHandledSrtFromStorage,
+  clearLastHandledSrtFromStorage,
+  LAST_HANDLED_SRT_KEY,
 } from "./systemInstructionStorage";
+
+export { setLastHandledSrt, getLastHandledSrt };
+
+export const clearLastCopiedVideoUrl = async (): Promise<void> => {
+  setLastCopiedVideoUrl("");
+  await clearLastCopiedVideoUrlFromStorage();
+};
+
+export const setHandledSrt = async (srt: string): Promise<void> => {
+  setLastHandledSrt(srt);
+  await saveLastHandledSrtToStorage(srt);
+};
+
+export const clearHandledSrt = async (): Promise<void> => {
+  setLastHandledSrt("");
+  await clearLastHandledSrtFromStorage();
+};
+
 
 // Chat
 export {

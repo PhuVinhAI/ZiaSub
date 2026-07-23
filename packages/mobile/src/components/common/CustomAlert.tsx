@@ -50,10 +50,11 @@ export const confirm = (
   message: string,
   onConfirm: () => void,
   confirmText = "Đồng ý",
-  cancelText = "Không"
+  cancelText = "Không",
+  onCancel?: () => void
 ) => {
   showAlert(title, message, [
-    { text: cancelText, style: "cancel" },
+    { text: cancelText, style: "cancel", onPress: onCancel },
     { text: confirmText, onPress: onConfirm },
   ]);
 };
@@ -161,8 +162,13 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
           style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={() => {
-            const hasCancel = buttons.some((b) => b.style === "cancel");
-            if (hasCancel || buttons.length === 1) onClose();
+            const cancelBtn = buttons.find((b) => b.style === "cancel");
+            if (cancelBtn) {
+              onClose();
+              setTimeout(() => cancelBtn.onPress?.(), 150);
+            } else if (buttons.length === 1) {
+              onClose();
+            }
           }}
         />
         <Animated.View

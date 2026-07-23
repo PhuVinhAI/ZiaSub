@@ -137,3 +137,14 @@ export const getLastCopiedVideoUrl = (): string => {
   return memoryLastCopiedVideoUrl;
 };
 
+let memoryLastHandledSrt: string = "";
+
+export const setLastHandledSrt = (srt: string) => {
+  memoryLastHandledSrt = srt;
+};
+
+export const getLastHandledSrt = (): string => {
+  return memoryLastHandledSrt;
+};
+
+

@@ -9,6 +9,8 @@ import {
   getSRT,
   removeSRT,
   getActiveTranslation,
+  clearLastCopiedVideoUrl,
+  setHandledSrt,
 } from "@utils/storage";
 import { ttsService } from "@services/ttsService";
 import { WebView } from "react-native-webview";
@@ -102,6 +104,11 @@ export const useSubtitles = ({
         } else {
           await removeSRT(videoUrl);
         }
+      }
+
+      await clearLastCopiedVideoUrl();
+      if (fixedData) {
+        await setHandledSrt(fixedData);
       }
 
       return { fixCount, parsed };

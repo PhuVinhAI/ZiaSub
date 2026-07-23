@@ -14,6 +14,11 @@ import {
   saveTranslation,
   getLastCopiedVideoUrlFromStorage,
   saveLastCopiedVideoUrlToStorage,
+  clearLastCopiedVideoUrl,
+  setHandledSrt,
+  getLastHandledSrt,
+  getLastHandledSrtFromStorage,
+  clearHandledSrt,
   getApiKeys,
   saveApiKeys,
 } from "@utils/storage";
@@ -49,6 +54,7 @@ export const useClipboardKeyDetector = ({
         const cleanUrl = normalizeYouTubeUrl(trimmed);
         setLastCopiedVideoUrl(cleanUrl);
         await saveLastCopiedVideoUrlToStorage(cleanUrl);
+        await clearHandledSrt();
         return;
       }
 
@@ -88,6 +94,14 @@ export const useClipboardKeyDetector = ({
       // 2. Check if text is a valid SRT Subtitle format
       const srtItems = parseSRT(trimmed);
       if (srtItems && srtItems.length > 0) {
+        // Skip if this exact SRT was already handled (saved or cancelled)
+        const handledSrt =
+          getLastHandledSrt() || (await getLastHandledSrtFromStorage());
+        if (trimmed === handledSrt) {
+          lastCheckedClipboardRef.current = trimmed;
+          return;
+        }
+
         // Mark as checked
         lastCheckedClipboardRef.current = trimmed;
 
@@ -121,16 +135,27 @@ export const useClipboardKeyDetector = ({
                 ) {
                   onApplySrt(trimmed, targetVideoUrl);
                 }
+                await clearLastCopiedVideoUrl();
+                await setHandledSrt(trimmed);
+                try {
+                  await Clipboard.setStringAsync("");
+                } catch {}
                 alert(
                   "Thành công",
                   "Đã tự động lưu bản dịch 'AI Studio' cho video!"
                 );
               } catch {
+                await clearLastCopiedVideoUrl();
+                await setHandledSrt(trimmed);
                 alert("Lỗi", "Không thể lưu phụ đề vào video.");
               }
             },
             "Lưu bản dịch",
-            "Bỏ qua"
+            "Bỏ qua",
+            async () => {
+              await clearLastCopiedVideoUrl();
+              await setHandledSrt(trimmed);
+            }
           );
         }
       }

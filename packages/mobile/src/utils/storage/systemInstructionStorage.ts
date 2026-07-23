@@ -17,3 +17,35 @@ export const getLastCopiedVideoUrlFromStorage = async (): Promise<string> => {
     return "";
   }
 };
+
+export const clearLastCopiedVideoUrlFromStorage = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(LAST_COPIED_VIDEO_URL_KEY);
+  } catch (e) {}
+};
+
+export const LAST_HANDLED_SRT_KEY = "last_handled_srt";
+
+export const saveLastHandledSrtToStorage = async (
+  srt: string
+): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(LAST_HANDLED_SRT_KEY, srt);
+  } catch (e) {}
+};
+
+export const getLastHandledSrtFromStorage = async (): Promise<string> => {
+  try {
+    return (await AsyncStorage.getItem(LAST_HANDLED_SRT_KEY)) || "";
+  } catch (e) {
+    return "";
+  }
+};
+
+export const clearLastHandledSrtFromStorage = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(LAST_HANDLED_SRT_KEY);
+  } catch (e) {}
+};
+
+
