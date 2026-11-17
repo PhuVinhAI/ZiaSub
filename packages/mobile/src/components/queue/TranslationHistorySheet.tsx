@@ -228,8 +228,6 @@ const TranslationHistorySheet: React.FC<TranslationHistorySheetProps> = ({
       <View style={[styles.root, themedStyles.root]}>
         <StatusBar
           barStyle={isDark ? "light-content" : "dark-content"}
-          backgroundColor="transparent"
-          translucent
         />
         <View
           style={{

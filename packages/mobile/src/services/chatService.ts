@@ -1,4 +1,4 @@
-import { ThinkingLevel, MediaResolution } from "@google/genai";
+import { MediaResolution } from "@google/genai";
 import type {
   GeminiConfig,
   ChatMessage,
@@ -9,37 +9,8 @@ import { normalizeYouTubeUrl } from "@utils/videoUtils";
 import { keyManager } from "./keyManager";
 import {
   getEffectiveChatSystemPrompt,
-  supportsMinimalThinking,
+  getThinkingConfig,
 } from "./geminiModelConfig";
-
-// Map config string to ThinkingLevel enum
-const getThinkingLevel = (level?: string): ThinkingLevel => {
-  switch (level) {
-    case "MINIMAL":
-      return ThinkingLevel.MINIMAL;
-    case "LOW":
-      return ThinkingLevel.LOW;
-    case "MEDIUM":
-      return ThinkingLevel.MEDIUM;
-    case "HIGH":
-    default:
-      return ThinkingLevel.HIGH;
-  }
-};
-
-// Get thinking config based on model type
-const getThinkingConfig = (
-  model: string,
-  thinkingLevel?: string
-): { thinkingLevel?: ThinkingLevel } | undefined => {
-  // Models without MINIMAL clamp it down to the nearest level (LOW)
-  if (thinkingLevel === "MINIMAL" && !supportsMinimalThinking(model)) {
-    return { thinkingLevel: ThinkingLevel.LOW };
-  }
-
-  // All other supported models use full ThinkingLevel (MINIMAL, LOW, MEDIUM, HIGH)
-  return { thinkingLevel: getThinkingLevel(thinkingLevel) };
-};
 
 // Check if model supports mediaResolution
 const supportsMediaResolution = (_model: string): boolean => {

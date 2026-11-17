@@ -651,7 +651,11 @@ export default {
       optionMedium: "Medium",
       optionLow: "Low",
       optionMinimal: "Minimal",
+      optionXhigh: "Extra high",
       optionDefault: "Default",
+      modelDeprecated: "Replaced",
+      modelShutdownDate: "Shutdown: {{date}}",
+      modelNoShutdownDate: "Shutdown: not announced",
     },
 
     // Preset Prompts

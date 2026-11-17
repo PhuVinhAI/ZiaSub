@@ -21,13 +21,17 @@ interface YouTubePlayerProps {
   isDesktopMode?: boolean;
 }
 
-const YouTubePlayer = React.forwardRef<WebView, YouTubePlayerProps>(
+const YouTubePlayer = React.forwardRef<
+  React.ComponentRef<typeof WebView>,
+  YouTubePlayerProps
+>(
   (
     { onMessage, onNavigationStateChange, onLoad, isDesktopMode = false },
     ref
   ) => {
     const styles = useThemedStyles(themedStyles);
-    const webViewInternalRef = React.useRef<WebView | null>(null);
+    const webViewInternalRef =
+      React.useRef<React.ComponentRef<typeof WebView> | null>(null);
 
     // Initial source based on mode (navigation handled by parent via navigateToUrl)
     const source = useMemo(
@@ -53,7 +57,9 @@ const YouTubePlayer = React.forwardRef<WebView, YouTubePlayerProps>(
             if (typeof ref === "function") {
               ref(r);
             } else if (ref) {
-              (ref as React.MutableRefObject<WebView | null>).current = r;
+              (ref as React.MutableRefObject<
+                React.ComponentRef<typeof WebView> | null
+              >).current = r;
             }
           }}
           source={source}

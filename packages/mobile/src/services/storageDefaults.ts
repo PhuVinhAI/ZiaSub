@@ -11,6 +11,11 @@ import {
   DEFAULT_PRESUB_CONFIG_ID,
   DEFAULT_SYSTEM_PROMPT,
 } from "@constants/defaults";
+import {
+  MODEL_GEMINI_3_5_FLASH_LITE,
+  MODEL_GEMINI_4_HYDROGEN,
+  RETIRED_MODEL_MIGRATIONS,
+} from "./geminiModelConfig";
 
 export function mergeWithDefaults(
   settings: Partial<AppSettings>
@@ -52,7 +57,7 @@ export function computeEnsuredConfigs(
       {
         id: DEFAULT_CHAT_CONFIG_ID,
         name: "Chat",
-        model: "models/gemini-flash-lite-latest",
+        model: MODEL_GEMINI_3_5_FLASH_LITE,
         temperature: 1.0,
         systemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
         mediaResolution: "MEDIA_RESOLUTION_HIGH",
@@ -73,7 +78,7 @@ export function computeEnsuredConfigs(
     configs.push({
       id: Date.now().toString(),
       name: "Mặc định",
-      model: "models/gemini-flash-latest",
+      model: MODEL_GEMINI_4_HYDROGEN,
       temperature: 0.7,
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
       mediaResolution: "MEDIA_RESOLUTION_HIGH",
@@ -84,8 +89,9 @@ export function computeEnsuredConfigs(
 
   // Migrate model IDs that are no longer available in the editor.
   for (const c of configs) {
-    if (c.model === "models/gemini-2.5-pro") {
-      c.model = "models/gemini-flash-latest";
+    const replacement = RETIRED_MODEL_MIGRATIONS[c.model];
+    if (replacement) {
+      c.model = replacement;
       needsSave = true;
     }
   }

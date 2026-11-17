@@ -771,7 +771,7 @@ const VisualSubtitleEditor: React.FC<VisualSubtitleEditorProps> = ({
               animated: true,
             });
           }}
-          ListFooterComponent={footerGap}
+          ListFooterComponent={footerGap ?? undefined}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>

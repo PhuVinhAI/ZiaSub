@@ -37,7 +37,7 @@ const SubtitleTextEditor: React.FC<SubtitleTextEditorProps> = ({
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(editorThemedStyles);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const [draft, setDraft] = useState(value);
 
   useEffect(() => {
@@ -87,8 +87,6 @@ const SubtitleTextEditor: React.FC<SubtitleTextEditorProps> = ({
         <View style={[styles.screen, { paddingTop }]}>
           <StatusBar
             barStyle={isDark ? "light-content" : "dark-content"}
-            backgroundColor="transparent"
-            translucent
           />
 
           <View style={styles.header}>

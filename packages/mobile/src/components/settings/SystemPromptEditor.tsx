@@ -34,7 +34,7 @@ const SystemPromptEditor: React.FC<SystemPromptEditorProps> = ({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(editorThemedStyles);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const [draft, setDraft] = useState(value);
 
   useEffect(() => {

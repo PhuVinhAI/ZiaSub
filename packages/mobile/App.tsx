@@ -34,7 +34,9 @@ const AppContent = () => {
   const { colors, isDark } = useTheme();
   const [initState, setInitState] = useState<InitState>("loading");
   const [loadingMessage, setLoadingMessage] = useState("Đang khởi động...");
-  const appState = useRef(AppState.currentState);
+  const appState = useRef<AppStateStatus>(
+    (AppState.currentState ?? "active") as AppStateStatus
+  );
   const {
     updateModalVisible,
     updateResult,
@@ -176,11 +178,7 @@ const AppContent = () => {
   };
 
   const statusBar = (
-    <StatusBar
-      barStyle={isDark ? "light-content" : "dark-content"}
-      backgroundColor={colors.background}
-      translucent
-    />
+    <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
   );
 
   // Loading state

@@ -392,7 +392,6 @@ const HomeScreen = () => {
     >
       <StatusBar
         barStyle={visualEditorVisible || isDark ? "light-content" : "dark-content"}
-        backgroundColor={visualEditorVisible ? "#000000" : colors.surface}
       />
 
       {!isFullscreen && !visualEditorVisible && (

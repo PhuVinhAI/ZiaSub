@@ -648,7 +648,11 @@ export default {
       optionMedium: "Trung bình",
       optionLow: "Thấp",
       optionMinimal: "Tối thiểu",
+      optionXhigh: "Tối đa",
       optionDefault: "Theo mặc định",
+      modelDeprecated: "Đã thay thế",
+      modelShutdownDate: "Khai tử: {{date}}",
+      modelNoShutdownDate: "Khai tử: chưa công bố",
     },
 
     // Preset Prompts

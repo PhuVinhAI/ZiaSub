@@ -4,7 +4,7 @@ import {
   StyleSheet,
   Dimensions,
   FlatList,
-  ViewToken,
+  ListViewToken,
 } from "react-native";
 import { useTheme } from "@src/contexts";
 import { WelcomeStep } from "./steps/WelcomeStep";
@@ -50,8 +50,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   };
 
   const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+    ({ viewableItems }: { viewableItems: ListViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
         setCurrentIndex(viewableItems[0].index);
       }
     }

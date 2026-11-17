@@ -8,11 +8,16 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_CHAT_CONFIG_ID,
 } from "@constants/defaults";
+import {
+  MODEL_GEMINI_3_5_FLASH_LITE,
+  MODEL_GEMINI_4_HYDROGEN,
+  RETIRED_MODEL_MIGRATIONS,
+} from "@services/geminiModelConfig";
 
 export const createDefaultGeminiConfig = (): GeminiConfig => ({
   id: Date.now().toString(),
   name: "Mặc định",
-  model: "models/gemini-flash-latest",
+  model: MODEL_GEMINI_4_HYDROGEN,
   temperature: 0.7,
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   mediaResolution: "MEDIA_RESOLUTION_HIGH",
@@ -22,7 +27,7 @@ export const createDefaultGeminiConfig = (): GeminiConfig => ({
 export const createDefaultChatConfig = (): GeminiConfig => ({
   id: DEFAULT_CHAT_CONFIG_ID,
   name: "Chat",
-  model: "models/gemini-flash-lite-latest",
+  model: MODEL_GEMINI_3_5_FLASH_LITE,
   temperature: 1.0,
   systemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
   mediaResolution: "MEDIA_RESOLUTION_HIGH",
@@ -35,7 +40,7 @@ export const DEFAULT_PRESUB_CONFIG_ID = "default-presub-config";
 export const createDefaultPresubConfig = (): GeminiConfig => ({
   id: DEFAULT_PRESUB_CONFIG_ID,
   name: "Xem nhanh",
-  model: "models/gemini-flash-lite-latest",
+  model: MODEL_GEMINI_3_5_FLASH_LITE,
   temperature: 0.7,
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   mediaResolution: "MEDIA_RESOLUTION_HIGH",
@@ -82,8 +87,9 @@ export const getGeminiConfigs = async (): Promise<GeminiConfig[]> => {
 
   // Migrate model IDs that are no longer available in the editor.
   for (const config of configs) {
-    if (config.model === "models/gemini-2.5-pro") {
-      config.model = "models/gemini-flash-latest";
+    const replacement = RETIRED_MODEL_MIGRATIONS[config.model];
+    if (replacement) {
+      config.model = replacement;
       needsSave = true;
     }
   }

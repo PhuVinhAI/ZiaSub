@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  InteractionManager,
   Linking,
   Modal,
   ScrollView,
@@ -30,7 +29,7 @@ import {
   getGeminiConfigs,
   saveGeminiConfigs,
 } from "@utils/storage";
-import { MODEL_GEMINI_3_7_FLASH } from "@services/geminiModelConfig";
+import { MODEL_GEMINI_4_HYDROGEN } from "@services/geminiModelConfig";
 import { DEFAULT_CHAT_CONFIG_ID } from "@constants/defaults";
 import GeneralTab, { type SettingPage } from "./GeneralTab";
 import GeminiList from "./GeminiList";
@@ -105,10 +104,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     }
 
     getGeminiConfigs().then(setGeminiConfigs);
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = setTimeout(() => {
       setIsContentReady(true);
-    });
-    return () => task.cancel();
+    }, 0);
+    return () => clearTimeout(task);
   }, [visible]);
 
   const handleNavigateToUrl = useCallback(
@@ -296,8 +295,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         <View style={themedStyles.rootScreen}>
           <StatusBar
             barStyle={isDark ? "light-content" : "dark-content"}
-            backgroundColor="transparent"
-            translucent
           />
           <View
             style={{
@@ -379,7 +376,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   setEditingConfig({
                     id: "",
                     name: "",
-                    model: MODEL_GEMINI_3_7_FLASH,
+                    model: MODEL_GEMINI_4_HYDROGEN,
                     temperature: 0.7,
                     systemPrompt: "",
                   })
@@ -401,8 +398,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         <View style={themedStyles.detailScreen}>
           <StatusBar
             barStyle={isDark ? "light-content" : "dark-content"}
-            backgroundColor="transparent"
-            translucent
           />
           <View
             style={{

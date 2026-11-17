@@ -2,16 +2,10 @@
   "expo": {
     "name": "ZiaSub",
     "slug": "tomisakae",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -21,7 +15,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.tomisakae.ziasub",
-      "versionCode": 2,
+      "versionCode": 3,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES",
@@ -57,7 +51,16 @@
           "color": "#9B7ED9"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "./plugins/withAndroidLongPathFix"
     ]
   }
 }

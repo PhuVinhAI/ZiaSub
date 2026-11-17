@@ -24,7 +24,8 @@ Notifications.setNotificationHandler({
 class NotificationService {
   private static instance: NotificationService;
   private hasPermission: boolean = false;
-  private appState: AppStateStatus = AppState.currentState;
+  private appState: AppStateStatus = (AppState.currentState ??
+    "active") as AppStateStatus;
   private listenerSubscription: ReturnType<
     typeof AppState.addEventListener
   > | null = null;

@@ -12,8 +12,8 @@
     "@ziasub/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.5",
-    "@types/chrome": "^0.0.287",
-    "typescript": "^5.9.3"
+    "@types/bun": "^1.4.4",
+    "@types/chrome": "^0.3.7",
+    "typescript": "~6.0.3"
   }
 }

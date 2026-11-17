@@ -119,8 +119,6 @@ const BatchRetranslationEditor: React.FC<
       <View style={[themedStyles.screen, { paddingTop }]}>
         <StatusBar
           barStyle={isDark ? "light-content" : "dark-content"}
-          backgroundColor="transparent"
-          translucent
         />
 
         <View style={themedStyles.header}>

@@ -16,6 +16,7 @@ type SelectionIcon = keyof typeof MaterialCommunityIcons.glyphMap;
 interface SelectionSettingRowProps {
   label: string;
   description?: string;
+  warning?: string;
   selected: boolean;
   onPress: () => void;
   icon?: SelectionIcon;
@@ -27,6 +28,7 @@ interface SelectionSettingRowProps {
 const SelectionSettingRow: React.FC<SelectionSettingRowProps> = ({
   label,
   description,
+  warning,
   selected,
   onPress,
   icon,
@@ -81,6 +83,18 @@ const SelectionSettingRow: React.FC<SelectionSettingRowProps> = ({
         {description ? (
           <Text style={themedStyles.description}>{description}</Text>
         ) : null}
+        {warning ? (
+          <View style={[styles.warningBadge, themedStyles.warningBadge]}>
+            <MaterialCommunityIcons
+              name="alert-outline"
+              size={13}
+              color={colors.warning}
+            />
+            <Text style={[styles.warningText, themedStyles.warningText]}>
+              {warning}
+            </Text>
+          </View>
+        ) : null}
       </View>
       <View
         style={[
@@ -120,6 +134,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   textContent: { flex: 1 },
+  warningBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    marginTop: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  warningText: { flexShrink: 1, fontSize: 11, lineHeight: 15, fontWeight: "600" },
   checkBox: {
     width: 25,
     height: 25,
@@ -144,6 +169,8 @@ const selectionThemedStyles = createThemedStyles((colors) => ({
     lineHeight: 17,
     marginTop: 3,
   },
+  warningBadge: { backgroundColor: colors.warningBg },
+  warningText: { color: colors.warning },
   checkBox: { borderColor: colors.border },
   selectedCheckBox: {
     backgroundColor: colors.primary,

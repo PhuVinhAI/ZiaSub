@@ -234,7 +234,7 @@ const SubtitleSection: React.FC<SubtitleSectionProps> = ({
   const themedStyles = useThemedStyles(subtitleThemedStyles);
   const [draft, setDraft] = useState(subtitleSettings);
   const [previewPortrait, setPreviewPortrait] = useState(true);
-  const previewWebViewRef = useRef<WebView>(null);
+  const previewWebViewRef = useRef<React.ComponentRef<typeof WebView>>(null);
 
   useEffect(() => {
     setDraft(subtitleSettings);

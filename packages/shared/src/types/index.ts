@@ -160,12 +160,12 @@ export type MediaResolutionType =
   | "MEDIA_RESOLUTION_HIGH";
 
 // Thinking Level options for AI reasoning
-export type ThinkingLevelType = "MINIMAL" | "LOW" | "MEDIUM" | "HIGH";
-
-// Model-specific thinking config types
-export type ThinkingConfigType =
-  | { type: "level"; level: ThinkingLevelType } // Full Thinking Level (MINIMAL, LOW, MEDIUM, HIGH)
-  | { type: "level_limited"; level: "LOW" | "HIGH" }; // Gemini 3.1 Pro (only LOW, HIGH)
+export type ThinkingLevelType =
+  | "MINIMAL"
+  | "LOW"
+  | "MEDIUM"
+  | "HIGH"
+  | "XHIGH";
 
 export interface GeminiConfig {
   id: string;

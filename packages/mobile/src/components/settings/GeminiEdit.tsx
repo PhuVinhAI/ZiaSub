@@ -22,7 +22,12 @@ import {
   SelectionSettingRow,
 } from "@components/common";
 import type { GeminiConfig } from "@src/types";
-import { supportsMinimalThinking } from "@services/geminiModelConfig";
+import {
+  AVAILABLE_GEMINI_MODELS,
+  supportsMinimalThinking,
+  supportsXHighThinking,
+  type GeminiModelOption,
+} from "@services/geminiModelConfig";
 import {
   SettingsCard,
   SettingsPageIntro,
@@ -30,35 +35,13 @@ import {
 } from "./SettingsPrimitives";
 import SystemPromptEditor from "./SystemPromptEditor";
 
-// Model IDs
-const MODEL_GEMINI_3_7_FLASH = "models/gemini-3.7-flash";
-const MODEL_GEMINI_3_6_FLASH = "models/gemini-3.6-flash";
-const MODEL_GEMINI_3_5_FLASH = "models/gemini-3.5-flash";
-const MODEL_GEMINI_3_5_FLASH_LITE = "models/gemini-3.5-flash-lite";
-const MODEL_GEMINI_3_FLASH = "models/gemini-3-flash-preview";
-const MODEL_GEMINI_3_1_PRO = "models/gemini-3.1-pro-preview";
-const MODEL_GEMINI_3_1_FLASH_LITE = "models/gemini-3.1-flash-lite";
-const MODEL_GEMINI_PRO = "models/gemini-pro-latest";
-const MODEL_GEMINI_FLASH = "models/gemini-flash-latest";
-const MODEL_GEMINI_FLASH_LITE = "models/gemini-flash-lite-latest";
-
-const AVAILABLE_MODELS = [
-  { id: MODEL_GEMINI_FLASH, name: "Gemini Flash (Latest)" },
-  { id: MODEL_GEMINI_FLASH_LITE, name: "Gemini Flash Lite (Latest)" },
-  { id: MODEL_GEMINI_PRO, name: "Gemini Pro (Latest)" },
-  { id: MODEL_GEMINI_3_7_FLASH, name: "Gemini 3.7 Flash" },
-  { id: MODEL_GEMINI_3_6_FLASH, name: "Gemini 3.6 Flash" },
-  { id: MODEL_GEMINI_3_5_FLASH, name: "Gemini 3.5 Flash" },
-  { id: MODEL_GEMINI_3_5_FLASH_LITE, name: "Gemini 3.5 Flash Lite" },
-  { id: MODEL_GEMINI_3_1_FLASH_LITE, name: "Gemini 3.1 Flash Lite" },
-  { id: MODEL_GEMINI_3_FLASH, name: "Gemini 3 Flash (Preview)" },
-  { id: MODEL_GEMINI_3_1_PRO, name: "Gemini 3.1 Pro (Preview)" },
-];
+const AVAILABLE_MODELS = AVAILABLE_GEMINI_MODELS;
 
 interface SelectOption {
   id: string;
   name: string;
   subText?: string;
+  warning?: string;
 }
 
 interface SelectBottomSheetProps {
@@ -97,6 +80,7 @@ const SelectBottomSheet: React.FC<SelectBottomSheetProps> = ({
               key={option.id}
               label={option.name}
               description={option.subText}
+              warning={option.warning}
               selected={isActive}
               onPress={() => {
                 onSelect(option.id);
@@ -138,7 +122,26 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
   const selectedModel = AVAILABLE_MODELS.find((m) => m.id === config.model);
   const modelDisplayName = selectedModel ? selectedModel.name : config.model;
 
+  const getDeprecationWarning = (
+    model: GeminiModelOption,
+  ): string | undefined => {
+    if (!model.deprecated) return undefined;
+    const dateText = model.deprecated.shutdownDate
+      ? t("settings.geminiConfig.modelShutdownDate", {
+          date: model.deprecated.shutdownDate,
+        })
+      : t("settings.geminiConfig.modelNoShutdownDate");
+    return `${t("settings.geminiConfig.modelDeprecated")} → ${
+      model.deprecated.replacement
+    } · ${dateText}`;
+  };
+
+  const selectedModelWarning = selectedModel
+    ? getDeprecationWarning(selectedModel)
+    : undefined;
+
   const noMinimalThinking = !supportsMinimalThinking(config.model);
+  const xHighThinking = supportsXHighThinking(config.model);
 
   const mediaResolutionOptions = useMemo<SelectOption[]>(
     () => [
@@ -169,14 +172,21 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
       name: t("settings.geminiConfig.optionMedium"),
     };
     const low = { id: "LOW", name: t("settings.geminiConfig.optionLow") };
-    if (noMinimalThinking) return [high, medium, low];
-    return [
-      high,
-      medium,
-      low,
-      { id: "MINIMAL", name: t("settings.geminiConfig.optionMinimal") },
-    ];
-  }, [noMinimalThinking, t]);
+    const options = [high, medium, low];
+    if (xHighThinking) {
+      options.unshift({
+        id: "XHIGH",
+        name: t("settings.geminiConfig.optionXhigh"),
+      });
+    }
+    if (!noMinimalThinking) {
+      options.push({
+        id: "MINIMAL",
+        name: t("settings.geminiConfig.optionMinimal"),
+      });
+    }
+    return options;
+  }, [xHighThinking, noMinimalThinking, t]);
 
   const selectedThinking = thinkingLevelOptions.find(
     (o) => o.id === (config.thinkingLevel || "HIGH"),
@@ -308,6 +318,28 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
                       color={colors.textMuted}
                     />
                   </TouchableOpacity>
+                  {selectedModelWarning ? (
+                    <View
+                      style={[
+                        styles.modelWarning,
+                        { backgroundColor: colors.warningBg },
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name="alert-outline"
+                        size={16}
+                        color={colors.warning}
+                      />
+                      <Text
+                        style={[
+                          styles.modelWarningText,
+                          { color: colors.warning },
+                        ]}
+                      >
+                        {selectedModelWarning}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </SettingsCard>
             </View>
@@ -464,9 +496,19 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
             id: m.id,
             name: m.name,
             subText: m.id,
+            warning: getDeprecationWarning(m),
           }))}
           selectedId={config.model}
-          onSelect={(modelId) => onChange({ ...config, model: modelId })}
+          onSelect={(modelId) => {
+            let thinkingLevel = config.thinkingLevel;
+            if (thinkingLevel === "XHIGH" && !supportsXHighThinking(modelId)) {
+              thinkingLevel = "HIGH";
+            }
+            if (thinkingLevel === "MINIMAL" && !supportsMinimalThinking(modelId)) {
+              thinkingLevel = "LOW";
+            }
+            onChange({ ...config, model: modelId, thinkingLevel });
+          }}
           onClose={() => setShowModelPicker(false)}
         />
 
@@ -623,6 +665,21 @@ const themedStyles = createThemedStyles((colors) => ({
     fontSize: 11,
     fontFamily: "monospace",
     marginTop: 3,
+  },
+  modelWarning: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  modelWarningText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600" as const,
   },
   characterPill: {
     backgroundColor: colors.primarySoft,
