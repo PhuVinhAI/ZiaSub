@@ -81,82 +81,161 @@ interface ThemeContextType {
 
 const THEME_STORAGE_KEY = "@app_theme_mode";
 
+// Layer 1: raw palette. Components must consume semantic tokens below.
+const palette = {
+  violet: {
+    50: "#F7F5FC",
+    100: "#EDE5FF",
+    200: "#DDD1FD",
+    300: "#C4B5FD",
+    500: "#A78BFA",
+    600: "#8B5CF6",
+    700: "#7C3AED",
+    800: "#6D28D9",
+    900: "#5B21B6",
+    950: "#2A1F45",
+    ink: "#12081F",
+  },
+  cyan: {
+    50: "#DBEEFB",
+    300: "#7DD3FC",
+    400: "#38BDF8",
+    500: "#0EA5E9",
+    600: "#0369A1",
+    700: "#075985",
+    900: "#0D2A3A",
+    ink: "#04212F",
+  },
+  lightNeutral: {
+    background: "#F7F5FC",
+    surface: "#FFFFFF",
+    surfaceAlt: "#F0ECF8",
+    surfaceElevated: "#E5DFF2",
+    border: "#D7D0E4",
+    borderSubtle: "#E7E2F0",
+    text: "#17131F",
+    textSecondary: "#4A4258",
+    textMuted: "#6B6378",
+    disabled: "#E5E9F0",
+    disabledText: "#767E90",
+    input: "#FFFFFF",
+    shadow: "#2A1F45",
+  },
+  darkNeutral: {
+    background: "#0B0912",
+    surface: "#151020",
+    surfaceAlt: "#1D1730",
+    surfaceElevated: "#28203D",
+    border: "#3B3252",
+    borderSubtle: "#4E4268",
+    text: "#F7F3FF",
+    textSecondary: "#CFC6E4",
+    textMuted: "#9C91B4",
+    disabled: "#252842",
+    disabledText: "#6E76A0",
+    input: "#191327",
+    shadow: "#000000",
+  },
+  green: {
+    light: "#047857",
+    lightSoft: "#DCFCE7",
+    dark: "#4ADE80",
+    darkSoft: "#0E2E1E",
+    darkInk: "#052E1B",
+  },
+  red: {
+    light: "#B91C1C",
+    lightSoft: "#FEE2E2",
+    dark: "#F87171",
+    darkSoft: "#3A1516",
+    darkInk: "#3B0A0A",
+  },
+  amber: {
+    light: "#A94E08",
+    lightSoft: "#FEF3C7",
+    dark: "#FBBF24",
+    darkSoft: "#3A2C08",
+    darkInk: "#2E1E00",
+  },
+} as const;
+
+// Layer 2: semantic tokens. Themes override this layer only.
 export const darkColors: ThemeColors = {
   // Surfaces
-  background: "#0A0B12",
-  surface: "#14162A",
-  surfaceLight: "#1E2138",
-  surfaceElevated: "#2A2E4A",
+  background: palette.darkNeutral.background,
+  surface: palette.darkNeutral.surface,
+  surfaceLight: palette.darkNeutral.surfaceAlt,
+  surfaceElevated: palette.darkNeutral.surfaceElevated,
 
-  // Brand (purple + cyan)
-  primary: "#A78BFA",
-  primaryDark: "#8B5CF6",
-  primaryLight: "#C4B5FD",
-  primarySoft: "#241F45",
-  accent: "#38BDF8",
-  accentDark: "#0EA5E9",
-  accentSoft: "#0E2A3E",
+  // Brand (violet + cyan)
+  primary: palette.violet[500],
+  primaryDark: palette.violet[600],
+  primaryLight: palette.violet[300],
+  primarySoft: palette.violet[950],
+  accent: palette.cyan[400],
+  accentDark: palette.cyan[500],
+  accentSoft: palette.cyan[900],
 
   // Text — AA on background/surface
-  text: "#F5F7FF",
-  textSecondary: "#C7CEE6",
-  textMuted: "#8B93B8",
+  text: palette.darkNeutral.text,
+  textSecondary: palette.darkNeutral.textSecondary,
+  textMuted: palette.darkNeutral.textMuted,
 
   // On-color (dark text on light brand fills for AA)
-  onPrimary: "#12081F",
-  onAccent: "#04212F",
-  onSuccess: "#052E1B",
-  onError: "#3B0A0A",
-  onWarning: "#2E1E00",
+  onPrimary: palette.violet.ink,
+  onAccent: palette.cyan.ink,
+  onSuccess: palette.green.darkInk,
+  onError: palette.red.darkInk,
+  onWarning: palette.amber.darkInk,
 
   // UI elements
-  border: "#333863",
-  borderLight: "#454B7E",
-  inputBackground: "#1A1D33",
+  border: palette.darkNeutral.border,
+  borderLight: palette.darkNeutral.borderSubtle,
+  inputBackground: palette.darkNeutral.input,
 
   // Disabled
-  disabled: "#252842",
-  disabledText: "#6E76A0",
+  disabled: palette.darkNeutral.disabled,
+  disabledText: palette.darkNeutral.disabledText,
 
   // Semantic states
-  success: "#4ADE80",
-  successBg: "#0E2E1E",
-  error: "#F87171",
-  errorBg: "#3A1516",
-  warning: "#FBBF24",
-  warningBg: "#3A2C08",
+  success: palette.green.dark,
+  successBg: palette.green.darkSoft,
+  error: palette.red.dark,
+  errorBg: palette.red.darkSoft,
+  warning: palette.amber.dark,
+  warningBg: palette.amber.darkSoft,
 
   // Overlays
-  overlay: "rgba(6,7,14,0.82)",
+  overlay: "rgba(6,4,10,0.82)",
   scrim: "rgba(0,0,0,0.65)",
-  shadow: "#000000",
+  shadow: palette.darkNeutral.shadow,
   transparent: "transparent",
 
   // Subtitle preview (always-dark video overlay)
-  previewBg: "#14152A",
+  previewBg: "#141026",
   previewText: "#FFFFFF",
 };
 
 export const lightColors: ThemeColors = {
   // Surfaces
-  background: "#F6F7FB",
-  surface: "#FFFFFF",
-  surfaceLight: "#EEF1F7",
-  surfaceElevated: "#E2E7F0",
+  background: palette.lightNeutral.background,
+  surface: palette.lightNeutral.surface,
+  surfaceLight: palette.lightNeutral.surfaceAlt,
+  surfaceElevated: palette.lightNeutral.surfaceElevated,
 
-  // Brand (deepened purple + cyan for AA on light)
-  primary: "#6D28D9",
-  primaryDark: "#5B21B6",
-  primaryLight: "#7C3AED",
-  primarySoft: "#EDE7FE",
-  accent: "#0369A1",
-  accentDark: "#075985",
-  accentSoft: "#DBEEFB",
+  // Brand (deep violet + cyan for AA on light)
+  primary: palette.violet[800],
+  primaryDark: palette.violet[900],
+  primaryLight: palette.violet[700],
+  primarySoft: palette.violet[100],
+  accent: palette.cyan[600],
+  accentDark: palette.cyan[700],
+  accentSoft: palette.cyan[50],
 
   // Text — AA on background/surface
-  text: "#0D1220",
-  textSecondary: "#3A4256",
-  textMuted: "#5B6478",
+  text: palette.lightNeutral.text,
+  textSecondary: palette.lightNeutral.textSecondary,
+  textMuted: palette.lightNeutral.textMuted,
 
   // On-color (white on saturated fills; dark on warning for AA)
   onPrimary: "#FFFFFF",
@@ -166,30 +245,30 @@ export const lightColors: ThemeColors = {
   onWarning: "#FFFFFF",
 
   // UI elements
-  border: "#C3CBD9",
-  borderLight: "#D9DFEA",
-  inputBackground: "#FFFFFF",
+  border: palette.lightNeutral.border,
+  borderLight: palette.lightNeutral.borderSubtle,
+  inputBackground: palette.lightNeutral.input,
 
   // Disabled
-  disabled: "#E5E9F0",
-  disabledText: "#767E90",
+  disabled: palette.lightNeutral.disabled,
+  disabledText: palette.lightNeutral.disabledText,
 
   // Semantic states
-  success: "#047857",
-  successBg: "#DCFCE7",
-  error: "#B91C1C",
-  errorBg: "#FEE2E2",
-  warning: "#B45309",
-  warningBg: "#FEF3C7",
+  success: palette.green.light,
+  successBg: palette.green.lightSoft,
+  error: palette.red.light,
+  errorBg: palette.red.lightSoft,
+  warning: palette.amber.light,
+  warningBg: palette.amber.lightSoft,
 
   // Overlays
-  overlay: "rgba(15,23,42,0.45)",
+  overlay: "rgba(23,19,31,0.45)",
   scrim: "rgba(0,0,0,0.6)",
-  shadow: "#1E293B",
+  shadow: palette.lightNeutral.shadow,
   transparent: "transparent",
 
   // Subtitle preview (always-dark video overlay)
-  previewBg: "#14152A",
+  previewBg: "#141026",
   previewText: "#FFFFFF",
 };
 
