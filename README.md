@@ -402,17 +402,17 @@ cd android
 # Windows CMD/PowerShell: gradlew.bat assembleRelease
 ```
 
-Kết quả:
+Kết quả (tên file lấy động theo `expo.version` trong `app.json`):
 
 ```text
-packages/mobile/android/app/build/outputs/apk/release/app-release.apk
+packages/mobile/android/app/build/outputs/apk/release/ziasub-v1.2.1.apk
 ```
 
 Kiểm tra chữ ký:
 
 ```bash
 "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs \
-  packages/mobile/android/app/build/outputs/apk/release/app-release.apk
+  packages/mobile/android/app/build/outputs/apk/release/ziasub-v1.2.1.apk
 ```
 
 ### 10.4. Build bằng EAS

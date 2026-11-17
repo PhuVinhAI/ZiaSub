@@ -60,7 +60,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "./plugins/withAndroidLongPathFix"
+      "./plugins/withAndroidLongPathFix",
+      "./plugins/withApkOutputName"
     ]
   }
 }
