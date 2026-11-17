@@ -1,6 +1,12 @@
-// Content script - Subtitle overlay on YouTube videos
 import type { SubtitleItem } from "@ziasub/shared";
 import type { MessageType, MessageResponse } from "../types/messages";
+import {
+  DEFAULT_EXTENSION_SETTINGS,
+  normalizeExtensionSettings,
+  type ExtensionSettings,
+} from "../types/settings";
+import { loadExtensionSettings } from "../utils/settings";
+import { animateSubtitle, buildSubtitleCss } from "../utils/subtitleStyle";
 
 class SubtitleOverlay {
   private subtitles: SubtitleItem[] = [];
@@ -9,25 +15,39 @@ class SubtitleOverlay {
   private video: HTMLVideoElement | null = null;
   private currentSubtitle: SubtitleItem | null = null;
   private animationFrame: number | null = null;
+  private settings: ExtensionSettings = {
+    ...DEFAULT_EXTENSION_SETTINGS,
+    subtitle: { ...DEFAULT_EXTENSION_SETTINGS.subtitle },
+  };
 
   constructor() {
     this.init();
   }
 
   private init() {
-    // Listen for messages from popup
     chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "sync" || !changes.settings) return;
+      this.settings = normalizeExtensionSettings(changes.settings.newValue);
+      this.renderCurrentSubtitle();
+    });
 
-    // Watch for video element
     this.observeVideo();
+    this.loadSettings();
+    window.addEventListener("resize", () => this.renderCurrentSubtitle());
 
     console.log("[ZiaSub] Content script initialized");
+  }
+
+  private async loadSettings() {
+    this.settings = await loadExtensionSettings();
+    this.renderCurrentSubtitle();
   }
 
   private handleMessage(
     message: MessageType,
     _sender: chrome.runtime.MessageSender,
-    sendResponse: (response: MessageResponse) => void
+    sendResponse: (response: MessageResponse) => void,
   ): boolean {
     switch (message.type) {
       case "SET_SUBTITLES":
@@ -47,18 +67,22 @@ class SubtitleOverlay {
         sendResponse({ success: true, data: { subtitles: this.subtitles } });
         break;
 
+      case "SETTINGS_UPDATED":
+        this.settings = normalizeExtensionSettings(message.settings);
+        this.renderCurrentSubtitle();
+        sendResponse({ success: true });
+        break;
+
       default:
         sendResponse({ success: false, error: "Unknown message type" });
     }
 
-    return true; // Keep channel open for async response
+    return true;
   }
 
   private observeVideo() {
-    // Initial check
     this.findAndAttachVideo();
 
-    // Observe DOM changes for SPA navigation
     const observer = new MutationObserver(() => {
       if (!this.video || !document.contains(this.video)) {
         this.findAndAttachVideo();
@@ -73,37 +97,39 @@ class SubtitleOverlay {
 
   private findAndAttachVideo() {
     const video = document.querySelector(
-      "video.html5-main-video"
-    ) as HTMLVideoElement;
+      "video.html5-main-video",
+    ) as HTMLVideoElement | null;
 
     if (video && video !== this.video) {
       this.video = video;
       this.createOverlay();
+
+      video.addEventListener("loadedmetadata", () => {
+        this.renderCurrentSubtitle();
+      });
+
       this.startSync();
       console.log("[ZiaSub] Video found and attached");
     }
   }
 
   private createOverlay() {
-    // Remove existing overlay
     this.removeOverlay();
 
-    // Find video container
-    const container = document.querySelector("#movie_player") as HTMLElement;
+    const container =
+      (document.querySelector("#movie_player") as HTMLElement | null) ??
+      this.video?.parentElement;
     if (!container) return;
 
-    // Create overlay
     this.overlay = document.createElement("div");
     this.overlay.className = "ziasub-overlay";
 
     this.subtitleEl = document.createElement("div");
     this.subtitleEl.className = "ziasub-subtitle";
+    this.subtitleEl.style.display = "none";
 
     this.overlay.appendChild(this.subtitleEl);
     container.appendChild(this.overlay);
-
-    // Initially hidden
-    this.overlay.classList.add("hidden");
   }
 
   private removeOverlay() {
@@ -115,24 +141,23 @@ class SubtitleOverlay {
   }
 
   private setSubtitles(subtitles: SubtitleItem[]) {
-    this.subtitles = subtitles.sort((a, b) => a.startTime - b.startTime);
+    this.subtitles = [...subtitles].sort(
+      (a, b) => a.startTime - b.startTime,
+    );
+    this.currentSubtitle = null;
 
-    // Ensure overlay exists
     if (!this.overlay) {
       this.findAndAttachVideo();
     }
 
+    this.renderCurrentSubtitle();
     console.log(`[ZiaSub] Loaded ${subtitles.length} subtitles`);
   }
 
   private clearSubtitles() {
     this.subtitles = [];
     this.currentSubtitle = null;
-
-    if (this.overlay) {
-      this.overlay.classList.add("hidden");
-    }
-
+    this.hideSubtitle();
     console.log("[ZiaSub] Subtitles cleared");
   }
 
@@ -150,40 +175,60 @@ class SubtitleOverlay {
   }
 
   private updateSubtitle() {
-    if (!this.video || !this.overlay || !this.subtitleEl) return;
+    if (!this.video || !this.subtitleEl) return;
     if (this.subtitles.length === 0) return;
 
-    const currentTime = this.video.currentTime;
-
-    // Binary search for current subtitle
-    const subtitle = this.findSubtitle(currentTime);
+    const subtitle = this.findSubtitle(this.video.currentTime);
 
     if (subtitle !== this.currentSubtitle) {
       this.currentSubtitle = subtitle;
-
-      if (subtitle) {
-        this.subtitleEl.textContent = subtitle.text;
-        this.overlay.classList.remove("hidden");
-      } else {
-        this.overlay.classList.add("hidden");
-      }
+      this.renderCurrentSubtitle();
     }
   }
 
+  private renderCurrentSubtitle() {
+    if (!this.subtitleEl) return;
+
+    if (!this.currentSubtitle) {
+      this.hideSubtitle();
+      return;
+    }
+
+    this.subtitleEl.textContent = this.currentSubtitle.text;
+    this.subtitleEl.style.cssText = buildSubtitleCss(
+      this.settings.subtitle,
+      this.isPortraitVideo(),
+      true,
+      "absolute",
+    );
+    animateSubtitle(this.subtitleEl, this.settings.subtitle);
+  }
+
+  private hideSubtitle() {
+    if (!this.subtitleEl) return;
+    this.subtitleEl.style.display = "none";
+  }
+
+  private isPortraitVideo(): boolean {
+    if (this.video?.videoWidth && this.video.videoHeight) {
+      return this.video.videoHeight > this.video.videoWidth;
+    }
+    return window.innerHeight > window.innerWidth;
+  }
+
   private findSubtitle(time: number): SubtitleItem | null {
-    // Binary search for efficiency
     let left = 0;
     let right = this.subtitles.length - 1;
 
     while (left <= right) {
       const mid = Math.floor((left + right) / 2);
-      const sub = this.subtitles[mid];
+      const subtitle = this.subtitles[mid];
 
-      if (time >= sub.startTime && time <= sub.endTime) {
-        return sub;
+      if (time >= subtitle.startTime && time <= subtitle.endTime) {
+        return subtitle;
       }
 
-      if (time < sub.startTime) {
+      if (time < subtitle.startTime) {
         right = mid - 1;
       } else {
         left = mid + 1;
@@ -194,5 +239,4 @@ class SubtitleOverlay {
   }
 }
 
-// Initialize
 new SubtitleOverlay();

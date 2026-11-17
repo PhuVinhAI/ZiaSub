@@ -1,6 +1,6 @@
 {
   "name": "@ziasub/extension",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "bun --watch run build.ts",

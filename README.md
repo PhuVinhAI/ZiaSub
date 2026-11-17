@@ -33,22 +33,22 @@
 
 ## 1. Tổng quan
 
-**ZiaSub** là bộ công cụ mã nguồn mở giúp xem video YouTube với phụ đề được dịch bởi Google Gemini AI. Dự án hoạt động theo mô hình **BYOK (Bring Your Own Key)**: người dùng tự cung cấp Gemini API key, ứng dụng gọi trực tiếp Google API và **không có backend trung gian**.
+**ZiaSub** là bộ công cụ mã nguồn mở giúp xem video YouTube với phụ đề. Ứng dụng mobile dịch phụ đề bằng Google Gemini theo mô hình **BYOK (Bring Your Own Key)**: người dùng tự cung cấp API key, ứng dụng gọi trực tiếp Google API và **không có backend trung gian**. Chrome extension chỉ nhận SRT đã dịch (từ AI Studio hoặc công cụ khác) để hiển thị trên YouTube, không gọi Gemini API.
 
 Repository bao gồm bốn thành phần chính:
 
 | Thành phần | Phiên bản | Công nghệ | Vai trò |
 | --- | --- | --- | --- |
 | `@ziasub/mobile` | 1.2.1 | Expo SDK 58, React Native 0.88 | Ứng dụng Android/iOS |
-| `@ziasub/extension` | 0.0.1 | Chrome Manifest V3, Bun | Dịch phụ đề trực tiếp trên YouTube |
+| `@ziasub/extension` | 0.1.0 | Chrome Manifest V3, Bun | Dán SRT và hiển thị phụ đề trên YouTube |
 | `@ziasub/shared` | 0.0.7 | TypeScript | Types, SRT parser, i18n, tiện ích dùng chung |
 | `@ziasub/landing` | 0.0.1 | Astro 7, React 19, Tailwind 4 | Website giới thiệu và tải ứng dụng |
 
 **Nguyên tắc thiết kế**
 
-- **Local-first:** cấu hình, API key, bản dịch và lịch sử chat được lưu trên thiết bị.
-- **Không backend:** mọi yêu cầu AI đi thẳng từ ứng dụng tới Google Generative Language API.
-- **Đa nền tảng:** dùng chung types, parser và bản dịch giữa mobile và extension.
+- **Local-first:** cấu hình, API key, bản dịch và lịch sử chat của mobile được lưu trên thiết bị; extension chỉ lưu cấu hình hiển thị trong `chrome.storage`.
+- **Không backend:** mobile gọi thẳng Google Generative Language API; extension không gọi dịch vụ AI nào.
+- **Đa nền tảng:** dùng chung types, parser SRT và bản dịch giữa mobile và extension.
 - **Cấu hình bằng config plugin:** các thay đổi native được tái tạo tự động mỗi lần `expo prebuild`, không sửa tay thư mục `android/`.
 
 Tài liệu được cập nhật ngày **17/11/2026**.
@@ -142,9 +142,12 @@ ZiaSub/
 
 ### 3.2. Chrome extension
 
-- Dịch và hiển thị phụ đề trực tiếp trên trang YouTube.
-- Popup điều khiển nhanh; trang options cấu hình API key và hành vi dịch.
-- Chỉ yêu cầu quyền `storage`, `activeTab`, `scripting` và host `*://*.youtube.com/*`.
+- Dán hoặc chọn file SRT, tự phát hiện SRT trong clipboard và xuất lại SRT.
+- Hiển thị phụ đề trên trang YouTube, đồng bộ theo thời gian video, hỗ trợ fullscreen, Shorts và chuyển trang SPA.
+- Tùy chỉnh đầy đủ kiểu phụ đề: font, màu, nền, viền, bóng, bố cục dọc/ngang, animation và preset.
+- Trang options hỗ trợ giao diện sáng/tối/theo hệ thống và tiếng Việt/tiếng Anh.
+- Nút AI Studio chỉ mở công cụ bên ngoài để dịch thủ công; extension **không** gọi Gemini API và không quản lý API key, hàng đợi hay lịch sử video.
+- Quyền: `storage`, `activeTab`, `scripting`, `clipboardRead`, `clipboardWrite` và host `*://*.youtube.com/*`.
 
 ### 3.3. Shared package và landing site
 
@@ -191,10 +194,10 @@ Các ID đã bị Google ngừng phục vụ được tự động ánh xạ khi
 ### 4.3. Quản lý API key
 
 1. Truy cập [Google AI Studio](https://aistudio.google.com/app/apikey) và tạo API key.
-2. Mở **Cài đặt → API Keys** trong ứng dụng (hoặc trang options của extension).
+2. Mở **Cài đặt → API Keys** trong ứng dụng mobile.
 3. Thêm một hoặc nhiều key. Khi một key bị giới hạn, ứng dụng tự chuyển sang key kế tiếp.
 
-Không cần tạo file `.env`. API key không được nhúng vào mã nguồn hay APK.
+Không cần tạo file `.env`. API key không được nhúng vào mã nguồn hay APK. Chrome extension không có API key và không gọi Gemini API; người dùng dịch SRT bằng AI Studio hoặc công cụ khác rồi dán vào extension.
 
 ## 5. Yêu cầu hệ thống
 
@@ -522,10 +525,10 @@ Script `scripts/fix-android-long-path.ps1` là công cụ phục hồi thủ cô
 
 ### 12.1. Mô hình dữ liệu
 
-- **Không có backend ZiaSub.** Ứng dụng gọi trực tiếp Google Gemini API qua HTTPS.
-- API key được lưu trong AsyncStorage (mobile) hoặc `chrome.storage` (extension).
+- **Không có backend ZiaSub.** Mobile gọi trực tiếp Google Gemini API qua HTTPS; extension không gọi AI.
+- API key chỉ được lưu trong AsyncStorage trên mobile. Extension chỉ lưu cấu hình hiển thị trong `chrome.storage`.
 - AsyncStorage và `chrome.storage` **không được mã hóa ở tầng ứng dụng**; dữ liệu dựa vào sandbox của hệ điều hành và quyền truy cập thiết bị.
-- Nội dung gửi tới Gemini bao gồm phụ đề, prompt hệ thống, nội dung chat và ngữ cảnh video do người dùng chọn.
+- Nội dung gửi tới Gemini (chỉ từ mobile) bao gồm phụ đề, prompt hệ thống, nội dung chat và ngữ cảnh video do người dùng chọn.
 
 ### 12.2. Backup
 

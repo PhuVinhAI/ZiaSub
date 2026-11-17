@@ -1,9 +1,15 @@
 {
   "manifest_version": 3,
   "name": "ZiaSub",
-  "version": "0.0.1",
-  "description": "Dịch phụ đề YouTube tự động bằng Gemini AI",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "version": "0.1.0",
+  "description": "Dán phụ đề SRT để hiển thị trên video YouTube",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "clipboardRead",
+    "clipboardWrite"
+  ],
   "host_permissions": ["*://*.youtube.com/*"],
   "action": {
     "default_popup": "popup.html",
@@ -12,10 +18,6 @@
     }
   },
   "options_page": "options.html",
-  "background": {
-    "service_worker": "dist/background/index.js",
-    "type": "module"
-  },
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],

@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZiaSub - Cài đặt</title>
+    <title>ZiaSub</title>
+    <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="options.css" />
     <link
       rel="stylesheet"
@@ -11,146 +12,95 @@
     />
   </head>
   <body>
-    <div class="container">
-      <!-- Header -->
-      <div class="header">
-        <div class="header-left">
+    <div class="page">
+      <header class="page-header">
+        <div class="brand">
           <img src="icons/icon128.png" alt="ZiaSub" class="logo" />
-          <div class="header-info">
-            <h1 class="title">ZiaSub</h1>
-            <span class="version">Cài đặt</span>
+          <div class="brand-text">
+            <h1>ZiaSub</h1>
+            <p data-i18n="extension.options.subtitleHint"></p>
           </div>
         </div>
-      </div>
-
-      <!-- Settings Groups -->
-      <div class="settings-content">
-        <!-- Subtitle Settings -->
-        <div class="settings-group">
-          <div class="group-header" data-group="subtitle">
-            <div class="group-header-left">
-              <div class="icon-container">
-                <i class="mdi mdi-subtitles"></i>
-              </div>
-              <div class="group-info">
-                <span class="group-title">Phụ đề</span>
-                <span class="group-desc">Tùy chỉnh font chữ và vị trí</span>
-              </div>
-            </div>
-            <i class="mdi mdi-chevron-down chevron"></i>
-          </div>
-          <div class="group-content" id="subtitle-content">
-            <!-- Preview -->
-            <div class="preview-container">
-              <span id="subtitlePreview">Xin chào, đây là phụ đề mẫu!</span>
-            </div>
-
-            <!-- Font Size -->
-            <div class="setting-row">
-              <label class="setting-label"
-                >Cỡ chữ: <span id="fontSizeValue">15</span>px</label
-              >
-              <input
-                type="range"
-                id="fontSize"
-                min="10"
-                max="28"
-                value="15"
-                class="slider"
-              />
-            </div>
-
-            <!-- Font Style Buttons -->
-            <div class="style-buttons">
-              <button class="style-btn" id="boldBtn" data-active="true">
-                <i class="mdi mdi-format-bold"></i>
-                <span>Đậm</span>
-              </button>
-              <button class="style-btn" id="italicBtn" data-active="false">
-                <i class="mdi mdi-format-italic"></i>
-                <span>Nghiêng</span>
-              </button>
-            </div>
-
-            <!-- Position -->
-            <div class="setting-row">
-              <label class="setting-label"
-                >Vị trí từ đáy: <span id="bottomOffsetValue">60</span>px</label
-              >
-              <input
-                type="range"
-                id="bottomOffset"
-                min="20"
-                max="200"
-                value="60"
-                class="slider"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Overlay Settings -->
-        <div class="settings-group">
-          <div class="group-header" data-group="overlay">
-            <div class="group-header-left">
-              <div class="icon-container">
-                <i class="mdi mdi-layers"></i>
-              </div>
-              <div class="group-info">
-                <span class="group-title">Lớp phủ</span>
-                <span class="group-desc">Tùy chỉnh hiển thị phụ đề</span>
-              </div>
-            </div>
-            <i class="mdi mdi-chevron-down chevron"></i>
-          </div>
-          <div class="group-content hidden" id="overlay-content">
-            <!-- Background Opacity -->
-            <div class="setting-row">
-              <label class="setting-label"
-                >Độ mờ nền: <span id="bgOpacityValue">70</span>%</label
-              >
-              <input
-                type="range"
-                id="bgOpacity"
-                min="0"
-                max="100"
-                value="70"
-                class="slider"
-              />
-            </div>
-
-            <!-- Text Shadow -->
-            <div class="setting-row">
-              <div class="toggle-row">
-                <span class="setting-label">Đổ bóng chữ</span>
-                <button
-                  class="toggle-btn"
-                  id="textShadowToggle"
-                  data-active="true"
-                >
-                  <span class="toggle-track"></span>
-                  <span class="toggle-thumb"></span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Reset Button -->
-        <button class="btn-3d secondary" id="resetBtn">
-          <div class="shadow"></div>
-          <div class="button">
+        <div class="header-actions">
+          <button
+            class="icon-btn"
+            id="openYoutubeBtn"
+            data-i18n-title="extension.options.openYoutube"
+          >
+            <i class="mdi mdi-youtube"></i>
+          </button>
+          <button
+            class="icon-btn danger"
+            id="resetAllBtn"
+            data-i18n-title="extension.options.resetAll"
+          >
             <i class="mdi mdi-restore"></i>
-            <span>Khôi phục mặc định</span>
-          </div>
-        </button>
-        <p class="reset-hint">Đặt lại tất cả cài đặt về giá trị ban đầu</p>
-      </div>
+          </button>
+        </div>
+      </header>
 
-      <!-- Toast -->
-      <div class="toast hidden" id="toast">
-        <span id="toastMessage"></span>
-      </div>
+      <main class="layout">
+        <section class="card preview-card">
+          <div class="card-head">
+            <div>
+              <h2 data-i18n="settings.subtitle.previewTitle"></h2>
+              <p data-i18n="settings.subtitle.previewDescription"></p>
+            </div>
+            <div class="segmented" id="previewMode">
+              <button type="button" data-mode="portrait">
+                <i class="mdi mdi-cellphone"></i>
+                <span data-i18n="settings.subtitle.portrait"></span>
+              </button>
+              <button type="button" data-mode="landscape">
+                <i class="mdi mdi-monitor"></i>
+                <span data-i18n="settings.subtitle.landscape"></span>
+              </button>
+            </div>
+          </div>
+          <div class="preview-stage" id="previewStage">
+            <div class="preview-backdrop"></div>
+            <div class="preview-subtitle" id="previewSubtitle"></div>
+          </div>
+          <p class="hint" data-i18n="settings.subtitle.previewHint"></p>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2 data-i18n="extension.options.general"></h2>
+              <p data-i18n="extension.options.generalHint"></p>
+            </div>
+          </div>
+          <div class="general-grid" id="generalGrid"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2 data-i18n="settings.subtitle.presetsTitle"></h2>
+              <p data-i18n="settings.subtitle.presetsDescription"></p>
+            </div>
+            <button class="text-btn" id="resetStyleBtn">
+              <i class="mdi mdi-restore"></i>
+              <span data-i18n="extension.options.resetStyle"></span>
+            </button>
+          </div>
+          <div class="preset-grid" id="presetGrid"></div>
+        </section>
+
+        <div id="styleSections"></div>
+      </main>
+
+      <footer class="page-footer">
+        <span>ZiaSub extension</span>
+        <a href="https://github.com/PhuVinhAI/ZiaSub" target="_blank" rel="noreferrer">
+          GitHub
+        </a>
+      </footer>
+    </div>
+
+    <div class="toast hidden" id="toast">
+      <span id="toastMessage"></span>
     </div>
 
     <script src="dist/options/index.js" type="module"></script>
