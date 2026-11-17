@@ -36,7 +36,7 @@ const toast = document.getElementById("toast") as HTMLDivElement;
 const toastMessage = document.getElementById("toastMessage") as HTMLSpanElement;
 
 let settings: ExtensionSettings = cloneDefaults();
-let previewPortrait = true;
+let previewPortrait = false;
 let saveTimer: number | null = null;
 let toastTimer: number | null = null;
 

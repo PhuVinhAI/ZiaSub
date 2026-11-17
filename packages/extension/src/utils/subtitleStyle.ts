@@ -29,7 +29,8 @@ export function buildSubtitleCss(
   positionOverride?: "absolute" | "fixed",
 ): string {
   const fontFamilies: Record<string, string> = {
-    system: "system-ui,sans-serif",
+    system:
+      '"ZiaSub Roboto",Roboto,system-ui,"Segoe UI","Helvetica Neue",Arial,sans-serif',
     rounded: 'ui-rounded,"Arial Rounded MT Bold",system-ui,sans-serif',
     serif: 'Georgia,"Times New Roman",serif',
     monospace:

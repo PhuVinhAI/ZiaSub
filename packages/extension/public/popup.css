@@ -7,7 +7,9 @@
 body {
   width: 390px;
   min-height: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
   background: var(--background);
   color: var(--text);
 }
@@ -50,15 +52,15 @@ textarea {
 }
 
 .title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .subtitle {
   color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.4;
   max-width: 230px;
 }
 
@@ -68,13 +70,13 @@ textarea {
 }
 
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   background: var(--surface-light);
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: 12px;
   color: var(--text-secondary);
   cursor: pointer;
   transition:
@@ -97,11 +99,10 @@ textarea {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 12px 28px var(--shadow);
+  gap: 14px;
 }
 
 .card-head {
@@ -112,13 +113,13 @@ textarea {
 }
 
 .card-head h2 {
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .badge {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -137,32 +138,22 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
-  border-radius: 11px;
+  border-radius: 12px;
   border: 1px solid transparent;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   transition:
     transform 0.12s,
-    box-shadow 0.12s,
     background 0.18s,
     border-color 0.18s,
     opacity 0.18s;
 }
 
-.btn-secondary {
-  box-shadow: 0 3px 0 var(--border);
-}
-
-.btn-primary {
-  box-shadow: 0 4px 0 var(--primary-dark);
-}
-
 .btn:active:not(:disabled) {
-  transform: translateY(3px);
-  box-shadow: none;
+  opacity: 0.82;
 }
 
 .btn .mdi {
@@ -194,7 +185,6 @@ textarea {
 
 .btn:disabled {
   opacity: 0.45;
-  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -207,15 +197,14 @@ textarea {
   min-height: 170px;
   max-height: 260px;
   resize: vertical;
-  padding: 12px 38px 12px 12px;
-  border-radius: 12px;
+  padding: 14px 38px 14px 14px;
+  border-radius: 13px;
   border: 1px solid var(--border);
   background: var(--surface-light);
   color: var(--text);
-  font-family:
-    ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  line-height: 1.55;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 22px;
   outline: none;
   transition:
     border-color 0.18s,
@@ -260,7 +249,7 @@ textarea:focus {
   align-items: center;
   gap: 6px;
   color: var(--success);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .meta .mdi {
@@ -278,7 +267,7 @@ textarea:focus {
 .hint {
   color: var(--text-muted);
   font-size: 11px;
-  line-height: 1.45;
+  line-height: 16px;
 }
 
 .hidden {
@@ -297,7 +286,7 @@ textarea:focus {
   background: var(--surface-elevated);
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   box-shadow: 0 10px 26px var(--shadow);
   animation: toast-in 0.18s ease-out;
 }

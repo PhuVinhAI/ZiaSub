@@ -26,6 +26,12 @@
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.woff2"],
+      "matches": ["*://*.youtube.com/*"]
+    }
+  ],
   "icons": {
     "128": "icons/icon128.png"
   }

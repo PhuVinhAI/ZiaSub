@@ -1,6 +1,11 @@
 :root {
   color-scheme: dark;
 
+  --font-ui: "ZiaSub Roboto", Roboto, "Segoe UI", "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Consolas,
+    "Liberation Mono", monospace;
+
   --background: #0b0912;
   --surface: #151020;
   --surface-light: #1d1730;
