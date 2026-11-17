@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { storageService } from "@services/storageService";
 import { backupService } from "@services/backupService";
+import { formatBackupPath } from "@utils/backupPath";
 import { showAlert } from "@components/common/CustomAlert";
 import ToggleSettingRow from "@components/common/ToggleSettingRow";
 import * as FileSystem from "expo-file-system/legacy";
@@ -343,7 +344,9 @@ export const DataSection: React.FC = () => {
               style={[styles.infoValue, { color: colors.text }]}
               numberOfLines={2}
             >
-              {dataInfo?.backupPath || t("settings.data.notConfigured")}
+              {dataInfo?.backupPath
+                ? formatBackupPath(dataInfo.backupPath)
+                : t("settings.data.notConfigured")}
             </Text>
           </View>
           <TouchableOpacity

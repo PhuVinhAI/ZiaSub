@@ -16,6 +16,7 @@ import {
   type BackupInfo,
 } from "@services/backupService";
 import { storageService } from "@services/storageService";
+import { formatBackupPath } from "@utils/backupPath";
 import * as FileSystem from "expo-file-system/legacy";
 import { showAlert } from "@components/common/CustomAlert";
 
@@ -223,7 +224,9 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
             style={[styles.pathText, { color: colors.text }]}
             numberOfLines={2}
           >
-            {selectedPath || t("onboarding.storage.noPath")}
+            {selectedPath
+              ? formatBackupPath(selectedPath)
+              : t("onboarding.storage.noPath")}
           </Text>
         </View>
 
