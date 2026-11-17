@@ -6,6 +6,7 @@
 import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import type { QueueItem } from "@src/types";
 import type { QueueItemState } from "./queueItemState";
@@ -35,6 +36,7 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
   onAbort,
   styles,
 }) => {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { isActivelyTranslating, isPaused, isWaitingInQueue } = state;
 
@@ -42,9 +44,16 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
     <View style={styles.actions}>
       {(item.status === "pending" || item.status === "error") && (
         <TouchableOpacity
-          style={[styles.actionBtn, !hasApiKey && styles.actionBtnDisabled]}
+          style={[
+            styles.actionBtn,
+            styles.actionBtnPrimary,
+            !hasApiKey && styles.actionBtnDisabled,
+          ]}
           onPress={() => onStart(item)}
           disabled={!hasApiKey}
+          activeOpacity={0.72}
+          accessibilityRole="button"
+          accessibilityLabel={t("queue.dialogs.translate")}
         >
           <MaterialCommunityIcons
             name="play"
@@ -57,18 +66,26 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
       {(isActivelyTranslating || isWaitingInQueue) && (
         <>
           <TouchableOpacity
-            style={styles.actionBtn}
+            style={[styles.actionBtn, styles.actionBtnWarning]}
             onPress={() => onStop?.(item)}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isWaitingInQueue ? t("queue.cancelWaiting") : t("common.stop")
+            }
           >
             <MaterialCommunityIcons
-              name="pause"
+              name={isWaitingInQueue ? "playlist-minus" : "pause"}
               size={22}
               color={colors.warning}
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.actionBtn}
+            style={[styles.actionBtn, styles.actionBtnDanger]}
             onPress={() => onAbort?.(item)}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.remove")}
           >
             <MaterialCommunityIcons
               name="close-circle-outline"
@@ -82,9 +99,16 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
       {isPaused && (
         <>
           <TouchableOpacity
-            style={[styles.actionBtn, !hasApiKey && styles.actionBtnDisabled]}
+            style={[
+              styles.actionBtn,
+              styles.actionBtnSuccess,
+              !hasApiKey && styles.actionBtnDisabled,
+            ]}
             onPress={() => onResume?.(item)}
             disabled={!hasApiKey}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={t("queue.dialogs.resume")}
           >
             <MaterialCommunityIcons
               name="play"
@@ -93,8 +117,11 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.actionBtn}
+            style={[styles.actionBtn, styles.actionBtnDanger]}
             onPress={() => onRemove(item)}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.delete")}
           >
             <MaterialCommunityIcons
               name="delete-outline"
@@ -108,8 +135,11 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
       {item.status === "completed" && (
         <>
           <TouchableOpacity
-            style={styles.actionBtn}
+            style={[styles.actionBtn, styles.actionBtnPrimary]}
             onPress={() => onRequeue(item)}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.retry")}
           >
             <MaterialCommunityIcons
               name="refresh"
@@ -118,8 +148,11 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.actionBtn}
+            style={[styles.actionBtn, styles.actionBtnDanger]}
             onPress={() => onRemove(item)}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.delete")}
           >
             <MaterialCommunityIcons
               name="delete-outline"
@@ -132,8 +165,11 @@ const QueueItemActions: React.FC<QueueItemActionsProps> = ({
 
       {(item.status === "pending" || item.status === "error") && (
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, styles.actionBtnDanger]}
           onPress={() => onRemove(item)}
+          activeOpacity={0.72}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.delete")}
         >
           <MaterialCommunityIcons
             name="delete-outline"

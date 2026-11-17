@@ -92,7 +92,8 @@ export function getPausedBatchRetranslation(
     (i) =>
       i.videoId === videoId &&
       i.status === "paused" &&
-      i.retranslateBatchIndex !== undefined
+      (i.retranslateBatchIndices?.length ||
+        i.retranslateBatchIndex !== undefined)
   );
   return item || null;
 }
@@ -108,7 +109,8 @@ export function getBatchRetranslationInfo(
     (i) =>
       i.videoId === videoId &&
       i.status === "paused" &&
-      i.retranslateBatchIndex !== undefined
+      (i.retranslateBatchIndices?.length ||
+        i.retranslateBatchIndex !== undefined)
   );
   if (pausedItem) return pausedItem;
 
@@ -117,7 +119,8 @@ export function getBatchRetranslationInfo(
     (i) =>
       i.videoId === videoId &&
       i.status === "translating" &&
-      i.retranslateBatchIndex !== undefined
+      (i.retranslateBatchIndices?.length ||
+        i.retranslateBatchIndex !== undefined)
   );
   return translatingItem || null;
 }

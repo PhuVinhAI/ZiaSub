@@ -562,6 +562,7 @@ class QueueManager {
             // Clear batch retranslation mode
             retranslateBatchIndex: undefined,
             retranslateMode: undefined,
+            retranslateBatchIndices: undefined,
             // Clear time range mode (keep rangeStart/rangeEnd for display in completed items)
             // Note: We keep rangeStart/rangeEnd so completed items show what range was translated
           });
@@ -691,8 +692,11 @@ class QueueManager {
 
     try {
       // Check if this is a batch retranslation
-      if (item.retranslateBatchIndex !== undefined) {
-        // Batch retranslation - need to get existing SRT and call translateSingleBatch
+      if (
+        item.retranslateBatchIndices?.length ||
+        item.retranslateBatchIndex !== undefined
+      ) {
+        // Batch retranslation - load the latest saved SRT and replace only selected ranges.
         const batchDuration = queueBatchSettings.maxVideoDuration || 600;
         const isPresubMode = queueBatchSettings.presubMode ?? false;
         const presubDuration = queueBatchSettings.presubDuration ?? 120;
@@ -714,6 +718,32 @@ class QueueManager {
           throw new Error("Không tìm thấy bản dịch để dịch lại");
         }
 
+        let selectedBatchIndices = item.retranslateBatchIndices?.length
+          ? [...item.retranslateBatchIndices].sort((a, b) => a - b)
+          : [item.retranslateBatchIndex!];
+
+        // Backward compatibility for old queued "from here" jobs.
+        if (
+          !item.retranslateBatchIndices?.length &&
+          item.retranslateMode === "fromHere"
+        ) {
+          const totalBatches =
+            existingTranslation.totalBatches ||
+            Math.ceil(
+              (existingTranslation.videoDuration || item.duration || 0) /
+                batchDuration,
+            );
+          selectedBatchIndices = Array.from(
+            {
+              length: Math.max(
+                totalBatches - item.retranslateBatchIndex!,
+                0,
+              ),
+            },
+            (_, offset) => item.retranslateBatchIndex! + offset,
+          );
+        }
+
         // Check if the translation has time range
         const translationRangeStart = existingTranslation.rangeStart ?? 0;
         const translationRangeEnd =
@@ -725,37 +755,92 @@ class QueueManager {
           existingTranslation.rangeStart !== undefined ||
           existingTranslation.rangeEnd !== undefined;
 
-        // Calculate batchStart and batchEnd considering time range AND presub mode
-        const { batchStart, batchEnd } = computeBatchRange({
-          retranslateBatchIndex: item.retranslateBatchIndex,
-          batchDuration,
-          isTimeRangeTranslation,
-          translationRangeStart,
-          translationRangeEnd,
-          isPresubMode,
-          presubDuration,
-          itemDuration: item.duration,
-        });
+        const selectedRanges = selectedBatchIndices
+          .map((batchIndex) => ({
+            index: batchIndex,
+            ...computeBatchRange({
+              retranslateBatchIndex: batchIndex,
+              batchDuration,
+              isTimeRangeTranslation,
+              translationRangeStart,
+              translationRangeEnd,
+              isPresubMode,
+              presubDuration,
+              itemDuration: item.duration,
+            }),
+          }))
+          .filter(({ batchStart, batchEnd }) => batchEnd > batchStart);
+        selectedBatchIndices = selectedRanges.map(({ index }) => index);
+        const completedCount = Math.min(
+          item.completedBatches || 0,
+          selectedRanges.length,
+        );
+        const completedRanges = selectedRanges
+          .slice(0, completedCount)
+          .map(({ batchStart, batchEnd }) => ({
+            start: batchStart,
+            end: batchEnd,
+          }));
+        const pendingRanges = selectedRanges
+          .slice(completedCount)
+          .map(({ index, batchStart, batchEnd }) => ({
+            index,
+            start: batchStart,
+            end: batchEnd,
+          }));
 
         // Update progress immediately to show "đang dịch" instead of "đang chờ"
         await this.updateItem(item.id, {
           progress: {
-            completed: 0,
-            total: 1,
+            completed: completedCount,
+            total: selectedRanges.length,
           },
         });
 
-        await translationManager.translateSingleBatch(
+        if (pendingRanges.length === 0) {
+          await this.updateItem(item.id, {
+            status: "completed",
+            completedAt: Date.now(),
+            progress: undefined,
+            partialSrt: undefined,
+            completedBatches: undefined,
+            totalBatches: undefined,
+            completedBatchRanges: undefined,
+            retranslateBatchIndex: undefined,
+            retranslateMode: undefined,
+            retranslateBatchIndices: undefined,
+          });
+          this.clearProcessingState();
+          safeUnsubscribe();
+          notificationService.notifyTranslationComplete(item.title, "queue");
+          if (this.autoProcessEnabled) {
+            this.processNextInQueue();
+          } else {
+            backgroundService.onTranslationComplete();
+          }
+          return;
+        }
+
+        await translationManager.translateSelectedBatches(
           item.videoUrl,
           effectiveConfig,
           existingTranslation.srtContent,
-          batchStart,
-          batchEnd,
+          pendingRanges,
           item.duration,
-          existingTranslation.id
+          existingTranslation.id,
+          {
+            batchSettings: queueBatchSettings,
+            translationTotalBatches: existingTranslation.totalBatches,
+            translationBatchStatuses: existingTranslation.batchStatuses,
+            initialCompletedBatches: completedCount,
+            completedRanges,
+            allBatchIndices: selectedBatchIndices,
+            skipBackgroundControl: true,
+            skipNotification: true,
+          },
         );
 
-        // Note: Progress is updated via subscription when translateSingleBatch notifies
+        // Progress is updated via the translationManager subscription above.
       } else {
         // Full translation or time range translation
         // Pass rangeStart/rangeEnd if item has time range configured
@@ -933,7 +1018,9 @@ class QueueManager {
 
     // If this video is currently being translated, abort it
     if (translationManager.isTranslatingUrl(item.videoUrl)) {
-      const result = await translationManager.abortTranslation(item.videoUrl);
+      const result = await translationManager.abortTranslation(item.videoUrl, {
+        skipSavePartial: true,
+      });
       if (result.aborted) {
         this.clearProcessingState();
         await backgroundService.onTranslationStop();
@@ -967,7 +1054,9 @@ class QueueManager {
 
     // If this video is currently being translated, abort it
     if (translationManager.isTranslatingUrl(item.videoUrl)) {
-      const result = await translationManager.abortTranslation(item.videoUrl);
+      const result = await translationManager.abortTranslation(item.videoUrl, {
+        skipSavePartial: true,
+      });
       if (result.aborted) {
         this.clearProcessingState();
         await backgroundService.onTranslationStop();
@@ -1193,15 +1282,29 @@ class QueueManager {
   async pauseBatchRetranslation(videoUrl: string): Promise<void> {
     const videoId = this.extractVideoId(videoUrl);
     const item = this.items.find((i) => i.videoId === videoId);
-    if (!item || item.retranslateBatchIndex === undefined) return;
+    if (
+      !item ||
+      (!item.retranslateBatchIndices?.length &&
+        item.retranslateBatchIndex === undefined)
+    )
+      return;
 
     // Add to userPausedItems to prevent auto-resume
     this.userPausedItems.add(item.id);
 
-    // Move to paused status - keep retranslateBatchIndex and retranslateMode
+    const currentProgress = translationManager.getJobForUrl(videoUrl)?.progress;
+
+    // Move to paused status and preserve how many selected batches are done.
     await this.updateItem(item.id, {
       status: "paused",
       progress: undefined,
+      completedBatches:
+        currentProgress?.completedBatches ?? item.completedBatches ?? 0,
+      totalBatches:
+        currentProgress?.totalBatches ??
+        item.retranslateBatchIndices?.length ??
+        item.totalBatches ??
+        1,
       error: undefined,
       // Keep batch retranslation info
       // retranslateBatchIndex and retranslateMode are preserved automatically
@@ -1214,7 +1317,11 @@ class QueueManager {
   ): Promise<{ success: boolean; item?: QueueItem; queued?: boolean }> {
     const videoId = this.extractVideoId(videoUrl);
     const item = this.items.find((i) => i.videoId === videoId);
-    if (!item || item.retranslateBatchIndex === undefined) {
+    if (
+      !item ||
+      (!item.retranslateBatchIndices?.length &&
+        item.retranslateBatchIndex === undefined)
+    ) {
       return { success: false };
     }
 
@@ -1405,7 +1512,9 @@ class QueueManager {
 
     // If this video is currently being translated (by queue or direct), abort it
     if (translationManager.isTranslatingUrl(item.videoUrl)) {
-      const result = await translationManager.abortTranslation(item.videoUrl);
+      const result = await translationManager.abortTranslation(item.videoUrl, {
+        skipSavePartial: true,
+      });
       if (result.aborted) {
         this.clearProcessingState();
         await backgroundService.onTranslationStop();
@@ -1615,7 +1724,8 @@ class QueueManager {
 
       // Abort current translation
       const result = await translationManager.abortTranslation(
-        currentItem.videoUrl
+        currentItem.videoUrl,
+        { skipSavePartial: true }
       );
       if (result.aborted) {
         this.clearProcessingState();
@@ -1654,7 +1764,8 @@ class QueueManager {
   // Add or update video in queue when translating directly
   // This syncs the queue state with direct translation
   // forceRetranslate: if true, will change completed status to translating
-  // retranslateBatchIndex & retranslateMode: for batch retranslation (single batch or fromHere)
+  // retranslateBatchIndices: arbitrary batches selected for retranslation.
+  // retranslateBatchIndex & retranslateMode are kept for old queued data.
   // savedTranslationId: ID of translation being retranslated (for UI tracking)
   // rangeStart & rangeEnd: for time range translation (translate only specific time range x-y)
   async syncDirectTranslation(
@@ -1670,18 +1781,32 @@ class QueueManager {
     retranslateMode?: "single" | "fromHere",
     savedTranslationId?: string,
     rangeStart?: number,
-    rangeEnd?: number
+    rangeEnd?: number,
+    retranslateBatchIndices?: number[],
   ): Promise<QueueItem> {
     const videoId = this.extractVideoId(videoUrl);
     let item = this.items.find((i) => i.videoId === videoId);
 
+    const normalizedBatchIndices = retranslateBatchIndices?.length
+      ? [...new Set(retranslateBatchIndices)].sort((a, b) => a - b)
+      : retranslateBatchIndex !== undefined
+        ? [retranslateBatchIndex]
+        : undefined;
+    const firstRetranslateBatch = normalizedBatchIndices?.[0];
+
     // Batch retranslation fields to include in updates
     const batchRetranslateFields =
-      retranslateBatchIndex !== undefined
-        ? { retranslateBatchIndex, retranslateMode, savedTranslationId }
+      firstRetranslateBatch !== undefined
+        ? {
+            retranslateBatchIndex: firstRetranslateBatch,
+            retranslateMode,
+            retranslateBatchIndices: normalizedBatchIndices,
+            savedTranslationId,
+          }
         : {
             retranslateBatchIndex: undefined,
             retranslateMode: undefined,
+            retranslateBatchIndices: undefined,
             savedTranslationId: undefined,
           };
 
@@ -1777,7 +1902,7 @@ class QueueManager {
           error: undefined,
           // For batch retranslation resume, keep partial data (don't clear)
           // Only clear if this is a fresh retranslation (not resuming batch)
-          ...(forceRetranslate && !retranslateBatchIndex
+          ...(forceRetranslate && firstRetranslateBatch === undefined
             ? {
                 partialSrt: undefined,
                 completedBatches: undefined,
@@ -1824,8 +1949,9 @@ class QueueManager {
         presetId,
         batchSettings,
         // Batch retranslation mode
-        retranslateBatchIndex,
+        retranslateBatchIndex: firstRetranslateBatch,
         retranslateMode,
+        retranslateBatchIndices: normalizedBatchIndices,
         savedTranslationId,
         // Time range translation mode
         rangeStart,
@@ -1849,6 +1975,7 @@ class QueueManager {
         status: "completed",
         retranslateBatchIndex: undefined,
         retranslateMode: undefined,
+        retranslateBatchIndices: undefined,
         // Also clear time range fields
         rangeStart: undefined,
         rangeEnd: undefined,

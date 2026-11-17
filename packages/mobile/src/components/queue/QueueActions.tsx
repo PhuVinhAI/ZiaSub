@@ -52,7 +52,7 @@ const QueueActions: React.FC<QueueActionsProps> = ({
         setCurrentPresetId(selectedConfig.presetId as PresetPromptType);
       } else {
         const matchingPreset = PRESET_PROMPTS.find(
-          (p) => p.prompt === selectedConfig.systemPrompt
+          (p) => p.prompt === selectedConfig.systemPrompt,
         );
         setCurrentPresetId(matchingPreset?.id || "custom");
       }
@@ -61,7 +61,7 @@ const QueueActions: React.FC<QueueActionsProps> = ({
 
   const handleSelectPreset = async (
     prompt: string,
-    presetId: PresetPromptType
+    presetId: PresetPromptType,
   ) => {
     // Save presetId to config instead of overwriting systemPrompt
     const configIndex = configs.findIndex((c) => c.id === selectedConfigId);
@@ -99,7 +99,9 @@ const QueueActions: React.FC<QueueActionsProps> = ({
       <PresetPromptPicker
         onSelectPreset={handleSelectPreset}
         currentPresetId={currentPresetId}
-        style={{ marginBottom: 12 }}
+        style={{
+          marginBottom: 10,
+        }}
       />
       <View style={styles.actionButtons}>
         <View style={styles.actionButtonPrimary}>
@@ -111,7 +113,13 @@ const QueueActions: React.FC<QueueActionsProps> = ({
             disabled={!hasApiKey}
           />
         </View>
-        <TouchableOpacity style={styles.clearAllBtn} onPress={onClearPending}>
+        <TouchableOpacity
+          style={styles.clearAllBtn}
+          onPress={onClearPending}
+          activeOpacity={0.72}
+          accessibilityRole="button"
+          accessibilityLabel={t("queue.actions.clearAll")}
+        >
           <MaterialCommunityIcons
             name="delete-sweep"
             size={22}

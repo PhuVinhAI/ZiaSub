@@ -1,6 +1,11 @@
 export { default as Button3D } from "./Button3D";
 export { default as FloatingButton } from "./FloatingButton";
-export { default as FAQModal } from "./FAQModal";
 export { alert, confirm, confirmDestructive } from "./CustomAlert";
 export { default as WebViewErrorView } from "./WebViewErrorView";
 export { default as BottomSheetModal } from "./BottomSheetModal";
+export { default as ControlSlider } from "./ControlSlider";
+export { default as ToggleSettingRow } from "./ToggleSettingRow";
+export { default as SegmentedTabs } from "./SegmentedTabs";
+export { default as SelectionSettingRow } from "./SelectionSettingRow";
+export { default as OptionPickerButton } from "./OptionPickerButton";
+export type { SegmentedTabItem } from "./SegmentedTabs";

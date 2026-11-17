@@ -6,6 +6,7 @@
 import type { AppSettings, GeminiConfig } from "@src/types";
 import {
   DEFAULT_APP_SETTINGS,
+  DEFAULT_CHAT_SYSTEM_PROMPT,
   DEFAULT_CHAT_CONFIG_ID,
   DEFAULT_PRESUB_CONFIG_ID,
   DEFAULT_SYSTEM_PROMPT,
@@ -18,7 +19,6 @@ export function mergeWithDefaults(
     subtitle: { ...DEFAULT_APP_SETTINGS.subtitle, ...settings.subtitle },
     batch: { ...DEFAULT_APP_SETTINGS.batch, ...settings.batch },
     apiKeys: { ...DEFAULT_APP_SETTINGS.apiKeys, ...settings.apiKeys },
-    tts: { ...DEFAULT_APP_SETTINGS.tts, ...settings.tts },
     floatingUI: {
       ...DEFAULT_APP_SETTINGS.floatingUI,
       ...settings.floatingUI,
@@ -54,7 +54,7 @@ export function computeEnsuredConfigs(
         name: "Chat",
         model: "models/gemini-flash-lite-latest",
         temperature: 1.0,
-        systemPrompt: "",
+        systemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
         mediaResolution: "MEDIA_RESOLUTION_HIGH",
         thinkingLevel: "HIGH",
       },
@@ -82,23 +82,9 @@ export function computeEnsuredConfigs(
     needsSave = true;
   }
 
-  // Migration for outdated configs on existing app storage
+  // Migrate model IDs that are no longer available in the editor.
   for (const c of configs) {
-    if (
-      c.id === DEFAULT_CHAT_CONFIG_ID &&
-      c.model !== "models/gemini-flash-lite-latest"
-    ) {
-      c.model = "models/gemini-flash-lite-latest";
-      needsSave = true;
-    }
-    if (c.name === "Mặc định" && c.model !== "models/gemini-flash-latest") {
-      c.model = "models/gemini-flash-latest";
-      needsSave = true;
-    }
-    if (
-      c.model === "models/gemini-3-flash-preview" ||
-      c.model === "models/gemini-2.5-pro"
-    ) {
+    if (c.model === "models/gemini-2.5-pro") {
       c.model = "models/gemini-flash-latest";
       needsSave = true;
     }

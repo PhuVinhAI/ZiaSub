@@ -4,6 +4,7 @@
 import { storageService } from "@services/storageService";
 import type { GeminiConfig } from "@src/types";
 import {
+  DEFAULT_CHAT_SYSTEM_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_CHAT_CONFIG_ID,
 } from "@constants/defaults";
@@ -23,7 +24,7 @@ export const createDefaultChatConfig = (): GeminiConfig => ({
   name: "Chat",
   model: "models/gemini-flash-lite-latest",
   temperature: 1.0,
-  systemPrompt: "",
+  systemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
   mediaResolution: "MEDIA_RESOLUTION_HIGH",
   thinkingLevel: "HIGH",
 });
@@ -79,23 +80,9 @@ export const getGeminiConfigs = async (): Promise<GeminiConfig[]> => {
     needsSave = true;
   }
 
-  // Auto-migrate existing saved configs to user's desired default models
+  // Migrate model IDs that are no longer available in the editor.
   for (const config of configs) {
-    // Chat config -> models/gemini-flash-lite-latest (dùng flash-lite vì flash-latest bị lỗi ở Chat)
-    if (config.id === DEFAULT_CHAT_CONFIG_ID && config.model !== "models/gemini-flash-lite-latest") {
-      config.model = "models/gemini-flash-lite-latest";
-      needsSave = true;
-    }
-    // "Mặc định" translation config -> models/gemini-flash-latest
-    if (config.name === "Mặc định" && config.model !== "models/gemini-flash-latest") {
-      config.model = "models/gemini-flash-latest";
-      needsSave = true;
-    }
-    // Any outdated models -> models/gemini-flash-latest
-    if (
-      config.model === "models/gemini-3-flash-preview" ||
-      config.model === "models/gemini-2.5-pro"
-    ) {
+    if (config.model === "models/gemini-2.5-pro") {
       config.model = "models/gemini-flash-latest";
       needsSave = true;
     }

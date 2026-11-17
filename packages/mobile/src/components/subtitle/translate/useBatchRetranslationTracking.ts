@@ -27,6 +27,9 @@ export function useBatchRetranslationTracking({
   const [pausedBatchRetranslation, setPausedBatchRetranslation] = useState<{
     batchIndex: number;
     mode: "single" | "fromHere";
+    batchIndices?: number[];
+    completedBatches?: number;
+    totalBatches?: number;
     translationId?: string;
   } | null>(null);
   // Track which translation is being retranslated
@@ -59,37 +62,67 @@ export function useBatchRetranslationTracking({
         const batchItem = queueManager.getBatchRetranslationInfo(videoUrl);
         if (
           batchItem &&
-          batchItem.retranslateBatchIndex !== undefined &&
-          batchItem.retranslateMode
+          (batchItem.retranslateBatchIndices?.length ||
+            batchItem.retranslateBatchIndex !== undefined)
         ) {
           // Track which translation is being retranslated
           if (batchItem.savedTranslationId) {
             setRetranslatingTranslationId(batchItem.savedTranslationId);
           }
 
+          const batchDuration =
+            batchItem.batchSettings?.maxVideoDuration || 600;
+          const targetTranslation = batchItem.savedTranslationId
+            ? savedTranslations.find(
+                (translation) =>
+                  translation.id === batchItem.savedTranslationId,
+              )
+            : savedTranslations[0];
+          const totalTranslationBatches =
+            targetTranslation?.totalBatches ||
+            Math.ceil(
+              (targetTranslation?.videoDuration || batchItem.duration || 0) /
+                batchDuration,
+            );
+          const firstBatchIndex = batchItem.retranslateBatchIndex ?? 0;
+          const selectedBatchIndices = batchItem.retranslateBatchIndices?.length
+            ? [...batchItem.retranslateBatchIndices].sort((a, b) => a - b)
+            : batchItem.retranslateMode === "fromHere"
+              ? Array.from(
+                  {
+                    length: Math.max(
+                      totalTranslationBatches - firstBatchIndex,
+                      0,
+                    ),
+                  },
+                  (_, offset) => firstBatchIndex + offset,
+                )
+              : [firstBatchIndex];
+
           if (batchItem.status === "paused") {
             // Paused state
             setPausedBatchRetranslation({
-              batchIndex: batchItem.retranslateBatchIndex,
-              mode: batchItem.retranslateMode,
+              batchIndex: selectedBatchIndices[0] ?? firstBatchIndex,
+              mode: batchItem.retranslateMode || "single",
+              batchIndices: selectedBatchIndices,
+              completedBatches: batchItem.completedBatches || 0,
+              totalBatches:
+                batchItem.totalBatches || selectedBatchIndices.length,
               translationId: batchItem.savedTranslationId,
             });
             setBatchRetranslateJob(null);
           } else if (batchItem.status === "translating") {
             // Active or waiting state - create a fake job to show UI
             setPausedBatchRetranslation(null);
-            const batchDuration =
-              batchItem.batchSettings?.maxVideoDuration || 600;
             const isPresubMode = batchItem.batchSettings?.presubMode ?? false;
             const presubDuration =
               batchItem.batchSettings?.presubDuration ?? 120;
-
-            // Find the translation being retranslated to get its time range info
-            const targetTranslation = batchItem.savedTranslationId
-              ? savedTranslations.find(
-                  (t) => t.id === batchItem.savedTranslationId
-                )
-              : savedTranslations[0];
+            const currentSelectionPosition = Math.min(
+              batchItem.progress?.completed || 0,
+              Math.max(selectedBatchIndices.length - 1, 0),
+            );
+            const currentBatchIndex =
+              selectedBatchIndices[currentSelectionPosition] ?? firstBatchIndex;
 
             // Check if the translation has time range
             const translationRangeStart = targetTranslation?.rangeStart ?? 0;
@@ -110,41 +143,34 @@ export function useBatchRetranslationTracking({
               // Time range translation: batches are relative to translationRangeStart
               rangeStart =
                 translationRangeStart +
-                batchItem.retranslateBatchIndex * batchDuration;
-              rangeEnd =
-                batchItem.retranslateMode === "single"
-                  ? Math.min(
-                      translationRangeStart +
-                        (batchItem.retranslateBatchIndex + 1) * batchDuration,
-                      translationRangeEnd
-                    )
-                  : batchItem.duration;
+                currentBatchIndex * batchDuration;
+              rangeEnd = Math.min(
+                translationRangeStart +
+                  (currentBatchIndex + 1) * batchDuration,
+                translationRangeEnd,
+              );
             } else if (isPresubMode) {
-              if (batchItem.retranslateBatchIndex === 0) {
+              if (currentBatchIndex === 0) {
                 rangeStart = 0;
-                rangeEnd =
-                  batchItem.retranslateMode === "single"
-                    ? Math.min(presubDuration, batchItem.duration || Infinity)
-                    : batchItem.duration;
+                rangeEnd = Math.min(
+                  presubDuration,
+                  batchItem.duration || Infinity,
+                );
               } else {
                 rangeStart =
                   presubDuration +
-                  (batchItem.retranslateBatchIndex - 1) * batchDuration;
-                rangeEnd =
-                  batchItem.retranslateMode === "single"
-                    ? Math.min(
-                        presubDuration +
-                          batchItem.retranslateBatchIndex * batchDuration,
-                        batchItem.duration || Infinity
-                      )
-                    : batchItem.duration;
+                  (currentBatchIndex - 1) * batchDuration;
+                rangeEnd = Math.min(
+                  presubDuration + currentBatchIndex * batchDuration,
+                  batchItem.duration || Infinity,
+                );
               }
             } else {
-              rangeStart = batchItem.retranslateBatchIndex * batchDuration;
-              rangeEnd =
-                batchItem.retranslateMode === "single"
-                  ? (batchItem.retranslateBatchIndex + 1) * batchDuration
-                  : batchItem.duration;
+              rangeStart = currentBatchIndex * batchDuration;
+              rangeEnd = Math.min(
+                (currentBatchIndex + 1) * batchDuration,
+                batchItem.duration || Infinity,
+              );
             }
 
             setBatchRetranslateJob({
@@ -169,6 +195,10 @@ export function useBatchRetranslationTracking({
               partialResult: null,
               rangeStart,
               rangeEnd,
+              retranslateBatchIndex: selectedBatchIndices[0],
+              retranslateMode: batchItem.retranslateMode,
+              retranslateBatchIndices: selectedBatchIndices,
+              isBatchRetranslation: true,
               existingTranslationId: batchItem.savedTranslationId, // Track which translation is being retranslated
             });
           }
@@ -198,7 +228,7 @@ export function useBatchRetranslationTracking({
       isMounted = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [videoUrl]);
+  }, [savedTranslations, videoUrl]);
 
   // Subscribe to translationManager to track batch retranslation
   useEffect(() => {
@@ -214,6 +244,7 @@ export function useBatchRetranslationTracking({
       // Time range translation (rangeStart/rangeEnd without isBatchRetranslation) is NOT a batch job
       const isBatchJob =
         currentJob.isBatchRetranslation ||
+        currentJob.retranslateBatchIndices?.length ||
         currentJob.retranslateBatchIndex !== undefined;
       if (
         jobVideoId === currentVideoId &&
@@ -229,7 +260,9 @@ export function useBatchRetranslationTracking({
       // Check if this is a batch retranslation for current video
       // Time range translation (rangeStart/rangeEnd without isBatchRetranslation) is NOT a batch job
       const isBatchJob =
-        job.isBatchRetranslation || job.retranslateBatchIndex !== undefined;
+        job.isBatchRetranslation ||
+        job.retranslateBatchIndices?.length ||
+        job.retranslateBatchIndex !== undefined;
       if (jobVideoId === currentVideoId && isBatchJob) {
         if (job.status === "processing") {
           setBatchRetranslateJob(job);

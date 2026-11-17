@@ -44,13 +44,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onRegenerate,
   onDelete,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(taskCardThemedStyles);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copied, setCopied] = useState(false);
   const rotateAnim = useRef(
-    new Animated.Value(defaultExpanded ? 1 : 0)
+    new Animated.Value(defaultExpanded ? 1 : 0),
   ).current;
 
   // Format time range for display
@@ -71,26 +71,39 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   const markdownStyles = useMemo(
     () => ({
-      body: { color: colors.text, fontSize: 15, lineHeight: 24 },
+      body: {
+        color: colors.text,
+        fontSize: 15,
+        lineHeight: 24,
+        maxWidth: "100%" as const,
+        flexShrink: 1,
+      },
       heading1: {
         color: colors.text,
         fontSize: 20,
         fontWeight: "bold" as const,
         marginVertical: 8,
+        flexShrink: 1,
       },
       heading2: {
         color: colors.text,
         fontSize: 18,
         fontWeight: "bold" as const,
         marginVertical: 6,
+        flexShrink: 1,
       },
       heading3: {
         color: colors.text,
         fontSize: 16,
         fontWeight: "600" as const,
         marginVertical: 4,
+        flexShrink: 1,
       },
-      paragraph: { color: colors.text, marginVertical: 4 },
+      paragraph: {
+        color: colors.text,
+        marginVertical: 4,
+        flexShrink: 1,
+      },
       link: { color: colors.accent },
       blockquote: {
         backgroundColor: colors.surface,
@@ -112,17 +125,18 @@ const TaskCard: React.FC<TaskCardProps> = ({
       code_block: {
         backgroundColor: colors.surface,
         padding: 12,
-        borderRadius: 10,
+        borderRadius: 8,
         marginVertical: 8,
       },
       fence: {
         backgroundColor: colors.surface,
         padding: 12,
-        borderRadius: 10,
+        borderRadius: 8,
         marginVertical: 8,
         fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
         fontSize: 13,
         color: colors.text,
+        flexShrink: 1,
       },
       list_item: { color: colors.text, marginVertical: 2 },
       bullet_list: { marginVertical: 4 },
@@ -131,16 +145,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
       em: { color: colors.text, fontStyle: "italic" as const },
       hr: { backgroundColor: colors.border, height: 1, marginVertical: 12 },
     }),
-    [colors]
+    [colors],
   );
 
   const markdownRules = useMemo(
     () => ({
-      body: (node: any, children: any, parent: any, styles: any) => (
-        <Text key={node.key} selectable style={styles.body}>
-          {children}
-        </Text>
-      ),
       paragraph: (node: any, children: any, parent: any, styles: any) => (
         <Text key={node.key} selectable style={styles.paragraph}>
           {children}
@@ -161,11 +170,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
           {children}
         </Text>
       ),
-      list_item: (node: any, children: any, parent: any, styles: any) => (
-        <Text key={node.key} selectable style={styles.list_item}>
-          {children}
-        </Text>
-      ),
       fence: (node: any, children: any, parent: any, styles: any) => (
         <Text key={node.key} selectable style={styles.fence}>
           {node.content}
@@ -177,7 +181,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </Text>
       ),
     }),
-    []
+    [],
   );
 
   const toggleExpand = () => {
@@ -194,46 +198,83 @@ const TaskCard: React.FC<TaskCardProps> = ({
     inputRange: [0, 1],
     outputRange: ["90deg", "180deg"],
   });
-  const time = new Date(task.timestamp).toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const time = new Date(task.timestamp).toLocaleTimeString(
+    i18n.language.startsWith("vi") ? "vi-VN" : "en-US",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  );
   const statusIcon =
     task.status === "done"
-      ? "check-circle"
+      ? "check"
       : task.status === "error"
-      ? "alert-circle"
-      : "clock-outline";
+        ? "alert-outline"
+        : "clock-outline";
   const statusColor =
     task.status === "done"
       ? colors.success
       : task.status === "error"
-      ? colors.error
-      : colors.textMuted;
+        ? colors.error
+        : colors.primary;
+  const statusBackground =
+    task.status === "done"
+      ? colors.successBg
+      : task.status === "error"
+        ? colors.errorBg
+        : colors.primarySoft;
+  const statusLabel = t(`chat.taskStatus.${task.status}`);
 
   return (
     <View style={themedStyles.taskCard}>
       <TouchableOpacity
         style={styles.taskHeader}
         onPress={toggleExpand}
-        activeOpacity={0.7}
+        activeOpacity={task.result ? 0.72 : 1}
+        disabled={!task.result}
+        accessibilityRole={task.result ? "button" : undefined}
+        accessibilityLabel={
+          task.result ? `${task.command}. ${statusLabel}` : undefined
+        }
+        accessibilityState={{ expanded: task.result ? expanded : undefined }}
       >
         <View style={styles.taskHeaderLeft}>
-          <MaterialCommunityIcons
-            name={statusIcon}
-            size={18}
-            color={statusColor}
-          />
+          <View
+            style={[
+              styles.statusIconContainer,
+              { backgroundColor: statusBackground },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={statusIcon}
+              size={19}
+              color={statusColor}
+            />
+          </View>
           <View style={styles.taskInfo}>
             <Text
               selectable
               style={themedStyles.taskCommand}
-              numberOfLines={expanded ? undefined : 1}
+              numberOfLines={expanded ? undefined : 2}
             >
               {task.command}
             </Text>
             <View style={styles.taskMeta}>
               <Text style={themedStyles.taskTime}>{time}</Text>
+              {task.status !== "pending" && (
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: statusBackground },
+                  ]}
+                >
+                  <Text
+                    style={[styles.statusBadgeText, { color: statusColor }]}
+                  >
+                    {statusLabel}
+                  </Text>
+                </View>
+              )}
               {task.hasVideo && (
                 <View style={themedStyles.videoTag}>
                   <MaterialCommunityIcons
@@ -251,7 +292,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   <MaterialCommunityIcons
                     name="clock-outline"
                     size={10}
-                    color={colors.onPrimary}
+                    color={colors.accent}
                   />
                   <Text style={themedStyles.timeRangeTagText}>
                     {formatTimeRange(task.videoTimeRange)}
@@ -272,11 +313,38 @@ const TaskCard: React.FC<TaskCardProps> = ({
         )}
       </TouchableOpacity>
       {expanded && task.result && (
-        <View style={themedStyles.taskResult}>
+        <View
+          style={[
+            themedStyles.taskResult,
+            task.status === "error" && themedStyles.taskResultError,
+          ]}
+        >
+          <View style={styles.responseHeader}>
+            <View
+              style={[
+                themedStyles.responseIcon,
+                task.status === "error" && themedStyles.responseIconError,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="creation"
+                size={16}
+                color={task.status === "error" ? colors.error : colors.primary}
+              />
+            </View>
+            <Text style={themedStyles.responseLabel}>
+              {t("chat.responseLabel")}
+            </Text>
+          </View>
           <Markdown style={markdownStyles} rules={markdownRules}>
             {task.result}
           </Markdown>
-          <View style={themedStyles.actionButtons}>
+          <View
+            style={[
+              themedStyles.actionButtons,
+              task.status === "pending" && styles.hidden,
+            ]}
+          >
             <TouchableOpacity
               style={styles.actionBtn}
               onPress={async () => {
@@ -287,6 +355,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   onCopy?.(task.result);
                 }
               }}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.copy")}
             >
               <MaterialCommunityIcons
                 name={copied ? "check" : "content-copy"}
@@ -305,6 +375,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <TouchableOpacity
               style={styles.actionBtn}
               onPress={() => onRegenerate?.(task)}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.regenerate")}
             >
               <MaterialCommunityIcons
                 name="refresh"
@@ -316,30 +388,27 @@ const TaskCard: React.FC<TaskCardProps> = ({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionBtn}
+              style={[styles.actionBtn, styles.deleteActionBtn]}
               onPress={() =>
                 confirmDestructive(
                   t("chat.deleteTask"),
                   t("chat.deleteTaskConfirm"),
-                  () => onDelete?.(task.id)
+                  () => onDelete?.(task.id),
                 )
               }
+              accessibilityRole="button"
+              accessibilityLabel={t("common.delete")}
             >
               <MaterialCommunityIcons
                 name="delete-outline"
                 size={16}
                 color={colors.error}
               />
-              <Text
-                style={[themedStyles.actionText, themedStyles.actionTextDelete]}
-              >
-                {t("common.delete")}
-              </Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
-      {task.status === "pending" && !task.result && (
+      {task.status === "pending" && (
         <View style={themedStyles.taskLoading}>
           <ActivityIndicator size="small" color={colors.primary} />
           <Text style={themedStyles.loadingText}>{t("common.processing")}</Text>
@@ -354,42 +423,77 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    padding: 14,
+    padding: 13,
     gap: 10,
   },
   taskHeaderLeft: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+    alignItems: "center",
+    gap: 10,
+  },
+  statusIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   taskInfo: { flex: 1 },
   taskMeta: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+  },
+  statusBadge: {
+    minHeight: 20,
+    justifyContent: "center",
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "700",
+  },
+  responseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-    marginTop: 4,
+    marginBottom: 6,
   },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    justifyContent: "center",
+    minHeight: 44,
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
   },
+  deleteActionBtn: { width: 44, paddingHorizontal: 0, marginLeft: "auto" },
+  hidden: { display: "none" },
 });
 
 const taskCardThemedStyles = createThemedStyles((colors) => ({
   taskCard: {
-    marginBottom: 12,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceLight,
+    maxWidth: "100%",
+    alignSelf: "stretch",
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: "hidden",
   },
   taskCommand: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
     lineHeight: 22,
   },
   taskTime: { color: colors.textMuted, fontSize: 12 },
@@ -397,30 +501,54 @@ const taskCardThemedStyles = createThemedStyles((colors) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    maxWidth: 150,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 6,
+    maxWidth: 180,
   },
   videoTagText: { color: colors.textMuted, fontSize: 11, flexShrink: 1 },
   timeRangeTag: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 6,
   },
-  timeRangeTagText: { color: colors.onPrimary, fontSize: 10, fontWeight: "500" },
-  taskResult: { padding: 14, borderTopWidth: 1, borderTopColor: colors.border },
+  timeRangeTagText: { color: colors.accent, fontSize: 10, fontWeight: "700" },
+  taskResult: {
+    maxWidth: "100%",
+    minWidth: 0,
+    padding: 14,
+    backgroundColor: colors.surfaceLight,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  taskResultError: { backgroundColor: colors.errorBg },
+  responseIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+  },
+  responseIconError: { backgroundColor: colors.surface },
+  responseLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
   taskLoading: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     gap: 10,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.primarySoft,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -428,15 +556,14 @@ const taskCardThemedStyles = createThemedStyles((colors) => ({
   actionButtons: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: 2,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  actionText: { color: colors.textMuted, fontSize: 13 },
+  actionText: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
   actionTextSuccess: { color: colors.success },
-  actionTextDelete: { color: colors.error },
 }));
 
 export default TaskCard;

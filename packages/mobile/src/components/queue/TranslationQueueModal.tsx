@@ -105,7 +105,7 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
     ]);
     // Filter out chat config for translation picker
     const translationConfigs = configs.filter(
-      (c) => c.id !== "default-chat-config"
+      (c) => c.id !== "default-chat-config",
     );
     setGeminiConfigs(translationConfigs);
     setHasApiKey(apiKeys.length > 0);
@@ -192,28 +192,38 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
           alert(t("common.notice"), t("queue.addedToWaitingQueue"));
         }
       },
-      t("queue.dialogs.translate")
+      t("queue.dialogs.translate"),
     );
   };
   const handleResumeTranslation = (item: QueueItem) => {
     // Check if this is a batch retranslation paused
-    if (item.retranslateBatchIndex !== undefined) {
+    if (
+      item.retranslateBatchIndices?.length ||
+      item.retranslateBatchIndex !== undefined
+    ) {
       // Batch retranslation - need to resume differently
       confirm(
         t("queue.dialogs.resumeBatchTitle"),
-        item.retranslateMode === "single"
+        item.retranslateBatchIndices?.length
+          ? t("queue.dialogs.resumeBatchSelectedConfirm", {
+              title: item.title,
+              completed: item.completedBatches || 0,
+              total:
+                item.totalBatches || item.retranslateBatchIndices.length,
+            })
+          : item.retranslateMode === "single"
           ? t("queue.dialogs.resumeBatchSingleConfirm", {
               title: item.title,
-              batch: item.retranslateBatchIndex + 1,
+              batch: (item.retranslateBatchIndex || 0) + 1,
             })
           : t("queue.dialogs.resumeBatchFromConfirm", {
               title: item.title,
-              batch: item.retranslateBatchIndex + 1,
+              batch: (item.retranslateBatchIndex || 0) + 1,
             }),
         async () => {
           // Resume batch retranslation - start immediately if not busy
           const result = await queueManager.resumeBatchRetranslation(
-            item.videoUrl
+            item.videoUrl,
           );
           if (result.queued) {
             alert(t("common.notice"), t("queue.addedToWaitingQueue"));
@@ -221,7 +231,7 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
             alert(t("common.error"), t("errors.generic"));
           }
         },
-        t("queue.dialogs.resume")
+        t("queue.dialogs.resume"),
       );
       return;
     }
@@ -241,11 +251,11 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
         } else if (!result.success && result.reason === "busy") {
           alert(
             t("common.notice"),
-            t("subtitleModal.translate.anotherTranslating")
+            t("subtitleModal.translate.anotherTranslating"),
           );
         }
       },
-      t("queue.dialogs.resume")
+      t("queue.dialogs.resume"),
     );
   };
   const handleStartAll = () => {
@@ -259,14 +269,14 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
           alert(t("common.notice"), t("queue.addedToWaitingQueue"));
         }
       },
-      t("common.start")
+      t("common.start"),
     );
   };
   const handleRemove = (item: QueueItem) => {
     confirmDestructive(
       t("queue.dialogs.removeTitle"),
       t("queue.dialogs.removeConfirm", { title: item.title }),
-      () => queueManager.removeFromQueue(item.id)
+      () => queueManager.removeFromQueue(item.id),
     );
   };
   const handleRequeue = (item: QueueItem) => {
@@ -277,35 +287,35 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
       t("queue.dialogs.stopTitle"),
       t("queue.dialogs.stopConfirm", { title: item.title }),
       () => queueManager.stopTranslation(item.id),
-      t("common.stop")
+      t("common.stop"),
     );
   };
   const handleAbortTranslation = (item: QueueItem) => {
     confirmDestructive(
       t("queue.dialogs.abortTitle"),
       t("queue.dialogs.abortConfirm", { title: item.title }),
-      () => queueManager.abortAndRemove(item.id)
+      () => queueManager.abortAndRemove(item.id),
     );
   };
   const handleClearPending = () => {
     confirmDestructive(
       t("queue.dialogs.clearPendingTitle"),
       t("queue.dialogs.clearPendingConfirm"),
-      () => queueManager.clearPending()
+      () => queueManager.clearPending(),
     );
   };
   const handleClearCompleted = () => {
     confirmDestructive(
       t("queue.dialogs.clearCompletedTitle"),
       t("queue.dialogs.clearCompletedConfirm"),
-      () => queueManager.clearByStatus("completed")
+      () => queueManager.clearByStatus("completed"),
     );
   };
   const handleClearPaused = () => {
     confirmDestructive(
       t("queue.dialogs.clearPausedTitle"),
       t("queue.dialogs.clearPausedConfirm"),
-      () => queueManager.clearByStatus("paused")
+      () => queueManager.clearByStatus("paused"),
     );
   };
   const handleStopAll = () => {
@@ -313,14 +323,14 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
       t("queue.dialogs.stopAllTitle"),
       t("queue.dialogs.stopAllConfirm"),
       () => queueManager.stopAll(),
-      t("queue.actions.stopAll")
+      t("queue.actions.stopAll"),
     );
   };
   const handleClearTranslating = () => {
     confirmDestructive(
       t("queue.dialogs.clearTranslatingTitle"),
       t("queue.dialogs.clearTranslatingConfirm"),
-      () => queueManager.clearTranslating()
+      () => queueManager.clearTranslating(),
     );
   };
   const handleResumeAll = () => {
@@ -333,7 +343,7 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
           alert(t("common.notice"), t("queue.addedToWaitingQueue"));
         }
       },
-      t("queue.actions.resumeAll")
+      t("queue.actions.resumeAll"),
     );
   };
   const handleSelectVideo = (item: QueueItem) => {
@@ -342,6 +352,8 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
   };
 
   const pendingCount = counts.pending + counts.error;
+  const activeCount =
+    activeTab === "pending" ? pendingCount : counts[activeTab];
 
   // Tính toán padding cho safe area
   const statusBarHeight =
@@ -369,12 +381,33 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
             },
           ]}
         >
-          <View style={styles.header}>
-            <Text style={themedStyles.headerTitle}>{t("queue.title")}</Text>
-            <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+          <View style={[styles.header, themedStyles.header]}>
+            <View style={styles.headerLeading}>
+              <View style={themedStyles.headerIcon}>
+                <MaterialCommunityIcons
+                  name="playlist-play"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.headerTitleGroup}>
+                <Text style={themedStyles.headerTitle}>{t("queue.title")}</Text>
+                <Text style={themedStyles.headerSubtitle} numberOfLines={1}>
+                  {t("queue.itemCount", { count: activeCount })} /{" "}
+                  {t(`queue.tabs.${activeTab}`)}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.closeBtn, themedStyles.closeBtn]}
+              onPress={handleClose}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+            >
               <MaterialCommunityIcons
                 name="close"
-                size={24}
+                size={22}
                 color={colors.text}
               />
             </TouchableOpacity>
@@ -404,6 +437,9 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
               <TouchableOpacity
                 style={queueStyles.clearAllBtnFull}
                 onPress={handleClearCompleted}
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                accessibilityLabel={t("queue.actions.clearAll")}
               >
                 <MaterialCommunityIcons
                   name="delete-sweep"
@@ -422,9 +458,12 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
                 <TouchableOpacity
                   style={[
                     queueStyles.clearAllBtnFull,
-                    { flex: 1, borderColor: colors.warning },
+                    { flex: 1, backgroundColor: colors.warningBg },
                   ]}
                   onPress={handleStopAll}
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("queue.actions.stopAll")}
                 >
                   <MaterialCommunityIcons
                     name="stop-circle"
@@ -443,6 +482,9 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
                 <TouchableOpacity
                   style={[queueStyles.clearAllBtnFull, { flex: 1 }]}
                   onPress={handleClearTranslating}
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("queue.actions.clearAll")}
                 >
                   <MaterialCommunityIcons
                     name="delete-sweep"
@@ -462,9 +504,12 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
                 <TouchableOpacity
                   style={[
                     queueStyles.clearAllBtnFull,
-                    { flex: 1, borderColor: colors.primary },
+                    { flex: 1, backgroundColor: colors.primarySoft },
                   ]}
                   onPress={handleResumeAll}
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("queue.actions.resumeAll")}
                 >
                   <MaterialCommunityIcons
                     name="play-circle"
@@ -483,6 +528,9 @@ const TranslationQueueModal: React.FC<TranslationQueueModalProps> = ({
                 <TouchableOpacity
                   style={[queueStyles.clearAllBtnFull, { flex: 1 }]}
                   onPress={handleClearPaused}
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("queue.actions.clearAll")}
                 >
                   <MaterialCommunityIcons
                     name="delete-sweep"
@@ -555,23 +603,58 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 12,
   },
+  headerLeading: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  headerTitleGroup: { flex: 1, minWidth: 0 },
   closeBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
-  list: { paddingHorizontal: 16 },
+  list: { paddingHorizontal: 12, paddingBottom: 4 },
   emptyList: { flex: 1 },
 });
 
 const queueModalThemedStyles = createThemedStyles((colors) => ({
   container: { backgroundColor: colors.background },
-  headerTitle: { color: colors.text, fontSize: 18, fontWeight: "700" },
+  header: {
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+  },
+  headerTitle: {
+    color: colors.text,
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+  headerSubtitle: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 1,
+  },
+  closeBtn: { backgroundColor: colors.surfaceLight },
 }));
 
 export default TranslationQueueModal;

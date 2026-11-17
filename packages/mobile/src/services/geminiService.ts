@@ -19,6 +19,22 @@ import {
   runSequentialStreaming,
 } from "./geminiBatchRunner";
 
+const buildSubtitleRequest = (
+  startOffset?: string,
+  endOffset?: string
+): string => {
+  const segmentDescription =
+    startOffset || endOffset
+      ? `The attached media is the source interval ${startOffset || "0s"} to ${endOffset || "the end"}.`
+      : "The attached media contains the full available video.";
+
+  return `Create complete Vietnamese SRT subtitles for the attached media.
+${segmentDescription}
+Cover only content that is audible or visibly readable in this attachment. Do not summarize, omit intelligible speech, or infer content outside it.
+Use timestamps relative to the attachment: its first frame is 00:00:00,000, not the original video's absolute timeline.
+Before returning, silently verify cue numbering, timestamp order, non-overlap, non-empty text, and raw-SRT-only output.`;
+};
+
 // Translate a single video batch with automatic key rotation
 const translateVideoBatch = async (
   videoUrl: string,
@@ -46,7 +62,7 @@ const translateVideoBatch = async (
         role: "user" as const,
         parts: [
           videoPart,
-          { text: "Hãy tạo phụ đề SRT tiếng Việt cho video này." },
+          { text: buildSubtitleRequest(startOffset, endOffset) },
         ],
       },
     ];
@@ -354,7 +370,28 @@ export const translateVideoWithGemini = async (
             }),
           });
         },
-        options?.abortSignal
+        options?.abortSignal,
+        (result, runIndex, completedRunIndices) => {
+          const originalIndex = taskIndexMap[runIndex];
+          accumulatedResults.push(result);
+          const completedOriginalIndices = [
+            ...skipIndices,
+            ...completedRunIndices.map((index) => taskIndexMap[index]),
+          ].sort((a, b) => a - b);
+          const partialSrt = mergeSrtContents(
+            [...accumulatedResults],
+            options?.videoDuration,
+          );
+          const completedRanges = completedOriginalIndices.map(
+            (index) => batchRanges[index],
+          );
+          options?.onBatchComplete?.(
+            partialSrt,
+            originalIndex,
+            numBatches,
+            completedRanges,
+          );
+        },
       );
 
       // Check if aborted
@@ -408,7 +445,10 @@ export const translateVideoWithGemini = async (
         });
       }
 
-      const mergedSrt = mergeSrtContents(successfulResults, options?.videoDuration);
+      const mergedSrt = mergeSrtContents(
+        accumulatedResults,
+        options?.videoDuration,
+      );
       onChunk?.(mergedSrt);
       return mergedSrt;
     }

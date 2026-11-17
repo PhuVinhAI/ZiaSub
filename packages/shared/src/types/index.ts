@@ -8,12 +8,53 @@ export interface SubtitleItem {
   text: string;
 }
 
+export type SubtitleFontFamily =
+  | "system"
+  | "rounded"
+  | "serif"
+  | "monospace";
+export type SubtitleTextAlign = "left" | "center" | "right";
+export type SubtitleTextTransform = "none" | "uppercase";
+export type SubtitleHorizontalPosition = "left" | "center" | "right";
+export type SubtitleBackgroundMode = "none" | "portrait" | "always";
+export type SubtitleAnimation = "none" | "fade" | "pop";
+export type SubtitleShadowStyle = "classic" | "custom";
+export type SubtitleWidthMode = "full" | "fit";
+
 export interface SubtitleSettings {
   fontSize: number;
+  fontFamily: SubtitleFontFamily;
   fontWeight: "normal" | "bold";
   fontStyle: "normal" | "italic";
+  textTransform: SubtitleTextTransform;
+  textColor: string;
+  textOpacity: number;
+  letterSpacing: number;
+  lineHeight: number;
+  textAlign: SubtitleTextAlign;
+  backgroundMode: SubtitleBackgroundMode;
+  backgroundColor: string;
+  backgroundOpacity: number;
+  backgroundPaddingHorizontal: number;
+  backgroundPaddingVertical: number;
+  backgroundRadius: number;
+  outlineEnabled: boolean;
+  outlineColor: string;
+  outlineWidth: number;
+  shadowEnabled: boolean;
+  shadowStyle: SubtitleShadowStyle;
+  shadowColor: string;
+  shadowOpacity: number;
+  shadowBlur: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  widthMode: SubtitleWidthMode;
+  maxWidth: number;
+  horizontalPosition: SubtitleHorizontalPosition;
   portraitBottom: number;
   landscapeBottom: number;
+  animation: SubtitleAnimation;
+  animationDuration: number;
 }
 
 // ============================================
@@ -39,6 +80,12 @@ export interface BatchProgress {
 
 export type BatchStatus = "pending" | "completed" | "error";
 
+export interface RetranslateBatchRange {
+  index: number;
+  start: number;
+  end: number;
+}
+
 export interface SavedTranslation {
   id: string;
   srtContent: string;
@@ -54,6 +101,7 @@ export interface SavedTranslation {
   rangeEnd?: number;
   videoDuration?: number;
   batchSettings?: Partial<BatchSettings>;
+  completedBatchRanges?: Array<{ start: number; end: number }>;
   // Batch status tracking - array of status for each batch index
   // e.g., ["completed", "completed", "pending"] means batch 0,1 done, batch 2 pending
   batchStatuses?: BatchStatus[];
@@ -92,21 +140,9 @@ export interface TranslationJob {
   // Batch retranslation mode
   retranslateBatchIndex?: number;
   retranslateMode?: "single" | "fromHere";
+  retranslateBatchIndices?: number[];
   // Flag to indicate this is a batch retranslation (not full video translation)
   isBatchRetranslation?: boolean;
-}
-
-// ============================================
-// TTS TYPES
-// ============================================
-export interface TTSSettings {
-  enabled: boolean;
-  rate: number;
-  pitch: number;
-  language: string;
-  duckVideo: boolean;
-  duckLevel: number;
-  autoRate: boolean;
 }
 
 // ============================================
@@ -154,6 +190,7 @@ export interface ChatMessage {
   id: string;
   role: "user" | "model";
   content: string;
+  modelContent?: string;
   timestamp: number;
   hasVideo?: boolean;
   videoTitle?: string;
@@ -222,6 +259,7 @@ export interface QueueItem {
   // Batch retranslation mode
   retranslateBatchIndex?: number; // Index of batch being retranslated
   retranslateMode?: "single" | "fromHere"; // single = only this batch, fromHere = this batch and all after
+  retranslateBatchIndices?: number[]; // Arbitrary batches selected for retranslation
   // Time range translation mode (translate only specific time range x-y)
   // This is different from batch retranslation - it's a fresh translation of a specific time range
   rangeStart?: number; // Start time in seconds
@@ -270,7 +308,6 @@ export interface AppSettings {
   subtitle: SubtitleSettings;
   batch: BatchSettings;
   apiKeys: ApiKeysSettings;
-  tts: TTSSettings;
   floatingUI: FloatingUISettings;
   notification: NotificationSettings;
   debug: DebugSettings;

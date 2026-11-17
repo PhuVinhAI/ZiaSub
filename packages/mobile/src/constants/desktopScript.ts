@@ -1,8 +1,12 @@
 // Desktop YouTube injected script
 // Separated for better maintainability
 
+import { SUBTITLE_STYLE_RUNTIME } from "./subtitleStyleRuntime";
+
 export const INJECTED_JAVASCRIPT_DESKTOP = `
   (function() {
+    ${SUBTITLE_STYLE_RUNTIME}
+
     // Inject responsive CSS for desktop YouTube on mobile webview
     function injectResponsiveCSS() {
       if (document.getElementById('ziasub-responsive-css')) return;
@@ -303,10 +307,38 @@ export const INJECTED_JAVASCRIPT_DESKTOP = `
     
     // Subtitle style settings (same as mobile)
     let subtitleFontSize = 15;
+    let subtitleFontFamily = 'system';
     let subtitleFontWeight = 'bold';
     let subtitleFontStyle = 'normal';
+    let subtitleTextTransform = 'none';
+    let subtitleTextColor = '#FFFFFF';
+    let subtitleTextOpacity = 100;
+    let subtitleLetterSpacing = 0;
+    let subtitleLineHeight = 1.5;
+    let subtitleTextAlign = 'center';
+    let subtitleBackgroundMode = 'portrait';
+    let subtitleBackgroundColor = '#000000';
+    let subtitleBackgroundOpacity = 70;
+    let subtitleBackgroundPaddingHorizontal = 16;
+    let subtitleBackgroundPaddingVertical = 8;
+    let subtitleBackgroundRadius = 8;
+    let subtitleOutlineEnabled = true;
+    let subtitleOutlineColor = '#000000';
+    let subtitleOutlineWidth = 0.8;
+    let subtitleShadowEnabled = true;
+    let subtitleShadowStyle = 'classic';
+    let subtitleShadowColor = '#000000';
+    let subtitleShadowOpacity = 100;
+    let subtitleShadowBlur = 4;
+    let subtitleShadowOffsetX = 1;
+    let subtitleShadowOffsetY = 1;
+    let subtitleWidthMode = 'full';
+    let subtitleMaxWidth = 90;
+    let subtitleHorizontalPosition = 'center';
     let portraitBottom = 100;
     let landscapeBottom = 8;
+    let subtitleAnimation = 'none';
+    let subtitleAnimationDuration = 180;
 
     const throttle = (fn, delay) => {
       let last = 0;
@@ -331,23 +363,55 @@ export const INJECTED_JAVASCRIPT_DESKTOP = `
       return subtitleLayer;
     }
     
+    function getCurrentSubtitleStyle() {
+      return {
+        fontSize: subtitleFontSize,
+        fontFamily: subtitleFontFamily,
+        fontWeight: subtitleFontWeight,
+        fontStyle: subtitleFontStyle,
+        textTransform: subtitleTextTransform,
+        textColor: subtitleTextColor,
+        textOpacity: subtitleTextOpacity,
+        letterSpacing: subtitleLetterSpacing,
+        lineHeight: subtitleLineHeight,
+        textAlign: subtitleTextAlign,
+        backgroundMode: subtitleBackgroundMode,
+        backgroundColor: subtitleBackgroundColor,
+        backgroundOpacity: subtitleBackgroundOpacity,
+        backgroundPaddingHorizontal: subtitleBackgroundPaddingHorizontal,
+        backgroundPaddingVertical: subtitleBackgroundPaddingVertical,
+        backgroundRadius: subtitleBackgroundRadius,
+        outlineEnabled: subtitleOutlineEnabled,
+        outlineColor: subtitleOutlineColor,
+        outlineWidth: subtitleOutlineWidth,
+        shadowEnabled: subtitleShadowEnabled,
+        shadowStyle: subtitleShadowStyle,
+        shadowColor: subtitleShadowColor,
+        shadowOpacity: subtitleShadowOpacity,
+        shadowBlur: subtitleShadowBlur,
+        shadowOffsetX: subtitleShadowOffsetX,
+        shadowOffsetY: subtitleShadowOffsetY,
+        widthMode: subtitleWidthMode,
+        maxWidth: subtitleMaxWidth,
+        horizontalPosition: subtitleHorizontalPosition,
+        portraitBottom,
+        landscapeBottom,
+        animation: subtitleAnimation,
+        animationDuration: subtitleAnimationDuration
+      };
+    }
+
     function updateSubtitleStyle() {
       if (!subtitleLayer) return;
-      const weight = subtitleFontWeight === 'bold' ? '600' : '400';
-      const textStroke = '-webkit-text-stroke:0.8px #000;paint-order:stroke fill;';
-      const textShadow = 'text-shadow:0 0 2px #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 -1px 0 #000,0 1px 0 #000,-1px 0 0 #000,1px 0 0 #000;';
-      
-      // Same logic as mobile: background in portrait, no background in landscape/fullscreen
-      const bgStyle = isPortrait 
-        ? 'background:rgba(0,0,0,0.7);padding:8px 16px;border-radius:8px;' 
-        : '';
-      
-      const bottomPos = isPortrait ? portraitBottom : landscapeBottom;
-      
-      // Use fixed position in portrait mode to prevent scrolling with page
-      // Use absolute position in fullscreen mode (attached to fullscreen element)
-      const positionType = isPortrait ? 'fixed' : 'absolute';
-      subtitleLayer.style.cssText = 'position:' + positionType + ';bottom:' + bottomPos + 'px;left:5%;right:5%;max-width:90%;margin:0 auto;text-align:center;color:#FFF;font-size:' + subtitleFontSize + 'px;font-weight:' + weight + ';font-style:' + subtitleFontStyle + ';font-family:system-ui,sans-serif;' + textStroke + textShadow + bgStyle + 'pointer-events:none;z-index:2147483647;display:' + (lastSubtitle ? 'block' : 'none') + ';line-height:1.5;white-space:pre-line;transform:translateZ(0);backface-visibility:hidden;contain:layout style paint';
+      subtitleLayer.style.cssText = ziaBuildSubtitleCss(
+        getCurrentSubtitleStyle(),
+        isPortrait,
+        !!lastSubtitle
+      );
+    }
+
+    function animateSubtitle(layer) {
+      ziaAnimateSubtitle(layer, getCurrentSubtitleStyle());
     }
 
     function ensureSubtitleInFullscreen() {
@@ -402,12 +466,10 @@ export const INJECTED_JAVASCRIPT_DESKTOP = `
               window.ReactNativeWebView.postMessage('{"type":"videoDuration","payload":' + video.duration + '}');
             }
             
-            if (!video.paused) {
-              const t = video.currentTime;
-              if (Math.abs(t - lastTime) > 0.2) {
-                lastTime = t;
-                window.ReactNativeWebView.postMessage('{"type":"currentTime","payload":' + t + '}');
-              }
+            const t = video.currentTime;
+            if (Math.abs(t - lastTime) > 0.2) {
+              lastTime = t;
+              window.ReactNativeWebView.postMessage('{"type":"currentTime","payload":' + t + '}');
             }
             
             // Desktop YouTube title selectors
@@ -555,21 +617,73 @@ export const INJECTED_JAVASCRIPT_DESKTOP = `
     const handleMessage = throttle((e) => {
       try {
         const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (d.type === 'setSubtitle' && d.payload !== lastSubtitle) {
+        if (d.type === 'seekTo') {
+          const video = getVideo();
+          const requestedTime = Number(d.payload);
+          if (video && Number.isFinite(requestedTime)) {
+            const duration = Number.isFinite(video.duration) ? video.duration : requestedTime;
+            video.currentTime = Math.max(0, Math.min(requestedTime, duration));
+            lastTime = video.currentTime;
+            window.ReactNativeWebView.postMessage('{"type":"currentTime","payload":' + video.currentTime + '}');
+          }
+        } else if (d.type === 'setVisualSubtitleEditor') {
+          const enabled = !!d.payload;
+          document.documentElement.style.overflow = enabled ? 'hidden' : '';
+          document.body.style.overflow = enabled ? 'hidden' : '';
+          if (enabled) {
+            const video = getVideo();
+            setTimeout(() => {
+              if (video) {
+                video.scrollIntoView({ block: 'start', inline: 'nearest' });
+                window.scrollBy(0, -56);
+              }
+            }, 50);
+          }
+        } else if (d.type === 'setSubtitle' && d.payload !== lastSubtitle) {
           lastSubtitle = d.payload;
           const layer = initSubtitleLayer();
           if (d.payload) {
             layer.textContent = d.payload;
             layer.style.display = 'block';
+            animateSubtitle(layer);
           } else {
             layer.style.display = 'none';
           }
         } else if (d.type === 'setSubtitleStyle') {
-          subtitleFontSize = d.payload.fontSize || 15;
-          subtitleFontWeight = d.payload.fontWeight || 'bold';
-          subtitleFontStyle = d.payload.fontStyle || 'normal';
-          portraitBottom = d.payload.portraitBottom || 100;
-          landscapeBottom = d.payload.landscapeBottom || 8;
+          const style = d.payload || {};
+          subtitleFontSize = style.fontSize ?? 15;
+          subtitleFontFamily = style.fontFamily || 'system';
+          subtitleFontWeight = style.fontWeight || 'bold';
+          subtitleFontStyle = style.fontStyle || 'normal';
+          subtitleTextTransform = style.textTransform || 'none';
+          subtitleTextColor = style.textColor || '#FFFFFF';
+          subtitleTextOpacity = style.textOpacity ?? 100;
+          subtitleLetterSpacing = style.letterSpacing ?? 0;
+          subtitleLineHeight = style.lineHeight ?? 1.5;
+          subtitleTextAlign = style.textAlign || 'center';
+          subtitleBackgroundMode = style.backgroundMode || 'portrait';
+          subtitleBackgroundColor = style.backgroundColor || '#000000';
+          subtitleBackgroundOpacity = style.backgroundOpacity ?? 70;
+          subtitleBackgroundPaddingHorizontal = style.backgroundPaddingHorizontal ?? 16;
+          subtitleBackgroundPaddingVertical = style.backgroundPaddingVertical ?? 8;
+          subtitleBackgroundRadius = style.backgroundRadius ?? 8;
+          subtitleOutlineEnabled = style.outlineEnabled ?? true;
+          subtitleOutlineColor = style.outlineColor || '#000000';
+          subtitleOutlineWidth = style.outlineWidth ?? 0.8;
+          subtitleShadowEnabled = style.shadowEnabled ?? true;
+          subtitleShadowStyle = style.shadowStyle || 'classic';
+          subtitleShadowColor = style.shadowColor || '#000000';
+          subtitleShadowOpacity = style.shadowOpacity ?? 100;
+          subtitleShadowBlur = style.shadowBlur ?? 4;
+          subtitleShadowOffsetX = style.shadowOffsetX ?? 1;
+          subtitleShadowOffsetY = style.shadowOffsetY ?? 1;
+          subtitleWidthMode = style.widthMode || 'full';
+          subtitleMaxWidth = style.maxWidth ?? 90;
+          subtitleHorizontalPosition = style.horizontalPosition || 'center';
+          portraitBottom = style.portraitBottom ?? 100;
+          landscapeBottom = style.landscapeBottom ?? 8;
+          subtitleAnimation = style.animation || 'none';
+          subtitleAnimationDuration = style.animationDuration ?? 180;
           updateSubtitleStyle();
         } else if (d.type === 'setTranslatedVideos') {
           if (Array.isArray(d.payload)) {
@@ -597,9 +711,6 @@ export const INJECTED_JAVASCRIPT_DESKTOP = `
           });
           queuedVideoIds = newQueuedIds;
           markVideos();
-        } else if (d.type === 'setVideoVolume') {
-          const video = getVideo();
-          if (video) video.volume = Math.max(0, Math.min(1, d.payload));
         }
       } catch (e) {}
     }, 16);

@@ -18,8 +18,6 @@ export {
   getBatchSettings,
   saveApiKeys,
   getApiKeys,
-  saveTTSSettings,
-  getTTSSettings,
   saveFloatingUISettings,
   getFloatingUISettings,
   saveNotificationSettings,
@@ -32,6 +30,13 @@ export {
 // SRT
 export { saveSRT, getSRT, removeSRT } from "./srtStorage";
 
+// Saved YouTube URLs
+export {
+  getSavedYouTubeUrls,
+  addSavedYouTubeUrl,
+  removeSavedYouTubeUrl,
+} from "./savedUrlStorage";
+
 // Translations
 export {
   saveTranslation,
@@ -43,8 +48,13 @@ export {
   getAllTranslatedVideoUrls,
   getFullyTranslatedVideoUrls,
   getPartialOnlyVideoUrls,
+  getTranslationHistory,
   hasTranslation,
   getActiveTranslation,
+} from "./translationStorage";
+export type {
+  TranslationHistoryItem,
+  TranslationHistoryStatus,
 } from "./translationStorage";
 
 // Gemini
@@ -126,7 +136,6 @@ export {
 export type {
   SubtitleSettings,
   BatchSettings,
-  TTSSettings,
   ApiKeysSettings,
   AppSettings,
   SavedTranslation,
@@ -143,7 +152,6 @@ export type {
 export {
   DEFAULT_SUBTITLE_SETTINGS,
   DEFAULT_BATCH_SETTINGS,
-  DEFAULT_TTS_SETTINGS,
   DEFAULT_API_KEYS_SETTINGS,
   DEFAULT_APP_SETTINGS,
   DEFAULT_SYSTEM_PROMPT,

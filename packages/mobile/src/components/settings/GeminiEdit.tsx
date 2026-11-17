@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   TouchableOpacity,
@@ -7,63 +7,52 @@ import {
   Platform,
   StyleSheet,
   Modal,
-  Animated,
-  Dimensions,
   ScrollView,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
-import { BottomSheetModal } from "@components/common";
+import {
+  BottomSheetModal,
+  ControlSlider,
+  SelectionSettingRow,
+} from "@components/common";
 import type { GeminiConfig } from "@src/types";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { supportsMinimalThinking } from "@services/geminiModelConfig";
+import {
+  SettingsCard,
+  SettingsPageIntro,
+  SettingsSectionHeader,
+} from "./SettingsPrimitives";
+import SystemPromptEditor from "./SystemPromptEditor";
 
 // Model IDs
+const MODEL_GEMINI_3_7_FLASH = "models/gemini-3.7-flash";
 const MODEL_GEMINI_3_6_FLASH = "models/gemini-3.6-flash";
 const MODEL_GEMINI_3_5_FLASH = "models/gemini-3.5-flash";
 const MODEL_GEMINI_3_5_FLASH_LITE = "models/gemini-3.5-flash-lite";
 const MODEL_GEMINI_3_FLASH = "models/gemini-3-flash-preview";
 const MODEL_GEMINI_3_1_PRO = "models/gemini-3.1-pro-preview";
 const MODEL_GEMINI_3_1_FLASH_LITE = "models/gemini-3.1-flash-lite";
+const MODEL_GEMINI_PRO = "models/gemini-pro-latest";
 const MODEL_GEMINI_FLASH = "models/gemini-flash-latest";
 const MODEL_GEMINI_FLASH_LITE = "models/gemini-flash-lite-latest";
 
 const AVAILABLE_MODELS = [
   { id: MODEL_GEMINI_FLASH, name: "Gemini Flash (Latest)" },
   { id: MODEL_GEMINI_FLASH_LITE, name: "Gemini Flash Lite (Latest)" },
+  { id: MODEL_GEMINI_PRO, name: "Gemini Pro (Latest)" },
+  { id: MODEL_GEMINI_3_7_FLASH, name: "Gemini 3.7 Flash" },
   { id: MODEL_GEMINI_3_6_FLASH, name: "Gemini 3.6 Flash" },
   { id: MODEL_GEMINI_3_5_FLASH, name: "Gemini 3.5 Flash" },
   { id: MODEL_GEMINI_3_5_FLASH_LITE, name: "Gemini 3.5 Flash Lite" },
   { id: MODEL_GEMINI_3_1_FLASH_LITE, name: "Gemini 3.1 Flash Lite" },
   { id: MODEL_GEMINI_3_FLASH, name: "Gemini 3 Flash (Preview)" },
   { id: MODEL_GEMINI_3_1_PRO, name: "Gemini 3.1 Pro (Preview)" },
-];
-
-const MEDIA_RESOLUTION_OPTIONS = [
-  { id: "MEDIA_RESOLUTION_HIGH", name: "Cao (High)" },
-  { id: "MEDIA_RESOLUTION_MEDIUM", name: "Trung bình (Medium)" },
-  { id: "MEDIA_RESOLUTION_LOW", name: "Thấp (Low)" },
-  { id: "MEDIA_RESOLUTION_UNSPECIFIED", name: "Mặc định" },
-];
-
-// Thinking options for Gemini Flash models (MINIMAL, LOW, MEDIUM, HIGH)
-const THINKING_LEVEL_OPTIONS_FULL = [
-  { id: "HIGH", name: "Cao (High)" },
-  { id: "MEDIUM", name: "Trung bình (Medium)" },
-  { id: "LOW", name: "Thấp (Low)" },
-  { id: "MINIMAL", name: "Tối thiểu (Minimal)" },
-];
-
-// Thinking options for Gemini 3.1 Pro (LOW, HIGH)
-const THINKING_LEVEL_OPTIONS_PRO = [
-  { id: "HIGH", name: "Cao (High)" },
-  { id: "LOW", name: "Thấp (Low)" },
 ];
 
 interface SelectOption {
@@ -89,9 +78,6 @@ const SelectBottomSheet: React.FC<SelectBottomSheetProps> = ({
   onSelect,
   onClose,
 }) => {
-  const { colors } = useTheme();
-  const themedSheetStyles = useThemedStyles(sheetThemedStyles);
-
   return (
     <BottomSheetModal
       visible={visible}
@@ -99,46 +85,24 @@ const SelectBottomSheet: React.FC<SelectBottomSheetProps> = ({
       title={title}
       maxHeightRatio={0.65}
     >
-      <ScrollView style={sheetStyles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={sheetStyles.list}
+        contentContainerStyle={sheetStyles.listContent}
+        showsVerticalScrollIndicator={false}
+      >
         {options.map((option) => {
           const isActive = option.id === selectedId;
           return (
-            <TouchableOpacity
+            <SelectionSettingRow
               key={option.id}
-              style={[
-                themedSheetStyles.item,
-                isActive && themedSheetStyles.itemActive,
-              ]}
+              label={option.name}
+              description={option.subText}
+              selected={isActive}
               onPress={() => {
                 onSelect(option.id);
                 onClose();
               }}
-            >
-              <View style={sheetStyles.itemContent}>
-                <View style={sheetStyles.itemText}>
-                  <Text
-                    style={[
-                      themedSheetStyles.itemName,
-                      isActive && themedSheetStyles.itemNameActive,
-                    ]}
-                  >
-                    {option.name}
-                  </Text>
-                  {option.subText && (
-                    <Text style={themedSheetStyles.itemSubText}>
-                      {option.subText}
-                    </Text>
-                  )}
-                </View>
-              </View>
-              {isActive && (
-                <MaterialCommunityIcons
-                  name="check-circle"
-                  size={20}
-                  color={colors.primary}
-                />
-              )}
-            </TouchableOpacity>
+            />
           );
         })}
       </ScrollView>
@@ -169,31 +133,60 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showResolutionPicker, setShowResolutionPicker] = useState(false);
   const [showThinkingPicker, setShowThinkingPicker] = useState(false);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
 
   const selectedModel = AVAILABLE_MODELS.find((m) => m.id === config.model);
   const modelDisplayName = selectedModel ? selectedModel.name : config.model;
 
-  const is31Pro = config.model === MODEL_GEMINI_3_1_PRO;
+  const noMinimalThinking = !supportsMinimalThinking(config.model);
 
-  const isFlashLite =
-    config.model === MODEL_GEMINI_3_1_FLASH_LITE ||
-    config.model === MODEL_GEMINI_3_5_FLASH_LITE ||
-    config.model === MODEL_GEMINI_FLASH_LITE;
+  const mediaResolutionOptions = useMemo<SelectOption[]>(
+    () => [
+      {
+        id: "MEDIA_RESOLUTION_HIGH",
+        name: t("settings.geminiConfig.optionHigh"),
+      },
+      {
+        id: "MEDIA_RESOLUTION_MEDIUM",
+        name: t("settings.geminiConfig.optionMedium"),
+      },
+      {
+        id: "MEDIA_RESOLUTION_LOW",
+        name: t("settings.geminiConfig.optionLow"),
+      },
+      {
+        id: "MEDIA_RESOLUTION_UNSPECIFIED",
+        name: t("settings.geminiConfig.optionDefault"),
+      },
+    ],
+    [t],
+  );
 
   const thinkingLevelOptions = useMemo(() => {
-    if (is31Pro) return THINKING_LEVEL_OPTIONS_PRO;
-    return THINKING_LEVEL_OPTIONS_FULL;
-  }, [is31Pro]);
+    const high = { id: "HIGH", name: t("settings.geminiConfig.optionHigh") };
+    const medium = {
+      id: "MEDIUM",
+      name: t("settings.geminiConfig.optionMedium"),
+    };
+    const low = { id: "LOW", name: t("settings.geminiConfig.optionLow") };
+    if (noMinimalThinking) return [high, medium, low];
+    return [
+      high,
+      medium,
+      low,
+      { id: "MINIMAL", name: t("settings.geminiConfig.optionMinimal") },
+    ];
+  }, [noMinimalThinking, t]);
 
   const selectedThinking = thinkingLevelOptions.find(
-    (o) => o.id === (config.thinkingLevel || "HIGH")
+    (o) => o.id === (config.thinkingLevel || "HIGH"),
   );
   const thinkingDisplayName = selectedThinking
     ? selectedThinking.name
     : config.thinkingLevel || "HIGH";
 
-  const selectedResolution = MEDIA_RESOLUTION_OPTIONS.find(
-    (o) => o.id === (config.mediaResolution || "MEDIA_RESOLUTION_HIGH")
+  const selectedResolution = mediaResolutionOptions.find(
+    (o) => o.id === (config.mediaResolution || "MEDIA_RESOLUTION_HIGH"),
   );
   const resolutionDisplayName = selectedResolution
     ? selectedResolution.name
@@ -202,6 +195,9 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
   const statusBarHeight =
     Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
   const paddingTop = Math.max(insets.top, statusBarHeight, 20);
+  const editorTitle = config.id
+    ? t("settings.geminiConfig.editTitle")
+    : t("settings.geminiConfig.addTitle");
 
   return (
     <Modal
@@ -212,16 +208,36 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
     >
       <View style={[styles.fullScreen, { paddingTop }]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
-            <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={onCancel}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.cancel")}
+          >
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={24}
+              color={colors.text}
+            />
           </TouchableOpacity>
-          <Text style={styles.titleText}>
-            {config.id
-              ? t("settings.geminiConfig.editTitle")
-              : t("settings.geminiConfig.addTitle")}
-          </Text>
-          <TouchableOpacity style={styles.saveBtn} onPress={onSave}>
-            <Text style={styles.saveBtnText}>{t("common.save")}</Text>
+          <Text style={styles.titleText}>{editorTitle}</Text>
+          <TouchableOpacity
+            style={[
+              styles.saveBtn,
+              !config.name.trim() && styles.saveBtnDisabled,
+            ]}
+            onPress={onSave}
+            disabled={!config.name.trim()}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.save")}
+          >
+            <MaterialCommunityIcons
+              name="content-save-outline"
+              size={20}
+              color={
+                config.name.trim() ? colors.onPrimary : colors.disabledText
+              }
+            />
           </TouchableOpacity>
         </View>
 
@@ -233,118 +249,222 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingLabel}>
-              {t("settings.geminiConfig.name")}
-            </Text>
-            <RNTextInput
-              style={styles.input}
-              value={config.name}
-              onChangeText={(text) => onChange({ ...config, name: text })}
-              placeholder={t("settings.geminiConfig.namePlaceholder")}
-              placeholderTextColor={colors.textMuted}
+          <View style={styles.contentInner}>
+            <SettingsPageIntro
+              icon="robot-outline"
+              title={editorTitle}
+              description={t("settings.geminiConfig.editorDescription")}
             />
-          </View>
 
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingLabel}>
-              {t("settings.geminiConfig.model")}
-            </Text>
-            <TouchableOpacity
-              style={styles.modelPicker}
-              onPress={() => setShowModelPicker(true)}
-            >
-              <Text style={styles.modelPickerText}>{modelDisplayName}</Text>
-              <MaterialCommunityIcons
-                name="chevron-down"
-                size={20}
-                color={colors.textMuted}
+            <View style={styles.section}>
+              <SettingsSectionHeader
+                icon="card-text-outline"
+                title={t("settings.geminiConfig.basicTitle")}
+                description={t("settings.geminiConfig.basicDescription")}
               />
-            </TouchableOpacity>
-          </View>
+              <SettingsCard style={styles.formCard}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.settingLabel}>
+                    {t("settings.geminiConfig.name")}
+                  </Text>
+                  <RNTextInput
+                    style={styles.input}
+                    value={config.name}
+                    onChangeText={(text) => onChange({ ...config, name: text })}
+                    placeholder={t("settings.geminiConfig.namePlaceholder")}
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
 
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingLabel}>
-              {t("settings.geminiConfig.temperature", {
-                value: config.temperature.toFixed(1),
-              })}
-            </Text>
-            <Slider
-              style={styles.slider}
-              minimumValue={0.0}
-              maximumValue={2.0}
-              step={0.1}
-              value={config.temperature}
-              onSlidingComplete={(value) =>
-                onChange({ ...config, temperature: value })
-              }
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-          </View>
+                <View style={styles.divider} />
 
-          {!isFlashLite && (
-            <View style={styles.settingGroup}>
-              <Text style={styles.settingLabel}>
-                {t("settings.geminiConfig.mediaResolution")}
-              </Text>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.settingLabel}>
+                    {t("settings.geminiConfig.model")}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.modelPicker}
+                    onPress={() => setShowModelPicker(true)}
+                    activeOpacity={0.72}
+                  >
+                    <View style={styles.pickerIcon}>
+                      <MaterialCommunityIcons
+                        name="memory"
+                        size={20}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <View style={styles.pickerTextContent}>
+                      <Text style={styles.modelPickerText}>
+                        {modelDisplayName}
+                      </Text>
+                      <Text style={styles.modelPickerHint} numberOfLines={1}>
+                        {config.model}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={22}
+                      color={colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </SettingsCard>
+            </View>
+
+            <View style={styles.section}>
+              <SettingsSectionHeader
+                icon="tune-variant"
+                title={t("settings.geminiConfig.behaviorTitle")}
+                description={t("settings.geminiConfig.behaviorDescription")}
+              />
+              <SettingsCard style={styles.formCard}>
+                <ControlSlider
+                  label={t("settings.geminiConfig.temperatureLabel")}
+                  description={t("settings.geminiConfig.temperatureHint")}
+                  icon="creation-outline"
+                  minimumValue={0.0}
+                  maximumValue={2.0}
+                  step={0.1}
+                  value={config.temperature}
+                  formatValue={(value) => value.toFixed(1)}
+                  minimumLabel={t("settings.geminiConfig.temperaturePrecise")}
+                  maximumLabel={t("settings.geminiConfig.temperatureCreative")}
+                  onSlidingComplete={(value) =>
+                    onChange({ ...config, temperature: value })
+                  }
+                />
+
+                <View style={styles.divider} />
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.settingLabel}>
+                    {t("settings.geminiConfig.mediaResolution")}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.modelPicker}
+                    onPress={() => setShowResolutionPicker(true)}
+                    activeOpacity={0.72}
+                  >
+                    <View style={styles.pickerIcon}>
+                      <MaterialCommunityIcons
+                        name="video-high-definition"
+                        size={20}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <Text
+                      style={[styles.modelPickerText, styles.pickerTextContent]}
+                    >
+                      {resolutionDisplayName}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={22}
+                      color={colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.settingLabel}>
+                    {t("settings.geminiConfig.thinkingLevel")}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.modelPicker}
+                    onPress={() => setShowThinkingPicker(true)}
+                    activeOpacity={0.72}
+                  >
+                    <View style={styles.pickerIcon}>
+                      <MaterialCommunityIcons
+                        name="head-cog-outline"
+                        size={20}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <Text
+                      style={[styles.modelPickerText, styles.pickerTextContent]}
+                    >
+                      {thinkingDisplayName}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={22}
+                      color={colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </SettingsCard>
+            </View>
+
+            <View style={styles.section}>
+              <SettingsSectionHeader
+                icon="text-box-edit-outline"
+                title={t("settings.geminiConfig.systemPrompt")}
+                description={t("settings.geminiConfig.promptDescription")}
+                trailing={
+                  <View style={styles.characterPill}>
+                    <Text style={styles.characterText}>
+                      {t("settings.geminiConfig.characters", {
+                        count: config.systemPrompt.length,
+                      })}
+                    </Text>
+                  </View>
+                }
+              />
               <TouchableOpacity
-                style={styles.modelPicker}
-                onPress={() => setShowResolutionPicker(true)}
+                style={styles.promptPreview}
+                onPress={() => setShowPromptEditor(true)}
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.edit")}
               >
-                <Text style={styles.modelPickerText}>
-                  {resolutionDisplayName}
+                <View style={styles.promptPreviewIcon}>
+                  <MaterialCommunityIcons
+                    name="file-document-edit-outline"
+                    size={21}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.promptPreviewText,
+                    !config.systemPrompt.trim() &&
+                      styles.promptPreviewPlaceholder,
+                  ]}
+                  numberOfLines={4}
+                >
+                  {config.systemPrompt.trim() ||
+                    t("settings.geminiConfig.systemPromptPlaceholder")}
                 </Text>
                 <MaterialCommunityIcons
-                  name="chevron-down"
+                  name="arrow-expand"
                   size={20}
                   color={colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
-          )}
-
-          {/* Thinking Config */}
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingLabel}>
-              {t("settings.geminiConfig.thinkingLevel")}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.modelPicker}
-              onPress={() => setShowThinkingPicker(true)}
-            >
-              <Text style={styles.modelPickerText}>{thinkingDisplayName}</Text>
-              <MaterialCommunityIcons
-                name="chevron-down"
-                size={20}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingLabel}>
-              {t("settings.geminiConfig.systemPrompt")}
-            </Text>
-            <RNTextInput
-              style={styles.promptInput}
-              value={config.systemPrompt}
-              onChangeText={(text) => onChange({ ...config, systemPrompt: text })}
-              placeholder={t("settings.geminiConfig.systemPromptPlaceholder")}
-              placeholderTextColor={colors.textMuted}
-              multiline
-              textAlignVertical="top"
-            />
           </View>
         </KeyboardAwareScrollView>
+
+        <SystemPromptEditor
+          visible={showPromptEditor}
+          value={config.systemPrompt}
+          onSave={(systemPrompt) => onChange({ ...config, systemPrompt })}
+          onClose={() => setShowPromptEditor(false)}
+        />
 
         {/* Model Picker Bottom Sheet */}
         <SelectBottomSheet
           visible={showModelPicker}
           title={t("settings.geminiConfig.model")}
-          options={AVAILABLE_MODELS.map((m) => ({ id: m.id, name: m.name, subText: m.id }))}
+          options={AVAILABLE_MODELS.map((m) => ({
+            id: m.id,
+            name: m.name,
+            subText: m.id,
+          }))}
           selectedId={config.model}
           onSelect={(modelId) => onChange({ ...config, model: modelId })}
           onClose={() => setShowModelPicker(false)}
@@ -354,9 +474,11 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
         <SelectBottomSheet
           visible={showResolutionPicker}
           title={t("settings.geminiConfig.mediaResolution")}
-          options={MEDIA_RESOLUTION_OPTIONS}
+          options={mediaResolutionOptions}
           selectedId={config.mediaResolution || "MEDIA_RESOLUTION_HIGH"}
-          onSelect={(resId) => onChange({ ...config, mediaResolution: resId as any })}
+          onSelect={(resId) =>
+            onChange({ ...config, mediaResolution: resId as any })
+          }
           onClose={() => setShowResolutionPicker(false)}
         />
 
@@ -366,7 +488,9 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
           title={t("settings.geminiConfig.thinkingLevel")}
           options={thinkingLevelOptions}
           selectedId={config.thinkingLevel || "HIGH"}
-          onSelect={(levelId) => onChange({ ...config, thinkingLevel: levelId as any })}
+          onSelect={(levelId) =>
+            onChange({ ...config, thinkingLevel: levelId as any })
+          }
           onClose={() => setShowThinkingPicker(false)}
         />
       </View>
@@ -376,30 +500,8 @@ const GeminiEdit: React.FC<GeminiEditProps> = ({
 
 const sheetStyles = StyleSheet.create({
   list: { maxHeight: 380 },
-  itemContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
-  itemText: { flex: 1 },
+  listContent: { gap: 4, paddingBottom: 12 },
 });
-
-const sheetThemedStyles = createThemedStyles((colors) => ({
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  itemActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  itemName: { color: colors.text, fontSize: 15, fontWeight: "500" },
-  itemNameActive: { color: colors.primary },
-  itemSubText: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-}));
 
 const themedStyles = createThemedStyles((colors) => ({
   fullScreen: {
@@ -410,66 +512,129 @@ const themedStyles = createThemedStyles((colors) => ({
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "space-between" as const,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: 60,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  cancelBtn: { padding: 8 },
-  cancelBtnText: { color: colors.textMuted, fontSize: 15 },
-  titleText: { color: colors.text, fontSize: 17, fontWeight: "600" as const },
-  saveBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
+  cancelBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
   },
-  saveBtnText: {
-    color: colors.onPrimary,
-    fontSize: 14,
-    fontWeight: "600" as const,
+  titleText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "700" as const,
+    textAlign: "center" as const,
+  },
+  saveBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
   },
   container: { flex: 1 },
   content: { padding: 16 },
-  settingGroup: { marginBottom: 20 },
+  contentInner: {
+    width: "100%" as const,
+    maxWidth: 720,
+    alignSelf: "center" as const,
+  },
+  saveBtnDisabled: { backgroundColor: colors.disabled },
+  section: { marginBottom: 26 },
+  formCard: { padding: 16 },
+  fieldGroup: { width: "100%" as const },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 18 },
   settingLabel: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: "500" as const,
+    fontWeight: "700" as const,
     marginBottom: 8,
   },
-  slider: { width: "100%" as const, height: 40 },
   input: {
     backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 13,
+    minHeight: 54,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
     color: colors.text,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
+    fontSize: 15,
   },
-  promptInput: {
+  promptPreview: {
+    minHeight: 92,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 12,
     backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  promptPreviewIcon: {
+    width: 40,
+    height: 40,
+    flexShrink: 0,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    borderRadius: 8,
+    backgroundColor: colors.primarySoft,
+  },
+  promptPreviewText: {
+    flex: 1,
+    minWidth: 0,
     color: colors.text,
     fontSize: 13,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 200,
-    maxHeight: 300,
+    lineHeight: 19,
   },
+  promptPreviewPlaceholder: { color: colors.textMuted },
   modelPicker: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "space-between" as const,
     backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
+    minHeight: 64,
+    gap: 11,
+    borderRadius: 13,
+    padding: 10,
   },
-  modelPickerText: { color: colors.text, fontSize: 14 },
+  pickerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    backgroundColor: colors.primarySoft,
+  },
+  pickerTextContent: { flex: 1 },
+  modelPickerText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "600" as const,
+  },
+  modelPickerHint: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontFamily: "monospace",
+    marginTop: 3,
+  },
+  characterPill: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  characterText: {
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: "700" as const,
+  },
 }));
 
 export default GeminiEdit;

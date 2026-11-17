@@ -29,6 +29,7 @@ import { backgroundService } from "@services/backgroundService";
 
 type InitState = "loading" | "onboarding" | "ready" | "error";
 
+// ─── App Content ─────────────────────────────────────────────────────────────
 const AppContent = () => {
   const { colors, isDark } = useTheme();
   const [initState, setInitState] = useState<InitState>("loading");
@@ -36,20 +37,23 @@ const AppContent = () => {
   const appState = useRef(AppState.currentState);
   const {
     updateModalVisible,
-    setUpdateModalVisible,
     updateResult,
-    dismissUpdate,
     checkForUpdate,
+    dismissUpdate,
   } = useUpdate();
 
   // Handle app state changes - auto backup when going to background
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      const previousAppState = appState.current;
+      // Update immediately so active -> inactive -> background cannot schedule
+      // two backups while the first asynchronous write is still running.
+      appState.current = nextAppState;
+
       if (
-        appState.current.match(/active/) &&
+        previousAppState.match(/active/) &&
         nextAppState.match(/inactive|background/)
       ) {
-        // App is going to background, auto backup if enabled
         console.log("[App] Going to background...");
         try {
           const autoBackupEnabled = await storageService.isAutoBackupEnabled();
@@ -63,7 +67,6 @@ const AppContent = () => {
           console.error("[App] Auto backup error:", error);
         }
       }
-      appState.current = nextAppState;
     };
 
     const subscription = AppState.addEventListener(
@@ -89,13 +92,12 @@ const AppContent = () => {
         const onboardingCompleted =
           await storageService.getOnboardingCompleted();
 
-        // If onboarding not completed, show onboarding
         if (!onboardingCompleted) {
           setInitState("onboarding");
           return;
         }
 
-        // Step 4: Initialize keyManager with API keys
+        // Step 4: Initialize keyManager
         setLoadingMessage("Đang khởi tạo API keys...");
         const apiKeys = storageService.getApiKeys();
         if (apiKeys.length > 0) {
@@ -105,7 +107,6 @@ const AppContent = () => {
         // Step 5: Initialize background service
         await backgroundService.initialize();
 
-        // All done!
         setInitState("ready");
 
         // Check for updates in background
@@ -240,9 +241,8 @@ const AppContent = () => {
         <HomeScreen />
         <UpdateModal
           visible={updateModalVisible}
-          onClose={() => setUpdateModalVisible(false)}
           updateResult={updateResult}
-          onDismissUpdate={dismissUpdate}
+          onDismiss={dismissUpdate}
         />
       </AlertProvider>
     </PaperProvider>

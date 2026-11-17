@@ -6,13 +6,6 @@
 import { StyleSheet } from "react-native";
 import { createThemedStyles } from "@hooks/useThemedStyles";
 
-export const QUICK_ACTION_MAP: Record<string, string> = {
-  summary: "Tóm tắt nội dung video này",
-  analyze: "Phân tích chi tiết video này",
-  keypoints: "Liệt kê các điểm chính trong video",
-  translate: "Dịch nội dung video sang tiếng Việt",
-};
-
 export const styles = StyleSheet.create({
   modalOverlay: { flex: 1 },
   container: {
@@ -24,18 +17,25 @@ export const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 10,
   },
   headerBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
-  taskList: { padding: 16, paddingBottom: 110, flexGrow: 1 },
+  headerTitleGroup: { flex: 1, minWidth: 0 },
+  taskList: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 0,
+    flexGrow: 1,
+  },
   inputFloatingContainer: {
     position: "absolute",
     left: 0,
@@ -45,7 +45,11 @@ export const styles = StyleSheet.create({
     zIndex: 10,
   },
   drawerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 20,
     elevation: 10,
   },
@@ -53,12 +57,22 @@ export const styles = StyleSheet.create({
 
 export const chatModalThemedStyles = createThemedStyles((colors) => ({
   container: { backgroundColor: colors.background },
+  header: {
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerBtn: { backgroundColor: colors.surfaceLight },
   headerTitle: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center",
-    marginHorizontal: 8,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  headerSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 1,
   },
 }));

@@ -5,6 +5,7 @@ import {
   Modal,
   TouchableOpacity,
   Pressable,
+  TouchableWithoutFeedback,
   Animated,
   Dimensions,
   ViewStyle,
@@ -12,8 +13,11 @@ import {
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -54,7 +58,7 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
   wrapperComponent: WrapperComponent,
   wrapperStyle,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const themedStyles = useThemedStyles(bottomSheetThemedStyles);
 
@@ -171,18 +175,21 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
     >
       <View style={styles.modalContainer}>
         {/* Backdrop Overlay */}
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            themedStyles.modalOverlay,
-            { opacity: fadeAnim },
-          ]}
-        >
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={onClose}
-          />
-        </Animated.View>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View
+            style={[
+              styles.modalOverlay,
+              { opacity: fadeAnim },
+            ]}
+          >
+            <AnimatedBlurView
+              intensity={30}
+              tint={isDark ? "dark" : "light"}
+              style={[StyleSheet.absoluteFill, themedStyles.modalOverlay]}
+              pointerEvents="none"
+            />
+          </Animated.View>
+        </TouchableWithoutFeedback>
 
         {/* Bottom Sheet Card */}
         {WrapperComponent ? (
@@ -203,7 +210,11 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   bottomSheet: {
     borderTopLeftRadius: 24,

@@ -6,10 +6,12 @@
 import React from "react";
 import { View } from "react-native";
 import { Text } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import type { QueueItem } from "@src/types";
 import type { QueueItemState } from "./queueItemState";
+import type { StatusStyle } from "./queueItemState";
 import { formatDate, formatTimeRange } from "./queueFormatters";
 
 interface QueueItemStatusTextProps {
@@ -17,6 +19,7 @@ interface QueueItemStatusTextProps {
   state: QueueItemState;
   queuePosition?: number;
   totalInQueue?: number;
+  statusStyle: StatusStyle;
   styles: any;
 }
 
@@ -25,6 +28,7 @@ const QueueItemStatusText: React.FC<QueueItemStatusTextProps> = ({
   state,
   queuePosition,
   totalInQueue,
+  statusStyle,
   styles,
 }) => {
   const { t } = useTranslation();
@@ -41,6 +45,11 @@ const QueueItemStatusText: React.FC<QueueItemStatusTextProps> = ({
 
   return (
     <View style={styles.footer}>
+      <MaterialCommunityIcons
+        name={statusStyle.icon}
+        size={13}
+        color={statusStyle.color}
+      />
       {item.status === "pending" && (
         <Text style={styles.statusText}>
           {t("queue.status.added", { date: formatDate(item.addedAt) })}
@@ -67,12 +76,18 @@ const QueueItemStatusText: React.FC<QueueItemStatusTextProps> = ({
         )}
       {isActivelyTranslating && isBatchRetranslation && (
         <Text style={[styles.statusText, { color: colors.primary }]}>
-          {item.retranslateMode === "single"
+          {item.retranslateBatchIndices?.length
+            ? t("queue.status.retranslatingSelected", {
+                completed: item.progress?.completed || 0,
+                total:
+                  item.progress?.total || item.retranslateBatchIndices.length,
+              })
+            : item.retranslateMode === "single"
             ? t("queue.status.retranslatingSingle", {
-                batch: item.retranslateBatchIndex! + 1,
+                batch: (item.retranslateBatchIndex || 0) + 1,
               })
             : t("queue.status.retranslatingFrom", {
-                batch: item.retranslateBatchIndex! + 1,
+                batch: (item.retranslateBatchIndex || 0) + 1,
               })}
         </Text>
       )}
@@ -96,12 +111,18 @@ const QueueItemStatusText: React.FC<QueueItemStatusTextProps> = ({
       )}
       {isPaused && isBatchRetranslation && (
         <Text style={[styles.statusText, { color: colors.warning }]}>
-          {item.retranslateMode === "single"
+          {item.retranslateBatchIndices?.length
+            ? t("queue.status.pausedBatchSelected", {
+                completed: item.completedBatches || 0,
+                total:
+                  item.totalBatches || item.retranslateBatchIndices.length,
+              })
+            : item.retranslateMode === "single"
             ? t("queue.status.pausedBatchSingle", {
-                batch: item.retranslateBatchIndex! + 1,
+                batch: (item.retranslateBatchIndex || 0) + 1,
               })
             : t("queue.status.pausedBatchFrom", {
-                batch: item.retranslateBatchIndex! + 1,
+                batch: (item.retranslateBatchIndex || 0) + 1,
               })}
         </Text>
       )}
@@ -111,7 +132,7 @@ const QueueItemStatusText: React.FC<QueueItemStatusTextProps> = ({
           <Text style={[styles.statusText, { color: colors.primary }]}>
             {queuePosition && totalInQueue
               ? `${t(
-                  "queue.status.waiting"
+                  "queue.status.waiting",
                 )} (${queuePosition}/${totalInQueue})`
               : t("queue.status.waiting")}
           </Text>
@@ -131,12 +152,16 @@ const QueueItemStatusText: React.FC<QueueItemStatusTextProps> = ({
         )}
       {isWaitingInQueue && isBatchRetranslationWaiting && (
         <Text style={[styles.statusText, { color: colors.primary }]}>
-          {item.retranslateMode === "single"
+          {item.retranslateBatchIndices?.length
+            ? t("queue.status.waitingBatchSelected", {
+                count: item.retranslateBatchIndices.length,
+              })
+            : item.retranslateMode === "single"
             ? t("queue.status.waitingBatchSingle", {
-                batch: item.retranslateBatchIndex! + 1,
+                batch: (item.retranslateBatchIndex || 0) + 1,
               })
             : t("queue.status.waitingBatchFrom", {
-                batch: item.retranslateBatchIndex! + 1,
+                batch: (item.retranslateBatchIndex || 0) + 1,
               })}
           {queuePosition && totalInQueue
             ? ` (${queuePosition}/${totalInQueue})`

@@ -20,4 +20,5 @@ export const KEYS = {
   BACKUP_TYPE: "@ziasub_backup_type",
   AUTO_BACKUP_ENABLED: "@ziasub_auto_backup",
   LAST_BACKUP_TIME: "@ziasub_last_backup",
+  SAVED_YOUTUBE_URLS: "@ziasub_saved_youtube_urls",
 };

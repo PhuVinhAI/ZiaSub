@@ -6,7 +6,6 @@ import type {
   AppSettings,
   SubtitleSettings,
   BatchSettings,
-  TTSSettings,
   FloatingUISettings,
   NotificationSettings,
 } from "@src/types";
@@ -14,7 +13,6 @@ import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_SUBTITLE_SETTINGS,
   DEFAULT_BATCH_SETTINGS,
-  DEFAULT_TTS_SETTINGS,
   DEFAULT_FLOATING_UI_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
 } from "@constants/defaults";
@@ -71,20 +69,6 @@ export const saveApiKeys = async (keys: string[]): Promise<void> => {
 
 export const getApiKeys = async (): Promise<string[]> => {
   return storageService.getApiKeys();
-};
-
-// ============================================
-// TTS SETTINGS
-// ============================================
-export const saveTTSSettings = async (settings: TTSSettings): Promise<void> => {
-  const appSettings = storageService.getSettings();
-  appSettings.tts = settings;
-  await storageService.setSettings(appSettings);
-};
-
-export const getTTSSettings = async (): Promise<TTSSettings> => {
-  const appSettings = storageService.getSettings();
-  return appSettings.tts || DEFAULT_TTS_SETTINGS;
 };
 
 // ============================================

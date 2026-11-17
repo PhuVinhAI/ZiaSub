@@ -11,7 +11,7 @@ export const useHomeModals = () => {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [queueModalVisible, setQueueModalVisible] = useState(false);
   const [chatModalVisible, setChatModalVisible] = useState(false);
-  const [faqModalVisible, setFaqModalVisible] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
   return {
@@ -23,8 +23,8 @@ export const useHomeModals = () => {
     setQueueModalVisible,
     chatModalVisible,
     setChatModalVisible,
-    faqModalVisible,
-    setFaqModalVisible,
+    historyVisible,
+    setHistoryVisible,
     isChatLoading,
     setIsChatLoading,
   };

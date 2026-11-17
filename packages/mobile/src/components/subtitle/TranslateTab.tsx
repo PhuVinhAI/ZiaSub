@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, ScrollView } from "react-native";
 import { alert, confirm, confirmDestructive } from "../common/CustomAlert";
 import { Text } from "react-native-paper";
@@ -22,8 +22,8 @@ import { logger } from "@services/loggerService";
 import { parseTime } from "@utils/videoUtils";
 import { parseSRT } from "@utils/srtParser";
 import { type PresetPromptType } from "@constants/defaults";
-// Tách từ file này sang file riêng — chỉ import, không sửa logic
 import { rebuildSrt } from "./translate/translateTabUtils";
+// Tách từ file này sang file riêng — chỉ import, không sửa logic
 import {
   styles,
   translateTabThemedStyles,
@@ -39,7 +39,9 @@ import {
   AdvancedOptions,
   TranslateConfigPicker,
   PresetPromptPicker,
+  BatchRetranslationEditor,
 } from "./translate";
+import { getBatchesInfo } from "./translate/translationListUtils";
 
 interface TranslateTabProps {
   videoUrl?: string;
@@ -87,6 +89,8 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(translateTabThemedStyles);
+  const [batchEditorTranslation, setBatchEditorTranslation] =
+    useState<SavedTranslation | null>(null);
 
   const {
     geminiConfigs,
@@ -137,6 +141,14 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
     handleStreamingModeChange,
     handlePresubModeChange,
   } = useAdvancedOptions({ batchSettings, onBatchSettingsChange });
+
+  const batchEditorBatches = useMemo(
+    () =>
+      batchEditorTranslation
+        ? getBatchesInfo(batchEditorTranslation, videoDuration)
+        : [],
+    [batchEditorTranslation, videoDuration],
+  );
 
   // Expose loadTranslations to parent via ref
   useEffect(() => {
@@ -255,28 +267,15 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
 
     // Check if resuming from partial translation
     if (resumeTranslation?.isPartial && resumeTranslation.srtContent) {
-      // Parse SRT to get completed ranges
-      const parsed = parseSRT(resumeTranslation.srtContent);
-      if (parsed.length > 0) {
-        // Build completed ranges from parsed subtitles
-        // Group consecutive subtitles into ranges based on batch settings
-        const batchDuration =
-          resumeTranslation.batchSettings?.maxVideoDuration ||
-          batchSettings?.maxVideoDuration ||
-          600;
-        const completedRanges: Array<{ start: number; end: number }> = [];
-
-        // Simple approach: calculate ranges based on completed batches count
-        const completedBatches = resumeTranslation.completedBatches || 0;
-        for (let i = 0; i < completedBatches; i++) {
-          const start = i * batchDuration;
-          const end = Math.min(
-            (i + 1) * batchDuration,
-            resumeTranslation.videoDuration || videoDuration || Infinity
-          );
-          completedRanges.push({ start, end });
-        }
-
+      const completedRanges = resumeTranslation.completedBatchRanges?.length
+        ? resumeTranslation.completedBatchRanges
+        : getBatchesInfo(resumeTranslation, videoDuration)
+            .filter((batch) => batch.status === "completed")
+            .map((batch) => ({
+              start: batch.startTime,
+              end: batch.endTime,
+            }));
+      if (completedRanges.length > 0) {
         resumeData = {
           partialSrt: resumeTranslation.srtContent,
           completedBatchRanges: completedRanges,
@@ -717,6 +716,141 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
     }
   };
 
+  const handleRetranslateSelectedBatches = async (
+    translation: SavedTranslation,
+    batchIndices: number[],
+    configId: string,
+  ) => {
+    if (!videoUrl || batchIndices.length === 0) return;
+    if (translationManager.isTranslatingUrl(videoUrl)) {
+      alert(
+        t("common.notice"),
+        t("subtitleModal.translate.alreadyTranslating"),
+      );
+      return;
+    }
+
+    const config = geminiConfigs.find((item) => item.id === configId);
+    if (!config) {
+      alert(
+        t("subtitleModal.translate.notSelected"),
+        t("subtitleModal.translate.notSelectedMessage"),
+      );
+      return;
+    }
+
+    const allBatches = getBatchesInfo(translation, videoDuration);
+    const selectedSet = new Set(batchIndices);
+    const selectedRanges = allBatches
+      .filter((batch) => selectedSet.has(batch.index))
+      .map((batch) => ({
+        index: batch.index,
+        start: batch.startTime,
+        end: batch.endTime,
+      }));
+    if (selectedRanges.length === 0) return;
+
+    const originalSettings = translation.batchSettings;
+    const effectiveBatchSettings: BatchSettings = {
+      maxVideoDuration:
+        originalSettings?.maxVideoDuration ??
+        batchSettings?.maxVideoDuration ??
+        600,
+      maxConcurrentBatches:
+        originalSettings?.maxConcurrentBatches ??
+        batchSettings?.maxConcurrentBatches ??
+        1,
+      batchOffset:
+        originalSettings?.batchOffset ?? batchSettings?.batchOffset ?? 60,
+      streamingMode:
+        originalSettings?.streamingMode ?? batchSettings?.streamingMode ?? true,
+      presubMode:
+        originalSettings?.presubMode ?? batchSettings?.presubMode ?? false,
+      presubDuration:
+        originalSettings?.presubDuration ??
+        batchSettings?.presubDuration ??
+        120,
+      presubConfigId:
+        originalSettings?.presubConfigId ?? batchSettings?.presubConfigId,
+    };
+    const effectiveConfig =
+      config.name === translation.configName && translation.presetId
+        ? { ...config, presetId: translation.presetId }
+        : config;
+    const normalizedIndices = selectedRanges.map((batch) => batch.index);
+    const { queueManager } = await import("@services/queueManager");
+
+    await queueManager.syncDirectTranslation(
+      videoUrl,
+      videoTitle,
+      translation.videoDuration || videoDuration,
+      effectiveConfig.name,
+      true,
+      effectiveConfig.id,
+      effectiveConfig.presetId,
+      effectiveBatchSettings,
+      undefined,
+      undefined,
+      translation.id,
+      undefined,
+      undefined,
+      normalizedIndices,
+    );
+    setRetranslatingTranslationId(translation.id);
+    setBatchEditorTranslation(null);
+
+    if (translationManager.isTranslating()) {
+      alert(t("common.notice"), t("queue.addedToWaitingQueue"));
+      return;
+    }
+
+    try {
+      const updatedSrt = await translationManager.translateSelectedBatches(
+        videoUrl,
+        effectiveConfig,
+        translation.srtContent,
+        selectedRanges,
+        translation.videoDuration || videoDuration,
+        translation.id,
+        {
+          batchSettings: effectiveBatchSettings,
+          translationTotalBatches:
+            translation.totalBatches || allBatches.length,
+          translationBatchStatuses: translation.batchStatuses,
+          allBatchIndices: normalizedIndices,
+        },
+      );
+
+      await queueManager.clearBatchRetranslateMode(videoUrl);
+      setRetranslatingTranslationId(null);
+      await loadTranslations();
+      onSelectTranslation(updatedSrt);
+      alert(
+        t("common.success"),
+        t("subtitleModal.translate.batchEditor.completed", {
+          count: normalizedIndices.length,
+        }),
+      );
+    } catch (error: any) {
+      const currentQueueItem = queueManager.isInQueue(videoUrl);
+      if (
+        currentQueueItem?.status !== "paused" &&
+        (currentQueueItem?.retranslateBatchIndices?.length ||
+          currentQueueItem?.retranslateBatchIndex !== undefined)
+      ) {
+        await queueManager.pauseBatchRetranslation(videoUrl);
+      }
+      setRetranslatingTranslationId(null);
+
+      if (!error.message?.includes("Đã dừng")) {
+        alert(
+          t("subtitleModal.translate.error"),
+          error.message || t("errors.generic"),
+        );
+      }
+    }
+  };
+
   const handleSelectTranslation = async (translation: SavedTranslation) => {
     if (!videoUrl) return;
     await setActiveTranslation(videoUrl, translation.id);
@@ -806,7 +940,7 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
           onSelect={handleSelectTranslation}
           onDelete={handleDeleteTranslation}
           onResume={handleResumeTranslation}
-          onRetranslateBatch={handleRetranslateBatch}
+          onOpenBatchEditor={setBatchEditorTranslation}
           onStopBatchRetranslate={async () => {
             if (videoUrl) {
               // Pause in queue FIRST to prevent auto-resume, then abort translation
@@ -817,20 +951,14 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
           }}
           onResumeBatchRetranslate={async () => {
             if (videoUrl && pausedBatchRetranslation) {
-              // Find the translation being retranslated using translationId
-              const translation = pausedBatchRetranslation.translationId
-                ? savedTranslations.find(
-                    (t) => t.id === pausedBatchRetranslation.translationId
-                  )
-                : savedTranslations[0]; // Fallback to first translation
-              if (translation) {
-                // Skip confirm since user already confirmed in queue modal
-                handleRetranslateBatch(
-                  translation,
-                  pausedBatchRetranslation.batchIndex,
-                  pausedBatchRetranslation.mode,
-                  true // skipConfirm
-                );
+              const { queueManager } = await import("@services/queueManager");
+              const result = await queueManager.resumeBatchRetranslation(
+                videoUrl,
+              );
+              if (result.queued) {
+                alert(t("common.notice"), t("queue.addedToWaitingQueue"));
+              } else if (!result.success) {
+                alert(t("common.error"), t("errors.generic"));
               }
             }
           }}
@@ -839,7 +967,9 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
               const { queueManager } = await import("@services/queueManager");
               // If currently processing, abort translation first
               if (batchRetranslateJob?.status === "processing") {
-                await translationManager.abortTranslation(videoUrl);
+                await translationManager.abortTranslation(videoUrl, {
+                  skipSavePartial: true,
+                });
               }
               // Clear batch retranslation mode from queue
               await queueManager.clearBatchRetranslateMode(videoUrl);
@@ -847,14 +977,12 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
               setRetranslatingTranslationId(null);
             }
           }}
-          videoDuration={videoDuration}
           isPausedInQueue={isPausedInQueue}
           isWaitingInQueue={isWaitingInQueue}
           isTranslating={isTranslating}
           batchRetranslateJob={batchRetranslateJob}
           pausedBatchRetranslation={pausedBatchRetranslation}
           retranslatingTranslationId={retranslatingTranslationId}
-          presubMode={presubMode}
         />
         {!hasApiKey && (
           <View style={themedStyles.warningContainer}>
@@ -1057,6 +1185,23 @@ export const TranslateTab: React.FC<TranslateTabProps> = ({
           />
         )}
       </View>
+      <BatchRetranslationEditor
+        visible={!!batchEditorTranslation}
+        translation={batchEditorTranslation}
+        batches={batchEditorBatches}
+        configs={geminiConfigs}
+        defaultConfigId={selectedConfigId}
+        canStart={
+          hasApiKey &&
+          !isTranslating &&
+          !isWaitingInQueue &&
+          !isPausedInQueue &&
+          !batchRetranslateJob &&
+          !pausedBatchRetranslation
+        }
+        onClose={() => setBatchEditorTranslation(null)}
+        onStart={handleRetranslateSelectedBatches}
+      />
     </View>
   );
 };

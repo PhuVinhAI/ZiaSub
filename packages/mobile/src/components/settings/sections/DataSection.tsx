@@ -13,8 +13,10 @@ import { useTheme } from "@src/contexts";
 import { storageService } from "@services/storageService";
 import { backupService } from "@services/backupService";
 import { showAlert } from "@components/common/CustomAlert";
+import ToggleSettingRow from "@components/common/ToggleSettingRow";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Updates from "expo-updates";
+import { SettingsSectionHeader } from "../SettingsPrimitives";
 
 interface DataInfo {
   backupPath: string | null;
@@ -264,9 +266,20 @@ export const DataSection: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Data Stats */}
+      <SettingsSectionHeader
+        icon="chart-box-outline"
+        title={t("settings.data.overviewTitle")}
+        description={t("settings.data.overviewDescription")}
+      />
       <View style={styles.statsRow}>
         <View
-          style={[styles.statCard, { backgroundColor: colors.surfaceLight }]}
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
         >
           <MaterialCommunityIcons
             name="chat"
@@ -282,7 +295,13 @@ export const DataSection: React.FC = () => {
         </View>
 
         <View
-          style={[styles.statCard, { backgroundColor: colors.surfaceLight }]}
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
         >
           <MaterialCommunityIcons
             name="translate"
@@ -299,7 +318,17 @@ export const DataSection: React.FC = () => {
       </View>
 
       {/* Backup Path Info */}
-      <View style={[styles.infoCard, { backgroundColor: colors.surfaceLight }]}>
+      <SettingsSectionHeader
+        icon="cloud-sync-outline"
+        title={t("settings.data.backupTitle")}
+        description={t("settings.data.backupDescription")}
+      />
+      <View
+        style={[
+          styles.infoCard,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
             name="folder-sync"
@@ -317,7 +346,11 @@ export const DataSection: React.FC = () => {
               {dataInfo?.backupPath || t("settings.data.notConfigured")}
             </Text>
           </View>
-          <TouchableOpacity onPress={handleChangeBackupPath}>
+          <TouchableOpacity
+            style={[styles.editPathButton, { backgroundColor: colors.primarySoft }]}
+            onPress={handleChangeBackupPath}
+            hitSlop={8}
+          >
             <MaterialCommunityIcons
               name="pencil"
               size={20}
@@ -352,6 +385,7 @@ export const DataSection: React.FC = () => {
               backgroundColor: colors.primarySoft,
               borderColor: colors.primary,
             },
+            (backing || !dataInfo?.backupPath) && styles.disabledAction,
           ]}
           onPress={handleBackupNow}
           disabled={backing || !dataInfo?.backupPath}
@@ -382,6 +416,7 @@ export const DataSection: React.FC = () => {
               backgroundColor: colors.surfaceLight,
               borderColor: colors.border,
             },
+            (restoring || !dataInfo?.backupPath) && styles.disabledAction,
           ]}
           onPress={handleRestore}
           disabled={restoring || !dataInfo?.backupPath}
@@ -406,55 +441,39 @@ export const DataSection: React.FC = () => {
         </TouchableOpacity>
 
         {/* Auto Backup Toggle */}
-        <TouchableOpacity
+        <View
           style={[
-            styles.actionButton,
+            styles.toggleSurface,
             {
               backgroundColor: colors.surfaceLight,
               borderColor: colors.border,
             },
           ]}
-          onPress={handleToggleAutoBackup}
         >
-          <MaterialCommunityIcons
-            name={dataInfo?.autoBackupEnabled ? "sync" : "sync-off"}
-            size={20}
-            color={
+          <ToggleSettingRow
+            value={Boolean(dataInfo?.autoBackupEnabled)}
+            onValueChange={handleToggleAutoBackup}
+            label={t("settings.data.autoBackup")}
+            description={
               dataInfo?.autoBackupEnabled
-                ? colors.success
-                : colors.textSecondary
-            }
-          />
-          <View style={styles.actionContent}>
-            <Text style={[styles.actionTitle, { color: colors.text }]}>
-              {t("settings.data.autoBackup")}
-            </Text>
-            <Text style={[styles.actionDesc, { color: colors.textSecondary }]}>
-              {dataInfo?.autoBackupEnabled
                 ? t("settings.data.autoBackupOn")
-                : t("settings.data.autoBackupOff")}
-            </Text>
-          </View>
-          <MaterialCommunityIcons
-            name={
-              dataInfo?.autoBackupEnabled
-                ? "toggle-switch"
-                : "toggle-switch-off"
+                : t("settings.data.autoBackupOff")
             }
-            size={32}
-            color={
-              dataInfo?.autoBackupEnabled
-                ? colors.success
-                : colors.textSecondary
-            }
+            icon="sync-off"
+            activeIcon="sync"
+            activeColor={colors.success}
+            activeBackgroundColor={colors.successBg}
           />
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* Danger Zone */}
-      <Text style={[styles.sectionTitle, { color: colors.error }]}>
-        {t("settings.data.dangerZone")}
-      </Text>
+      <SettingsSectionHeader
+        icon="alert-octagon-outline"
+        title={t("settings.data.dangerZone")}
+        description={t("settings.data.dangerDescription")}
+        tone="danger"
+      />
       <View style={styles.actionsContainer}>
         <TouchableOpacity
           style={[
@@ -530,7 +549,8 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: "center",
     gap: 8,
   },
@@ -544,7 +564,8 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   infoRow: {
     flexDirection: "row",
@@ -553,6 +574,13 @@ const styles = StyleSheet.create({
   },
   infoContent: {
     flex: 1,
+  },
+  editPathButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
   },
   infoLabel: {
     fontSize: 12,
@@ -565,11 +593,6 @@ const styles = StyleSheet.create({
     height: 1,
     marginVertical: 12,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 8,
-  },
   actionsContainer: {
     gap: 12,
   },
@@ -577,10 +600,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     gap: 12,
   },
+  toggleSurface: { borderRadius: 14, borderWidth: 1, padding: 2 },
+  disabledAction: { opacity: 0.45 },
   actionContent: {
     flex: 1,
   },

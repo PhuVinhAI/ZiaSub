@@ -7,9 +7,13 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "bun test tests",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.2.0"
   }
 }

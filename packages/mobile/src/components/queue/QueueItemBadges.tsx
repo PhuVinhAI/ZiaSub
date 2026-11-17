@@ -26,27 +26,36 @@ const QueueItemBadges: React.FC<QueueItemBadgesProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { presetName, batchSettingsInfo, isTimeRangeTranslation, isBatchRetranslation } =
-    state;
+  const {
+    presetName,
+    batchSettingsInfo,
+    isTimeRangeTranslation,
+    isBatchRetranslation,
+  } = state;
 
-  if (
-    !(
-      item.configName ||
-      presetName ||
-      batchSettingsInfo ||
-      isTimeRangeTranslation ||
-      isBatchRetranslation
-    )
-  ) {
+  if (!(
+    item.configName ||
+    presetName ||
+    batchSettingsInfo ||
+    isTimeRangeTranslation ||
+    isBatchRetranslation
+  )) {
     return null;
   }
 
   return (
     <View style={styles.configRow}>
       {item.configName && (
-        <Text style={styles.configText} numberOfLines={1}>
-          {item.configName}
-        </Text>
+        <View style={styles.configBadge}>
+          <MaterialCommunityIcons
+            name="creation"
+            size={10}
+            color={colors.primary}
+          />
+          <Text style={styles.configText} numberOfLines={1}>
+            {item.configName}
+          </Text>
+        </View>
       )}
       {presetName && (
         <View style={styles.presetBadge}>
@@ -73,13 +82,15 @@ const QueueItemBadges: React.FC<QueueItemBadgesProps> = ({
         </View>
       )}
       {/* Batch retranslation mode badge */}
-      {item.retranslateBatchIndex !== undefined && (
+      {isBatchRetranslation && (
         <View
           style={[styles.settingsBadge, { backgroundColor: colors.warningBg }]}
         >
           <MaterialCommunityIcons
             name={
-              item.retranslateMode === "single"
+              item.retranslateBatchIndices?.length
+                ? "checkbox-multiple-marked-outline"
+                : item.retranslateMode === "single"
                 ? "numeric-1-box"
                 : "arrow-right-bold"
             }
@@ -90,12 +101,16 @@ const QueueItemBadges: React.FC<QueueItemBadgesProps> = ({
             style={[styles.settingsBadgeText, { color: colors.warning }]}
             numberOfLines={1}
           >
-            {item.retranslateMode === "single"
+            {item.retranslateBatchIndices?.length
+              ? t("queue.batchSelected", {
+                  count: item.retranslateBatchIndices.length,
+                })
+              : item.retranslateMode === "single"
               ? t("queue.batchSingle", {
-                  batch: item.retranslateBatchIndex + 1,
+                  batch: (item.retranslateBatchIndex || 0) + 1,
                 })
               : t("queue.batchFromHere", {
-                  batch: item.retranslateBatchIndex + 1,
+                  batch: (item.retranslateBatchIndex || 0) + 1,
                 })}
           </Text>
         </View>

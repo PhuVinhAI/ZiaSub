@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback } from "react";
 import type {
   SubtitleSettings,
   BatchSettings,
-  TTSSettings,
   FloatingUISettings,
   NotificationSettings,
   DebugSettings,
@@ -15,13 +14,11 @@ import { storageService } from "@services/storageService";
 import {
   DEFAULT_SUBTITLE_SETTINGS,
   DEFAULT_BATCH_SETTINGS,
-  DEFAULT_TTS_SETTINGS,
   DEFAULT_FLOATING_UI_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_DEBUG_SETTINGS,
 } from "@constants/defaults";
 import { keyManager } from "@services/keyManager";
-import { ttsService } from "@services/ttsService";
 import { notificationService } from "@services/notificationService";
 
 export const useAppSettings = () => {
@@ -31,8 +28,6 @@ export const useAppSettings = () => {
   const [batchSettings, setBatchSettings] = useState<BatchSettings>(
     DEFAULT_BATCH_SETTINGS
   );
-  const [ttsSettings, setTTSSettings] =
-    useState<TTSSettings>(DEFAULT_TTS_SETTINGS);
   const [floatingUISettings, setFloatingUISettings] =
     useState<FloatingUISettings>(DEFAULT_FLOATING_UI_SETTINGS);
   const [notificationSettings, setNotificationSettings] =
@@ -50,7 +45,6 @@ export const useAppSettings = () => {
 
         setSubtitleSettings(settings.subtitle || DEFAULT_SUBTITLE_SETTINGS);
         setBatchSettings(settings.batch || DEFAULT_BATCH_SETTINGS);
-        setTTSSettings(settings.tts || DEFAULT_TTS_SETTINGS);
         setFloatingUISettings(
           settings.floatingUI || DEFAULT_FLOATING_UI_SETTINGS
         );
@@ -66,8 +60,6 @@ export const useAppSettings = () => {
         if (keys.length > 0) {
           keyManager.initialize(keys);
         }
-        ttsService.setSettings(settings.tts || DEFAULT_TTS_SETTINGS);
-
         // Initialize notification service
         notificationService.initialize();
       } catch (error) {
@@ -101,19 +93,6 @@ export const useAppSettings = () => {
     },
     []
   );
-
-  const updateTTSSettings = useCallback(async (newSettings: TTSSettings) => {
-    setTTSSettings(newSettings);
-    ttsService.setSettings(newSettings);
-
-    const settings = storageService.getSettings();
-    settings.tts = newSettings;
-    await storageService.setSettings(settings);
-
-    if (!newSettings.enabled) {
-      ttsService.stop();
-    }
-  }, []);
 
   const updateApiKeys = useCallback(async (newKeys: string[]) => {
     setApiKeys(newKeys);
@@ -154,7 +133,6 @@ export const useAppSettings = () => {
   return {
     subtitleSettings,
     batchSettings,
-    ttsSettings,
     floatingUISettings,
     notificationSettings,
     debugSettings,
@@ -162,7 +140,6 @@ export const useAppSettings = () => {
     isLoading,
     updateSubtitleSettings,
     updateBatchSettings,
-    updateTTSSettings,
     updateFloatingUISettings,
     updateNotificationSettings,
     updateDebugSettings,

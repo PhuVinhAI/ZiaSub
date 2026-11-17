@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Switch, TouchableOpacity, ScrollView, Modal } from "react-native";
+import { View, StyleSheet, TouchableOpacity, ScrollView, Modal } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -8,9 +8,15 @@ import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import type { DebugSettings } from "@src/types";
 import Button3D from "@components/common/Button3D";
+import ToggleSettingRow from "@components/common/ToggleSettingRow";
 import { logger, LogFileInfo } from "@services/loggerService";
 import { storageService } from "@services/storageService";
 import { showAlert } from "@components/common/CustomAlert";
+import {
+  SettingsCard,
+  SettingsSectionHeader,
+  SettingsValuePill,
+} from "../SettingsPrimitives";
 
 interface DebugSectionProps {
   debugSettings: DebugSettings;
@@ -46,7 +52,9 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
   const loadInfo = async () => {
     const files = await logger.getLogFiles();
     setLogFiles(files);
-    const path = (await storageService.getBackupPath()) || "Mặc định (Default)";
+    const path =
+      (await storageService.getBackupPath()) ||
+      t("settings.debug.defaultStorage");
     setStoragePath(path);
   };
 
@@ -110,89 +118,139 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Switch Toggle */}
-      <View style={themedStyles.rowContainer}>
-        <View style={styles.toggleInfo}>
-          <MaterialCommunityIcons
-            name="bug-outline"
-            size={22}
-            color={debugSettings.enabled ? colors.success : colors.textMuted}
+      <View>
+        <SettingsSectionHeader
+          icon="power"
+          title={t("settings.debug.statusTitle")}
+          description={t("settings.debug.statusDescription")}
+        />
+        <SettingsCard style={styles.toggleCard}>
+          <ToggleSettingRow
+            value={debugSettings.enabled}
+            onValueChange={handleToggleEnabled}
+            label={
+              debugSettings.enabled
+                ? t("settings.debug.statusOn")
+                : t("settings.debug.statusOff")
+            }
+            description={t("settings.debug.enabledHint")}
+            icon="bug-outline"
+            activeIcon="bug-check-outline"
+            activeColor={colors.success}
+            activeBackgroundColor={colors.successBg}
           />
-          <View style={styles.textContainer}>
-            <Text style={themedStyles.settingLabel}>
-              {t("settings.debug.enabled")}
+        </SettingsCard>
+      </View>
+
+      <View>
+        <SettingsSectionHeader
+          icon="folder-cog-outline"
+          title={t("settings.debug.storageTitle")}
+          description={t("settings.debug.storageDescription")}
+        />
+        <View style={themedStyles.infoCard}>
+          <View style={[styles.pathIcon, themedStyles.pathIcon]}>
+            <MaterialCommunityIcons
+              name="folder-text-outline"
+              size={21}
+              color={colors.primary}
+            />
+          </View>
+          <View style={styles.infoTextWrapper}>
+            <Text style={themedStyles.infoTitle}>
+              {t("settings.debug.pathInfo")}
             </Text>
-            <Text style={themedStyles.settingHint}>
-              {t("settings.debug.enabledHint")}
+            <Text style={themedStyles.infoPath} numberOfLines={3}>
+              {logDirPath}/
             </Text>
           </View>
         </View>
-        <Switch
-          value={debugSettings.enabled}
-          onValueChange={handleToggleEnabled}
-          trackColor={{ false: colors.border, true: colors.success }}
-          thumbColor={debugSettings.enabled ? colors.onPrimary : colors.surfaceElevated}
+      </View>
+
+      <View>
+        <SettingsSectionHeader
+          icon="file-document-multiple-outline"
+          title={t("settings.debug.viewLogs")}
+          description={t("settings.debug.logsDescription")}
+          trailing={
+            <SettingsValuePill
+              value={t("settings.debug.logCount", { count: logFiles.length })}
+            />
+          }
         />
-      </View>
+        {logFiles.length > 0 ? (
+          <View style={styles.logListContainer}>
+            {logFiles.map((file) => (
+              <View key={file.name} style={themedStyles.logFileItem}>
+                <TouchableOpacity
+                  style={styles.fileItemMain}
+                  onPress={() => handleViewLog(file)}
+                >
+                  <View style={[styles.fileIcon, themedStyles.fileIcon]}>
+                    <MaterialCommunityIcons
+                      name="file-document-outline"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <View style={styles.fileNameContainer}>
+                    <Text style={themedStyles.fileName} numberOfLines={1}>
+                      {file.name}
+                    </Text>
+                    {file.size > 0 && (
+                      <Text
+                        style={[
+                          styles.fileSizeText,
+                          { color: colors.textMuted },
+                        ]}
+                      >
+                        {formatBytes(file.size)}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
 
-      {/* Path Info */}
-      <View style={themedStyles.infoCard}>
-        <MaterialCommunityIcons name="folder-text-outline" size={20} color={colors.primary} />
-        <View style={styles.infoTextWrapper}>
-          <Text style={themedStyles.infoTitle}>{t("settings.debug.pathInfo")}</Text>
-          <Text style={themedStyles.infoPath} numberOfLines={2}>
-            {logDirPath}/
-          </Text>
-          <Text style={themedStyles.infoCount}>
-            {t("settings.debug.logCount", { count: logFiles.length })}
-          </Text>
-        </View>
-      </View>
-
-      {/* Log Files list */}
-      {logFiles.length > 0 && (
-        <View style={styles.logListContainer}>
-          <Text style={themedStyles.sectionSubtitle}>{t("settings.debug.viewLogs")}</Text>
-          {logFiles.map((file) => (
-            <View key={file.name} style={themedStyles.logFileItem}>
-              <TouchableOpacity
-                style={styles.fileItemMain}
-                onPress={() => handleViewLog(file)}
-              >
-                <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.primary} />
-                <View style={styles.fileNameContainer}>
-                  <Text style={themedStyles.fileName} numberOfLines={1}>
-                    {file.name}
-                  </Text>
-                  {file.size > 0 && (
-                    <Text style={[styles.fileSizeText, { color: colors.textMuted }]}>{formatBytes(file.size)}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.deleteSingleBtn}
-                onPress={() => handleDeleteSingleLog(file)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.error} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.deleteSingleBtn, themedStyles.deleteSingleBtn]}
+                  onPress={() => handleDeleteSingleLog(file)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <MaterialCommunityIcons
+                    name="trash-can-outline"
+                    size={20}
+                    color={colors.error}
+                  />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={styles.actionRow}>
+              <Button3D
+                title={t("settings.debug.clearLogs")}
+                onPress={handleClearLogs}
+                variant="destructive"
+                size="small"
+                icon="delete-outline"
+              />
             </View>
-          ))}
-        </View>
-      )}
-
-      {logFiles.length > 0 && (
-        <View style={styles.actionRow}>
-          <Button3D
-            title={t("settings.debug.clearLogs")}
-            onPress={handleClearLogs}
-            variant="destructive"
-            size="small"
-            icon="delete-outline"
-          />
-        </View>
-      )}
+          </View>
+        ) : (
+          <View style={[styles.emptyState, themedStyles.emptyState]}>
+            <View style={[styles.emptyIcon, themedStyles.emptyIcon]}>
+              <MaterialCommunityIcons
+                name="file-check-outline"
+                size={27}
+                color={colors.textMuted}
+              />
+            </View>
+            <Text style={themedStyles.emptyTitle}>
+              {t("settings.debug.noLogs")}
+            </Text>
+            <Text style={themedStyles.emptyDescription}>
+              {t("settings.debug.noLogsDescription")}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {/* Viewer Modal */}
       <Modal
@@ -239,25 +297,24 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    gap: 26,
     paddingBottom: 24,
   },
-  toggleInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    paddingRight: 12,
-  },
-  textContainer: {
-    marginLeft: 12,
-    flex: 1,
+  toggleCard: {
+    padding: 6,
   },
   infoTextWrapper: {
-    marginLeft: 10,
     flex: 1,
   },
+  pathIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   logListContainer: {
-    marginTop: 16,
+    gap: 9,
   },
   fileItemMain: {
     flex: 1,
@@ -267,21 +324,44 @@ const styles = StyleSheet.create({
   },
   fileNameContainer: {
     flex: 1,
-    marginLeft: 10,
+  },
+  fileIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
   fileSizeText: {
     fontSize: 11,
     marginTop: 2,
   },
   deleteSingleBtn: {
-    padding: 6,
-    borderRadius: 6,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
   },
   actionRow: {
-    marginTop: 16,
+    marginTop: 5,
     alignItems: "stretch",
+  },
+  emptyState: {
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 11,
   },
   modalContainer: {
     flex: 1,
@@ -322,32 +402,17 @@ const styles = StyleSheet.create({
 
 const debugThemedStyles = createThemedStyles((colors) =>
   StyleSheet.create({
-    rowContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    settingLabel: {
-      fontSize: 15,
-      fontWeight: "600",
-      color: colors.text,
-    },
-    settingHint: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
     infoCard: {
       flexDirection: "row",
-      alignItems: "flex-start",
-      backgroundColor: colors.surfaceElevated,
-      padding: 12,
-      borderRadius: 8,
-      marginTop: 12,
+      alignItems: "center",
+      gap: 11,
+      backgroundColor: colors.surface,
+      padding: 14,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
+    pathIcon: { backgroundColor: colors.primarySoft },
     infoTitle: {
       fontSize: 13,
       fontWeight: "bold",
@@ -359,32 +424,36 @@ const debugThemedStyles = createThemedStyles((colors) =>
       marginTop: 2,
       fontFamily: "monospace",
     },
-    infoCount: {
-      fontSize: 11,
-      color: colors.textMuted,
-      marginTop: 4,
-    },
-    sectionSubtitle: {
-      fontSize: 13,
-      fontWeight: "bold",
-      color: colors.textMuted,
-      marginBottom: 8,
-      textTransform: "uppercase",
-    },
     logFileItem: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: colors.surfaceElevated,
-      paddingVertical: 10,
+      backgroundColor: colors.surface,
+      paddingVertical: 12,
       paddingHorizontal: 12,
-      borderRadius: 8,
-      marginBottom: 8,
+      borderRadius: 13,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
+    fileIcon: { backgroundColor: colors.primarySoft },
+    deleteSingleBtn: { backgroundColor: colors.errorBg },
     fileName: {
       fontSize: 13,
       fontWeight: "600",
       color: colors.text,
+    },
+    emptyState: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+    },
+    emptyIcon: { backgroundColor: colors.surfaceLight },
+    emptyTitle: { color: colors.text, fontSize: 15, fontWeight: "700" },
+    emptyDescription: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: "center",
+      marginTop: 4,
     },
   })
 );

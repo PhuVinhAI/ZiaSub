@@ -24,6 +24,8 @@ export interface UpdateCheckResult {
   hasUpdate: boolean;
   currentVersion: string;
   latestRelease: ReleaseInfo | null;
+  /** Updates are advisory; the UI always allows the user to postpone. */
+  mandatory: false;
 }
 
 /**
@@ -54,7 +56,7 @@ const compareVersions = (v1: string, v2: string): number => {
 /**
  * Fetch latest release info from GitHub
  */
-export const fetchLatestRelease = async (): Promise<ReleaseInfo | null> => {
+export const fetchLatestRelease = async (): Promise<ReleaseInfo> => {
   try {
     const response = await fetch(GITHUB_API_URL, {
       headers: {
@@ -63,8 +65,7 @@ export const fetchLatestRelease = async (): Promise<ReleaseInfo | null> => {
     });
 
     if (!response.ok) {
-      console.warn("Failed to fetch release:", response.status);
-      return null;
+      throw new Error(`Failed to fetch release: ${response.status}`);
     }
 
     const data = await response.json();
@@ -87,7 +88,7 @@ export const fetchLatestRelease = async (): Promise<ReleaseInfo | null> => {
     };
   } catch (error) {
     console.error("Error fetching release:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -98,20 +99,13 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
   const currentVersion = getCurrentVersion();
   const latestRelease = await fetchLatestRelease();
 
-  if (!latestRelease) {
-    return {
-      hasUpdate: false,
-      currentVersion,
-      latestRelease: null,
-    };
-  }
-
   const hasUpdate = compareVersions(latestRelease.version, currentVersion) > 0;
 
   return {
     hasUpdate,
     currentVersion,
     latestRelease,
+    mandatory: false,
   };
 };
 

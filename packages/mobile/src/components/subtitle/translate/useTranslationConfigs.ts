@@ -63,6 +63,15 @@ export function useTranslationConfigs() {
   const handleSelectConfig = (configId: string) => {
     setSelectedConfigId(configId);
     setShowConfigPicker(false);
+    const selectedConfig = geminiConfigs.find((config) => config.id === configId);
+    if (selectedConfig?.presetId) {
+      setCurrentPresetId(selectedConfig.presetId as PresetPromptType);
+      return;
+    }
+    const matchingPreset = PRESET_PROMPTS.find(
+      (preset) => preset.prompt === selectedConfig?.systemPrompt,
+    );
+    setCurrentPresetId(matchingPreset?.id || "custom");
   };
 
   return {

@@ -46,3 +46,11 @@ yarn-error.*
 *.tsbuildinfo
 
 credentials.json
+
+# Release signing credentials
+release-signing/
+
+# Secrets — never commit real keys!
+.env
+.env.local
+.env.*.local

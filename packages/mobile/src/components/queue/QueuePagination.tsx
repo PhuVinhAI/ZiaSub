@@ -2,6 +2,7 @@ import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles } from "@hooks/useThemedStyles";
 import { createQueueStyles } from "./queueStyles";
@@ -17,6 +18,7 @@ const QueuePagination: React.FC<QueuePaginationProps> = ({
   totalPages,
   onPageChange,
 }) => {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useThemedStyles(() => createQueueStyles(colors));
 
@@ -28,6 +30,9 @@ const QueuePagination: React.FC<QueuePaginationProps> = ({
         style={[styles.pageBtn, page === 1 && styles.pageBtnDisabled]}
         onPress={() => onPageChange(Math.max(1, page - 1))}
         disabled={page === 1}
+        activeOpacity={0.72}
+        accessibilityRole="button"
+        accessibilityLabel={t("common.back")}
       >
         <MaterialCommunityIcons
           name="chevron-left"
@@ -42,6 +47,9 @@ const QueuePagination: React.FC<QueuePaginationProps> = ({
         style={[styles.pageBtn, page === totalPages && styles.pageBtnDisabled]}
         onPress={() => onPageChange(Math.min(totalPages, page + 1))}
         disabled={page === totalPages}
+        activeOpacity={0.72}
+        accessibilityRole="button"
+        accessibilityLabel={t("common.next")}
       >
         <MaterialCommunityIcons
           name="chevron-right"

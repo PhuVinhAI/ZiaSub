@@ -1,17 +1,18 @@
 import React from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
-import { Text } from "react-native-paper";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useTheme, ThemeMode } from "@src/contexts";
-import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import { useTheme } from "@src/contexts";
+import { SelectionSettingRow } from "@components/common";
+import {
+  SettingsCard,
+  SettingsSectionHeader,
+} from "../SettingsPrimitives";
 
 const ThemeSection: React.FC = () => {
   const { t } = useTranslation();
-  const { colors, themeMode, setThemeMode } = useTheme();
-  const themedStyles = useThemedStyles(themeThemedStyles);
+  const { themeMode, setThemeMode } = useTheme();
 
-  const themes: { mode: ThemeMode; labelKey: string; icon: string }[] = [
+  const themes = [
     { mode: "system", labelKey: "settings.theme.system", icon: "cellphone" },
     {
       mode: "light",
@@ -23,93 +24,33 @@ const ThemeSection: React.FC = () => {
       labelKey: "settings.theme.dark",
       icon: "moon-waning-crescent",
     },
-  ];
+  ] as const;
 
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <MaterialCommunityIcons
-          name="palette"
-          size={20}
-          color={colors.primary}
-        />
-        <Text style={themedStyles.sectionTitle}>
-          {t("settings.theme.title")}
-        </Text>
-      </View>
-      <View style={themedStyles.themeList}>
-        {themes.map((theme, index) => (
-          <TouchableOpacity
+      <SettingsSectionHeader
+        icon="theme-light-dark"
+        title={t("settings.theme.title")}
+        description={t("settings.theme.description")}
+      />
+      <SettingsCard style={styles.cardPadding}>
+        {themes.map((theme) => (
+          <SelectionSettingRow
             key={theme.mode}
-            style={[
-              themedStyles.themeItem,
-              themeMode === theme.mode && themedStyles.themeItemActive,
-              index === themes.length - 1 && { borderBottomWidth: 0 },
-            ]}
+            label={t(theme.labelKey)}
+            icon={theme.icon}
+            selected={themeMode === theme.mode}
             onPress={() => setThemeMode(theme.mode)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.themeItemLeft}>
-              <MaterialCommunityIcons
-                name={theme.icon as any}
-                size={20}
-                color={
-                  themeMode === theme.mode ? colors.primary : colors.textMuted
-                }
-              />
-              <Text
-                style={[
-                  themedStyles.themeName,
-                  themeMode === theme.mode && themedStyles.themeNameActive,
-                ]}
-              >
-                {t(theme.labelKey)}
-              </Text>
-            </View>
-            {themeMode === theme.mode && (
-              <MaterialCommunityIcons
-                name="check"
-                size={20}
-                color={colors.primary}
-              />
-            )}
-          </TouchableOpacity>
+          />
         ))}
-      </View>
+      </SettingsCard>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 16 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  themeItemLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  section: { marginBottom: 24 },
+  cardPadding: { padding: 6, gap: 3 },
 });
-
-const themeThemedStyles = createThemedStyles((colors) => ({
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  themeList: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  themeItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  themeItemActive: { backgroundColor: colors.primarySoft },
-  themeName: { color: colors.text, fontSize: 15 },
-  themeNameActive: { color: colors.primary, fontWeight: "600" },
-}));
 
 export default ThemeSection;

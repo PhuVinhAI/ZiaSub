@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 
 interface UseWebViewMessageHandlerParams {
   findSubtitle: (currentTime: number) => void;
+  onCurrentTime?: (currentTime: number) => void;
   setVideoDuration: (duration: number) => void;
   setVideoTitle: (title: string) => void;
   onFullScreenOpen: () => void;
@@ -20,6 +21,7 @@ interface UseWebViewMessageHandlerParams {
 
 export const useWebViewMessageHandler = ({
   findSubtitle,
+  onCurrentTime,
   setVideoDuration,
   setVideoTitle,
   onFullScreenOpen,
@@ -35,6 +37,7 @@ export const useWebViewMessageHandler = ({
 
         switch (data.type) {
           case "currentTime":
+            onCurrentTime?.(data.payload);
             findSubtitle(data.payload);
             break;
           case "videoDuration":
@@ -57,6 +60,7 @@ export const useWebViewMessageHandler = ({
     },
     [
       findSubtitle,
+      onCurrentTime,
       setVideoDuration,
       setVideoTitle,
       onFullScreenOpen,

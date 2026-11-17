@@ -1,10 +1,16 @@
 import React, { useCallback } from "react";
-import { View, TouchableOpacity, TextInput, Switch } from "react-native";
+import { TextInput, TouchableOpacity, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles } from "@hooks/useThemedStyles";
+import {
+  BottomSheetModal,
+  OptionPickerButton,
+  ToggleSettingRow,
+} from "@components/common";
 import { formatDuration } from "@utils/videoUtils";
 import { createTranslateStyles } from "./translateStyles";
 
@@ -175,146 +181,139 @@ const AdvancedOptions: React.FC<AdvancedOptionsProps> = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useThemedStyles(() => createTranslateStyles(colors));
+  const activeOptionCount = [streamingMode, presubMode, useCustomRange].filter(
+    Boolean,
+  ).length;
+  const summary =
+    activeOptionCount > 0
+      ? t("subtitleModal.translate.advancedActiveSummary", {
+          count: activeOptionCount,
+        })
+      : t("subtitleModal.translate.advancedDefaultSummary");
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.advancedToggle}
+      <OptionPickerButton
+        label={t("subtitleModal.translate.advancedOptions")}
+        value={summary}
+        description={t("subtitleModal.translate.advancedDescription")}
+        icon="tune-variant"
         onPress={onToggleAdvanced}
+        style={styles.advancedLauncher}
+      />
+
+      <BottomSheetModal
+        visible={showAdvanced}
+        onClose={onToggleAdvanced}
+        title={t("subtitleModal.translate.advancedOptions")}
+        subtitle={t("subtitleModal.translate.advancedDescription")}
+        maxHeightRatio={0.8}
+        fixedHeight
       >
-        <MaterialCommunityIcons
-          name="tune-variant"
-          size={18}
-          color={colors.textMuted}
-        />
-        <Text style={styles.advancedToggleText}>
-          {t("subtitleModal.translate.advancedOptions")}
-        </Text>
-        <MaterialCommunityIcons
-          name={showAdvanced ? "chevron-up" : "chevron-down"}
-          size={18}
-          color={colors.textMuted}
-        />
-      </TouchableOpacity>
-      {showAdvanced && (
-        <View style={styles.advancedPanel}>
-          <View style={styles.advancedRow}>
-            <View style={styles.advancedRowLeft}>
-              <MaterialCommunityIcons
-                name="play-speed"
-                size={18}
-                color={colors.primary}
-              />
-              <View style={styles.advancedRowInfo}>
-                <Text style={styles.advancedRowTitle}>
-                  {t("subtitleModal.translate.streamingMode")}
-                </Text>
-                <Text style={styles.advancedRowDesc}>
-                  {t("subtitleModal.translate.streamingModeHint")}
-                </Text>
-              </View>
-            </View>
-            <Switch
+        <KeyboardAwareScrollView
+          style={styles.advancedScroll}
+          contentContainerStyle={styles.advancedScrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={24}
+        >
+          <View style={styles.advancedSettingsGroup}>
+            <ToggleSettingRow
               value={streamingMode}
               onValueChange={onStreamingModeChange}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={streamingMode ? colors.onPrimary : colors.surfaceElevated}
+              label={t("subtitleModal.translate.streamingMode")}
+              description={t("subtitleModal.translate.streamingModeHint")}
+              icon="play-speed"
+              activeIcon="play-speed"
+              divider
             />
-          </View>
-          <View style={styles.advancedRow}>
-            <View style={styles.advancedRowLeft}>
-              <MaterialCommunityIcons
-                name="lightning-bolt"
-                size={18}
-                color={colors.warning}
-              />
-              <View style={styles.advancedRowInfo}>
-                <Text style={styles.advancedRowTitle}>
-                  {t("subtitleModal.translate.presubMode")}
-                </Text>
-                <Text style={styles.advancedRowDesc}>
-                  {t("subtitleModal.translate.presubModeHint")}
-                </Text>
-              </View>
-            </View>
-            <Switch
+            <ToggleSettingRow
               value={presubMode}
               onValueChange={onPresubModeChange}
-              trackColor={{ false: colors.border, true: colors.warning }}
-              thumbColor={presubMode ? colors.onPrimary : colors.surfaceElevated}
+              label={t("subtitleModal.translate.presubMode")}
+              description={t("subtitleModal.translate.presubModeHint")}
+              icon="lightning-bolt-outline"
+              activeIcon="lightning-bolt"
+              activeColor={colors.warning}
+              activeBackgroundColor={colors.warningBg}
+              divider
             />
-          </View>
-          <View
-            style={[
-              styles.advancedRow,
-              { borderBottomWidth: useCustomRange ? 1 : 0 },
-            ]}
-          >
-            <View style={styles.advancedRowLeft}>
-              <MaterialCommunityIcons
-                name="clock-outline"
-                size={18}
-                color={colors.primary}
-              />
-              <View style={styles.advancedRowInfo}>
-                <Text style={styles.advancedRowTitle}>
-                  {t("subtitleModal.translate.customRange")}
-                </Text>
-                <Text style={styles.advancedRowDesc}>
-                  {t("subtitleModal.translate.customRangeHint")}
-                </Text>
-              </View>
-            </View>
-            <Switch
+            <ToggleSettingRow
               value={useCustomRange}
               onValueChange={onUseCustomRangeChange}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={useCustomRange ? colors.onPrimary : colors.surfaceElevated}
+              label={t("subtitleModal.translate.customRange")}
+              description={t("subtitleModal.translate.customRangeHint")}
+              icon="clock-outline"
+              activeIcon="clock-check-outline"
             />
           </View>
+
           {useCustomRange && (
-            <View style={styles.rangeInputContainer}>
-              <View style={styles.rangeInputGroup}>
-                <Text style={styles.rangeLabel}>
-                  {t("subtitleModal.translate.rangeFrom")}
+            <>
+              <View style={styles.divider} />
+              <View style={styles.rangeSection}>
+                <Text style={styles.rangeSectionTitle}>
+                  {t("subtitleModal.translate.customRange")}
                 </Text>
-                <TimeInput
-                  value={rangeStartStr}
-                  onChange={onRangeStartChange}
-                  placeholder="0:00"
-                  maxSeconds={videoDuration}
-                  colors={colors}
-                  styles={styles}
-                />
-              </View>
-              <View style={styles.rangeInputGroup}>
-                <Text style={styles.rangeLabel}>
-                  {t("subtitleModal.translate.rangeTo")}
+                <Text style={styles.rangeSectionDescription}>
+                  {t("subtitleModal.translate.customRangeEditHint")}
                 </Text>
-                <TimeInput
-                  value={rangeEndStr}
-                  onChange={onRangeEndChange}
-                  placeholder={
-                    videoDuration
-                      ? formatDuration(videoDuration)
-                      : t("subtitleModal.translate.rangeEnd")
-                  }
-                  maxSeconds={videoDuration}
-                  colors={colors}
-                  styles={styles}
-                />
+
+                <View style={styles.rangeInputContainer}>
+                  <View style={styles.rangeInputGroup}>
+                    <Text style={styles.rangeLabel}>
+                      {t("subtitleModal.translate.rangeFrom")}
+                    </Text>
+                    <TimeInput
+                      value={rangeStartStr}
+                      onChange={onRangeStartChange}
+                      placeholder="0:00"
+                      maxSeconds={videoDuration}
+                      colors={colors}
+                      styles={styles}
+                    />
+                  </View>
+                  <View style={styles.rangeInputGroup}>
+                    <Text style={styles.rangeLabel}>
+                      {t("subtitleModal.translate.rangeTo")}
+                    </Text>
+                    <TimeInput
+                      value={rangeEndStr}
+                      onChange={onRangeEndChange}
+                      placeholder={
+                        videoDuration
+                          ? formatDuration(videoDuration)
+                          : t("subtitleModal.translate.rangeEnd")
+                      }
+                      maxSeconds={videoDuration}
+                      colors={colors}
+                      styles={styles}
+                    />
+                  </View>
+                </View>
               </View>
-            </View>
+            </>
           )}
+
           {videoDuration && (
-            <Text style={styles.durationHint}>
-              {t("subtitleModal.translate.videoDuration", {
-                duration: formatDuration(videoDuration),
-              })}
-            </Text>
+            <>
+              <View style={styles.divider} />
+              <View style={styles.durationHintContainer}>
+                <MaterialCommunityIcons
+                  name="information-outline"
+                  size={17}
+                  color={colors.textMuted}
+                />
+                <Text style={styles.durationHint}>
+                  {t("subtitleModal.translate.videoDuration", {
+                    duration: formatDuration(videoDuration),
+                  })}
+                </Text>
+              </View>
+            </>
           )}
-        </View>
-      )}
+        </KeyboardAwareScrollView>
+      </BottomSheetModal>
     </>
   );
 };

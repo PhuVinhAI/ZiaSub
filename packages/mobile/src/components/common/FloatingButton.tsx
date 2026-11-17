@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { Animated, Pressable, StyleSheet, View, Easing } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import type { FloatingUISettings } from "@src/types";
 import { isGoogleLoginPage, isAIStudioPage } from "@utils/videoUtils";
@@ -10,7 +11,7 @@ interface FloatingButtonProps {
   onSettingsPress: () => void;
   onQueuePress: () => void;
   onChatPress: () => void;
-  onFAQPress?: () => void;
+  onHistoryPress?: () => void;
   onAddToQueuePress?: () => void;
   isVideoPage: boolean;
   isDesktopMode?: boolean;
@@ -37,6 +38,7 @@ interface Fab3DProps {
   size: number;
   iconSize: number;
   active?: boolean;
+  accessibilityLabel?: string;
 }
 
 const Fab3D: React.FC<Fab3DProps> = ({
@@ -45,6 +47,7 @@ const Fab3D: React.FC<Fab3DProps> = ({
   size,
   iconSize,
   active = false,
+  accessibilityLabel,
 }) => {
   const { colors, isDark } = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
@@ -93,6 +96,8 @@ const Fab3D: React.FC<Fab3DProps> = ({
           onPress={onPress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
           style={{
             width: size,
             height: size,
@@ -427,13 +432,14 @@ const PausedFab: React.FC<{
 };
 
 const FloatingButton: React.FC<FloatingButtonProps> = (props) => {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const {
     onPress,
     onSettingsPress,
     onQueuePress,
     onChatPress,
-    onFAQPress,
+    onHistoryPress,
     onAddToQueuePress,
     isVideoPage,
     isDesktopMode = false,
@@ -534,7 +540,7 @@ const FloatingButton: React.FC<FloatingButtonProps> = (props) => {
         </View>
       </View>
 
-      {/* Primary buttons (Chat, Subtitle, FAQ) */}
+      {/* Primary buttons (Chat, History, Subtitle) */}
       <View
         style={[
           styles.fabColumn,
@@ -546,12 +552,13 @@ const FloatingButton: React.FC<FloatingButtonProps> = (props) => {
         ]}
       >
         <ChatFab onPress={onChatPress} isLoading={isChatLoading} />
-        {!isVideoPage && onFAQPress && (
+        {!isVideoPage && onHistoryPress && (
           <Fab3D
-            onPress={onFAQPress}
-            icon="help-circle-outline"
+            onPress={onHistoryPress}
+            icon="history"
             size={40}
             iconSize={20}
+            accessibilityLabel={t("queue.history.open")}
           />
         )}
         {isVideoPage &&

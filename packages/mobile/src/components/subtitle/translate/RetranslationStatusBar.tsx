@@ -17,6 +17,9 @@ interface RetranslationStatusBarProps {
   pausedBatchRetranslation?: {
     batchIndex: number;
     mode: "single" | "fromHere";
+    batchIndices?: number[];
+    completedBatches?: number;
+    totalBatches?: number;
     translationId?: string;
   } | null;
   onStopBatchRetranslate?: () => void;
@@ -34,6 +37,19 @@ const RetranslationStatusBar: React.FC<RetranslationStatusBarProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const selectedBatchIndices =
+    batchRetranslateJob?.retranslateBatchIndices?.length
+      ? batchRetranslateJob.retranslateBatchIndices
+      : pausedBatchRetranslation?.batchIndices?.length
+        ? pausedBatchRetranslation.batchIndices
+        : [];
+  const selectedCount = selectedBatchIndices.length;
+  const completedCount = batchRetranslateJob?.progress?.completedBatches ??
+    pausedBatchRetranslation?.completedBatches ??
+    0;
+  const totalCount = batchRetranslateJob?.progress?.totalBatches ??
+    pausedBatchRetranslation?.totalBatches ??
+    selectedCount;
 
   return (
     <View
@@ -47,13 +63,6 @@ const RetranslationStatusBar: React.FC<RetranslationStatusBarProps> = ({
         borderRadius: 8,
         padding: 10,
         marginBottom: 10,
-        borderWidth: 1,
-        borderColor:
-          batchRetranslateJob?.status === "processing"
-            ? colors.primary
-            : pausedBatchRetranslation
-            ? colors.warning
-            : colors.border,
       }}
     >
       <View
@@ -94,34 +103,32 @@ const RetranslationStatusBar: React.FC<RetranslationStatusBarProps> = ({
           }}
         >
           {batchRetranslateJob?.status === "processing"
-            ? pausedBatchRetranslation?.mode === "single" ||
-              (batchRetranslateJob.rangeEnd !== undefined &&
-                batchRetranslateJob.rangeEnd -
-                  (batchRetranslateJob.rangeStart || 0) <=
-                  (item.batchSettings?.maxVideoDuration || 600))
-              ? t("subtitleModal.translate.retranslatingSingle", {
-                  batch:
-                    Math.floor(
-                      (batchRetranslateJob.rangeStart || 0) /
-                        (item.batchSettings?.maxVideoDuration || 600)
-                    ) + 1,
+            ? selectedCount > 0
+              ? t("subtitleModal.translate.retranslatingSelected", {
+                  completed: completedCount,
+                  total: totalCount,
                 })
-              : t("subtitleModal.translate.retranslatingFrom", {
+              : t("subtitleModal.translate.retranslatingSingle", {
                   batch:
                     Math.floor(
                       (batchRetranslateJob.rangeStart || 0) /
-                        (item.batchSettings?.maxVideoDuration || 600)
+                        (item.batchSettings?.maxVideoDuration || 600),
                     ) + 1,
                 })
             : pausedBatchRetranslation
-            ? pausedBatchRetranslation.mode === "single"
-              ? t("subtitleModal.translate.pausedBatchSingle", {
-                  batch: pausedBatchRetranslation.batchIndex + 1,
-                })
-              : t("subtitleModal.translate.pausedBatchFrom", {
-                  batch: pausedBatchRetranslation.batchIndex + 1,
-                })
-            : t("subtitleModal.translate.waitingBatch")}
+              ? selectedCount > 0
+                ? t("subtitleModal.translate.pausedBatchSelected", {
+                    completed: completedCount,
+                    total: totalCount,
+                  })
+                : t("subtitleModal.translate.pausedBatchSingle", {
+                    batch: pausedBatchRetranslation.batchIndex + 1,
+                  })
+              : selectedCount > 0
+                ? t("subtitleModal.translate.waitingBatchSelected", {
+                    count: selectedCount,
+                  })
+                : t("subtitleModal.translate.waitingBatch")}
         </Text>
       </View>
 

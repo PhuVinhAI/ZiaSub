@@ -4,9 +4,17 @@
 import { useState, useRef, useCallback } from "react";
 import { WebView, WebViewNavigation } from "react-native-webview";
 import * as ScreenOrientation from "expo-screen-orientation";
-import { isVideoPage, extractVideoId, isShortsUrl } from "@utils/videoUtils";
-import { ttsService } from "@services/ttsService";
+import {
+  isVideoPage,
+  extractVideoId,
+  isShortsUrl,
+  isYouTubeUrl,
+  looksLikeUrl,
+  isAIStudioPage,
+  isGoogleLoginPage,
+} from "@utils/videoUtils";
 import { queueManager, QueueItem } from "@services/queueManager";
+import { alert } from "@components/common/CustomAlert";
 
 export const useVideoPlayer = () => {
   const webViewRef = useRef<WebView>(null);
@@ -57,8 +65,6 @@ export const useVideoPlayer = () => {
           setVideoDuration(undefined);
           setVideoTitle("");
           setCurrentVideoInQueue(undefined);
-          ttsService.stop();
-          ttsService.resetLastSpoken();
           onVideoExit?.();
         }
         syncAllToWebView?.();
@@ -120,18 +126,33 @@ export const useVideoPlayer = () => {
         !targetUrl.startsWith("http://") &&
         !targetUrl.startsWith("https://")
       ) {
-        // Check if it's a YouTube video ID or search
+        // Check if it's a YouTube video ID
         if (targetUrl.match(/^[a-zA-Z0-9_-]{11}$/)) {
           targetUrl = `https://m.youtube.com/watch?v=${targetUrl}`;
         } else if (
-          targetUrl.includes("youtube.com") ||
-          targetUrl.includes("youtu.be")
+          isYouTubeUrl(targetUrl) ||
+          isAIStudioPage(targetUrl) ||
+          isGoogleLoginPage(targetUrl)
         ) {
           targetUrl = `https://${targetUrl}`;
+        } else if (looksLikeUrl(targetUrl)) {
+          // Input looks like a non-YouTube URL — block it
+          alert("Không hỗ trợ", "Chỉ hỗ trợ URL YouTube (youtube.com, youtu.be)");
+          return;
         } else {
           targetUrl = `https://m.youtube.com/results?search_query=${encodeURIComponent(
             targetUrl
           )}`;
+        }
+      } else {
+        // Has http/https protocol — validate it's YouTube, Google AI Studio, or Google Login URL
+        if (
+          !isYouTubeUrl(targetUrl) &&
+          !isAIStudioPage(targetUrl) &&
+          !isGoogleLoginPage(targetUrl)
+        ) {
+          alert("Không hỗ trợ", "Chỉ hỗ trợ URL YouTube (youtube.com, youtu.be)");
+          return;
         }
       }
       webViewRef.current.injectJavaScript(

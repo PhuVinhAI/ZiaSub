@@ -433,20 +433,30 @@ export const replaceBatchInSrt = (
   const mode = detectTimestampMode(newSubtitles, rangeStart);
 
   // Adjust new subtitles if they're relative
-  const adjustedNewSubtitles = newSubtitles.map((sub) => {
-    if (mode === "relative") {
-      return {
-        start: sub.start + rangeStart,
-        end: sub.end + rangeStart,
-        text: sub.text,
-      };
-    }
-    return sub;
-  });
+  const adjustedNewSubtitles = newSubtitles
+    .map((sub) => {
+      if (mode === "relative") {
+        return {
+          start: sub.start + rangeStart,
+          end: sub.end + rangeStart,
+          text: sub.text,
+        };
+      }
+      return sub;
+    })
+    // A selected batch must never overwrite content outside its own range.
+    .filter((sub) => sub.start < rangeEnd && sub.end > rangeStart)
+    .map((sub) => ({
+      ...sub,
+      start: Math.max(sub.start, rangeStart),
+      end: Math.min(sub.end, rangeEnd),
+    }))
+    .filter((sub) => sub.end > sub.start);
 
-  // Filter out existing subtitles that fall within the range
+  // Remove every existing subtitle that overlaps the replacement range,
+  // including lines that start before the boundary but extend into it.
   const filteredExisting = existingSubtitles.filter(
-    (sub) => sub.start < rangeStart || sub.start >= rangeEnd
+    (sub) => sub.end <= rangeStart || sub.start >= rangeEnd
   );
 
   // Merge and sort

@@ -30,19 +30,32 @@ const QueueEmpty: React.FC<QueueEmptyProps> = ({ activeTab }) => {
     }
   };
 
+  const emptyIcon =
+    activeTab === "completed"
+      ? "check-circle-outline"
+      : activeTab === "paused"
+        ? "pause-circle-outline"
+        : activeTab === "translating"
+          ? "progress-clock"
+          : "playlist-plus";
+  const emptyColor =
+    activeTab === "completed"
+      ? colors.success
+      : activeTab === "paused"
+        ? colors.warning
+        : colors.primary;
+  const emptyBackground =
+    activeTab === "completed"
+      ? colors.successBg
+      : activeTab === "paused"
+        ? colors.warningBg
+        : colors.primarySoft;
+
   return (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons
-        name={
-          activeTab === "completed"
-            ? "check-circle-outline"
-            : activeTab === "paused"
-            ? "pause-circle-outline"
-            : "playlist-plus"
-        }
-        size={48}
-        color={colors.textMuted}
-      />
+      <View style={[styles.emptyIcon, { backgroundColor: emptyBackground }]}>
+        <MaterialCommunityIcons name={emptyIcon} size={30} color={emptyColor} />
+      </View>
       <Text style={styles.emptyText}>{getEmptyMessage()}</Text>
     </View>
   );

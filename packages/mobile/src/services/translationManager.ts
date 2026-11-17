@@ -2,8 +2,10 @@ import type {
   GeminiConfig,
   BatchSettings,
   BatchProgress,
+  BatchStatus,
   TranslationJob,
   KeyStatusCallback,
+  RetranslateBatchRange,
 } from "@src/types";
 import { saveTranslation, savePartialTranslation } from "@utils/storage";
 import { translateVideoWithGemini } from "./geminiService";
@@ -20,10 +22,7 @@ class TranslationManager {
   private static instance: TranslationManager;
   private store = new TranslationJobStore();
   private abortController: AbortController | null = null;
-  private isAborted: boolean = false;
-  private skipBackgroundControl: boolean = false; // true khi gọi từ queue
-  private skipNotification: boolean = false; // true khi gọi từ queue
-  private skipSavePartial: boolean = false; // true khi xoá bản dịch - không lưu partial
+  private abortedJobIds = new Set<string>();
 
   // Proxy current job through the store so all method bodies below are unchanged.
   private get currentJob(): TranslationJob | null {
@@ -98,15 +97,14 @@ class TranslationManager {
       throw new Error("Đang dịch video khác, vui lòng đợi hoặc dừng trước");
     }
 
-    this.abortController = new AbortController();
-    this.isAborted = false;
-    this.skipSavePartial = false; // Reset flag khi bắt đầu translation mới
+    const abortController = new AbortController();
+    this.abortController = abortController;
 
     // Start background service để giữ app chạy khi ở background
     // Skip nếu được gọi từ queue (queue tự quản lý background)
-    this.skipBackgroundControl = options?.skipBackgroundControl ?? false;
-    this.skipNotification = options?.skipNotification ?? false;
-    if (!this.skipBackgroundControl) {
+    const skipBackgroundControl = options?.skipBackgroundControl ?? false;
+    const skipNotification = options?.skipNotification ?? false;
+    if (!skipBackgroundControl) {
       await backgroundService.onTranslationStart(config.name);
     }
 
@@ -148,7 +146,11 @@ class TranslationManager {
     this.notify();
 
     const onKeyStatus: KeyStatusCallback = (status) => {
-      if (this.currentJob && this.currentJob.id === jobId && !this.isAborted) {
+      if (
+        this.currentJob &&
+        this.currentJob.id === jobId &&
+        !this.abortedJobIds.has(jobId)
+      ) {
         this.currentJob = {
           ...this.currentJob,
           keyStatus: status.message,
@@ -173,7 +175,7 @@ class TranslationManager {
           batchSettings,
           rangeStart,
           rangeEnd,
-          abortSignal: this.abortController.signal,
+          abortSignal: abortController.signal,
           skipRanges: resumeData?.completedBatchRanges,
           existingPartialSrt: resumeData?.partialSrt,
           presubConfig,
@@ -181,7 +183,7 @@ class TranslationManager {
             if (
               this.currentJob &&
               this.currentJob.id === jobId &&
-              !this.isAborted
+              !this.abortedJobIds.has(jobId)
             ) {
               const pct = Math.round((progress.currentBatch / Math.max(1, progress.totalBatches)) * 100);
               logger.debug(
@@ -219,7 +221,7 @@ class TranslationManager {
             if (
               this.currentJob &&
               this.currentJob.id === jobId &&
-              !this.isAborted
+              !this.abortedJobIds.has(jobId)
             ) {
               logger.info(
                 "TranslationManager",
@@ -242,7 +244,7 @@ class TranslationManager {
 
               // Gửi notification khi dịch xong từng phần
               // Skip nếu được gọi từ queue (queue tự gửi notification)
-              if (!this.skipNotification) {
+              if (!skipNotification) {
                 notificationService.notifyBatchComplete(
                   config.name,
                   batchIndex + 1,
@@ -255,7 +257,10 @@ class TranslationManager {
         }
       );
 
-      if (this.isAborted) {
+      if (
+        this.abortedJobIds.has(jobId) ||
+        this.currentJob?.id !== jobId
+      ) {
         throw new Error("Đã dừng dịch");
       }
 
@@ -277,7 +282,11 @@ class TranslationManager {
         }
       );
 
-      if (this.currentJob && this.currentJob.id === jobId && !this.isAborted) {
+      if (
+        this.currentJob &&
+        this.currentJob.id === jobId &&
+        !this.abortedJobIds.has(jobId)
+      ) {
         const elapsedSec = Math.round((Date.now() - (this.currentJob.startedAt || Date.now())) / 1000);
         logger.info(
           "TranslationManager",
@@ -296,7 +305,7 @@ class TranslationManager {
 
         // Gửi notification khi dịch xong
         // Skip nếu được gọi từ queue (queue tự gửi notification)
-        if (!this.skipNotification) {
+        if (!skipNotification) {
           notificationService.notifyTranslationComplete(config.name, "direct");
         }
       }
@@ -305,7 +314,9 @@ class TranslationManager {
     } catch (error: any) {
       // If aborted, partial was already saved in abortTranslation()
       // Only save here if it's a real error (not user abort) and not skipping save
-      if (!this.isAborted && !this.skipSavePartial) {
+      const isCurrentJob = this.currentJob?.id === jobId;
+      const wasAborted = this.abortedJobIds.has(jobId);
+      if (isCurrentJob && !wasAborted) {
         const hasPartialResult = accumulatedSrt && completedRanges.length > 0;
 
         if (hasPartialResult && this.currentJob) {
@@ -321,6 +332,7 @@ class TranslationManager {
                 rangeEnd,
                 videoDuration,
                 batchSettings,
+                completedBatchRanges: completedRanges,
                 batchStatuses: currentBatchStatuses,
                 presetId: config.presetId,
                 existingTranslationId: resumeData?.existingTranslationId, // Pass existing ID for batch retranslation
@@ -358,7 +370,7 @@ class TranslationManager {
 
           // Gửi notification khi lỗi
           // Skip nếu được gọi từ queue (queue tự gửi notification)
-          if (!this.skipNotification) {
+          if (!skipNotification) {
             notificationService.notifyTranslationError(
               config.name,
               error.message,
@@ -371,12 +383,19 @@ class TranslationManager {
 
       throw error;
     } finally {
-      this.abortController = null;
+      const isCurrentJob = this.currentJob?.id === jobId;
+      if (this.abortController === abortController) {
+        this.abortController = null;
+      }
       // Stop background service khi dịch xong (dù thành công hay lỗi)
       // Skip nếu được gọi từ queue (queue tự quản lý background)
-      if (!this.skipBackgroundControl) {
+      if (
+        !skipBackgroundControl &&
+        (isCurrentJob || this.currentJob?.status !== "processing")
+      ) {
         backgroundService.onTranslationComplete();
       }
+      this.abortedJobIds.delete(jobId);
     }
   }
 
@@ -411,14 +430,14 @@ class TranslationManager {
       return { aborted: false };
     }
 
-    this.isAborted = true;
-    this.skipSavePartial = options?.skipSavePartial ?? false;
+    const job = this.currentJob;
+    this.abortedJobIds.add(job.id);
 
-    const partialResult = this.currentJob.partialResult || undefined;
-    const completedRanges = this.currentJob.completedBatchRanges || [];
-    const batchStatuses = this.currentJob.batchStatuses || [];
-    const presetId = this.currentJob.presetId;
-    const existingTranslationId = this.currentJob.existingTranslationId;
+    const partialResult = job.partialResult || undefined;
+    const completedRanges = job.completedBatchRanges || [];
+    const batchStatuses = job.batchStatuses || [];
+    const presetId = job.presetId;
+    const existingTranslationId = job.existingTranslationId;
     const hasPartial = partialResult && completedRanges.length > 0;
 
     // Save partial translation IMMEDIATELY (don't wait for catch block)
@@ -426,16 +445,17 @@ class TranslationManager {
     if (hasPartial && !options?.skipSavePartial) {
       try {
         await savePartialTranslation(
-          this.currentJob.videoUrl,
+          job.videoUrl,
           partialResult,
-          this.currentJob.configName,
+          job.configName,
           {
             completedBatches: completedRanges.length,
-            totalBatches: this.currentJob.progress?.totalBatches || 0,
-            rangeStart: this.currentJob.rangeStart,
-            rangeEnd: this.currentJob.rangeEnd,
-            videoDuration: this.currentJob.videoDuration,
-            batchSettings: this.currentJob.batchSettings as any,
+            totalBatches: job.progress?.totalBatches || 0,
+            rangeStart: job.rangeStart,
+            rangeEnd: job.rangeEnd,
+            videoDuration: job.videoDuration,
+            batchSettings: job.batchSettings as any,
+            completedBatchRanges: completedRanges,
             batchStatuses,
             presetId,
             existingTranslationId, // Pass existing ID for batch retranslation
@@ -450,24 +470,29 @@ class TranslationManager {
     }
 
     // Abort the signal (this will eventually trigger catch block, but we don't wait)
-    if (this.abortController) {
+    const abortController = this.abortController;
+    if (abortController) {
       try {
-        this.abortController.abort();
+        abortController.abort();
       } catch (abortError) {
         // Ignore abort errors
       }
-      this.abortController = null;
+      if (this.abortController === abortController) {
+        this.abortController = null;
+      }
     }
 
     // Update job status and notify IMMEDIATELY
-    this.currentJob = {
-      ...this.currentJob,
-      status: "error",
-      error: hasPartial
-        ? `Đã dừng (${completedRanges.length} phần đã dịch)`
-        : "Đã dừng dịch",
-      completedAt: Date.now(),
-    };
+    if (this.currentJob?.id === job.id) {
+      this.currentJob = {
+        ...this.currentJob,
+        status: "error",
+        error: hasPartial
+          ? `Đã dừng (${completedRanges.length} phần đã dịch)`
+          : "Đã dừng dịch",
+        completedAt: Date.now(),
+      };
+    }
 
     try {
       this.notify();
@@ -505,6 +530,295 @@ class TranslationManager {
     return null;
   }
 
+  // Retranslate arbitrary batches and merge each result into its exact time range.
+  async translateSelectedBatches(
+    videoUrl: string,
+    config: GeminiConfig,
+    existingSrt: string,
+    batches: RetranslateBatchRange[],
+    videoDuration?: number,
+    existingTranslationId?: string,
+    options?: {
+      batchSettings?: BatchSettings;
+      translationTotalBatches?: number;
+      translationBatchStatuses?: BatchStatus[];
+      initialCompletedBatches?: number;
+      completedRanges?: Array<{ start: number; end: number }>;
+      allBatchIndices?: number[];
+      skipBackgroundControl?: boolean;
+      skipNotification?: boolean;
+    },
+  ): Promise<string> {
+    if (this.isTranslating()) {
+      throw new Error("Đang dịch video khác, vui lòng đợi hoặc dừng trước");
+    }
+
+    const normalizedBatches = [
+      ...new Map(
+        batches
+          .filter((batch) => batch.end > batch.start)
+          .map((batch) => [batch.index, batch] as const),
+      ).values(),
+    ].sort((a, b) => a.index - b.index);
+    if (normalizedBatches.length === 0) {
+      throw new Error("Chưa chọn batch cần dịch lại");
+    }
+
+    const abortController = new AbortController();
+    this.abortController = abortController;
+    const skipBackgroundControl = options?.skipBackgroundControl ?? false;
+    const skipNotification = options?.skipNotification ?? false;
+
+    if (!skipBackgroundControl) {
+      await backgroundService.onTranslationStart(config.name);
+    }
+
+    const initialCompleted = Math.max(
+      0,
+      options?.initialCompletedBatches ?? 0,
+    );
+    const allBatchIndices =
+      options?.allBatchIndices?.length
+        ? [...options.allBatchIndices].sort((a, b) => a - b)
+        : normalizedBatches.map((batch) => batch.index);
+    const totalSelected = Math.max(
+      allBatchIndices.length,
+      initialCompleted + normalizedBatches.length,
+    );
+    const initialStatuses: BatchProgress["batchStatuses"] = Array.from(
+      { length: totalSelected },
+      (_, index) => (index < initialCompleted ? "completed" : "pending"),
+    );
+    if (initialCompleted < totalSelected) {
+      initialStatuses[initialCompleted] = "processing";
+    }
+
+    const jobId = createJobId();
+    let workingSrt = existingSrt;
+    let completedRanges = [...(options?.completedRanges || [])];
+    const workingTranslationStatuses = options?.translationBatchStatuses
+      ? [...options.translationBatchStatuses]
+      : options?.translationTotalBatches
+        ? Array.from(
+            { length: options.translationTotalBatches },
+            () => "completed" as BatchStatus,
+          )
+        : undefined;
+
+    this.currentJob = {
+      id: jobId,
+      videoUrl,
+      configName: config.name,
+      configId: config.id,
+      presetId: config.presetId,
+      status: "processing",
+      progress: {
+        currentBatch: Math.min(initialCompleted + 1, totalSelected),
+        totalBatches: totalSelected,
+        completedBatches: initialCompleted,
+        status: "processing",
+        batchStatuses: initialStatuses,
+      },
+      keyStatus: null,
+      result: null,
+      error: null,
+      startedAt: Date.now(),
+      completedAt: null,
+      partialResult: initialCompleted > 0 ? workingSrt : null,
+      rangeStart: normalizedBatches[0].start,
+      rangeEnd: normalizedBatches[normalizedBatches.length - 1].end,
+      videoDuration,
+      batchSettings: options?.batchSettings,
+      completedBatchRanges: completedRanges,
+      batchStatuses: workingTranslationStatuses,
+      existingTranslationId,
+      retranslateBatchIndices: allBatchIndices,
+      isBatchRetranslation: true,
+    };
+    this.notify();
+
+    const onKeyStatus: KeyStatusCallback = (status) => {
+      if (
+        this.currentJob?.id === jobId &&
+        !this.abortedJobIds.has(jobId)
+      ) {
+        this.currentJob = { ...this.currentJob, keyStatus: status.message };
+        this.notify();
+      }
+    };
+
+    try {
+      const { replaceBatchInSrt } = await import("@utils/srtParser");
+
+      for (let position = 0; position < normalizedBatches.length; position++) {
+        const batch = normalizedBatches[position];
+        const progressIndex = initialCompleted + position;
+
+        if (
+          this.abortedJobIds.has(jobId) ||
+          this.currentJob?.id !== jobId
+        ) {
+          throw new Error("Đã dừng dịch");
+        }
+
+        const batchStatuses = Array.from(
+          { length: totalSelected },
+          (_, index) =>
+            index < progressIndex
+              ? ("completed" as const)
+              : index === progressIndex
+                ? ("processing" as const)
+                : ("pending" as const),
+        );
+        this.currentJob = {
+          ...this.currentJob,
+          rangeStart: batch.start,
+          rangeEnd: batch.end,
+          progress: {
+            currentBatch: progressIndex + 1,
+            totalBatches: totalSelected,
+            completedBatches: progressIndex,
+            status: "processing",
+            batchStatuses,
+          },
+        };
+        this.notify();
+
+        const newBatchSrt = await translateVideoWithGemini(
+          videoUrl,
+          config,
+          undefined,
+          {
+            videoDuration,
+            rangeStart: batch.start,
+            rangeEnd: batch.end,
+            abortSignal: abortController.signal,
+            onKeyStatus,
+            skipTimestampAdjust: true,
+          },
+        );
+
+        if (
+          this.abortedJobIds.has(jobId) ||
+          this.currentJob?.id !== jobId
+        ) {
+          throw new Error("Đã dừng dịch");
+        }
+
+        workingSrt = replaceBatchInSrt(
+          workingSrt,
+          newBatchSrt,
+          batch.start,
+          batch.end,
+          videoDuration,
+        );
+        completedRanges = [
+          ...completedRanges,
+          { start: batch.start, end: batch.end },
+        ];
+        if (workingTranslationStatuses) {
+          workingTranslationStatuses[batch.index] = "completed";
+        }
+
+        await saveTranslation(
+          videoUrl,
+          workingSrt,
+          config.name,
+          existingTranslationId,
+          config.presetId,
+          {
+            videoDuration,
+            batchSettings: options?.batchSettings,
+            totalBatches: options?.translationTotalBatches,
+            batchStatuses: workingTranslationStatuses,
+          },
+        );
+
+        const completed = progressIndex + 1;
+        const completedStatuses: BatchProgress["batchStatuses"] = Array.from(
+          { length: totalSelected },
+          (_, index) =>
+            index < completed
+              ? "completed"
+              : index === completed
+                ? "processing"
+                : "pending",
+        );
+        this.currentJob = {
+          ...this.currentJob,
+          partialResult: workingSrt,
+          completedBatchRanges: completedRanges,
+          batchStatuses: workingTranslationStatuses,
+          progress: {
+            currentBatch: Math.min(completed + 1, totalSelected),
+            totalBatches: totalSelected,
+            completedBatches: completed,
+            status: completed === totalSelected ? "completed" : "processing",
+            batchStatuses: completedStatuses,
+          },
+        };
+        this.notify();
+      }
+
+      if (
+        this.currentJob?.id === jobId &&
+        !this.abortedJobIds.has(jobId)
+      ) {
+        this.currentJob = {
+          ...this.currentJob,
+          status: "completed",
+          result: workingSrt,
+          partialResult: workingSrt,
+          keyStatus: null,
+          completedAt: Date.now(),
+        };
+        this.notify();
+
+        if (!skipNotification) {
+          notificationService.notifyTranslationComplete(config.name, "direct");
+        }
+      }
+
+      return workingSrt;
+    } catch (error: any) {
+      if (
+        !this.abortedJobIds.has(jobId) &&
+        this.currentJob?.id === jobId
+      ) {
+        this.currentJob = {
+          ...this.currentJob,
+          status: "error",
+          error: error.message || "Có lỗi xảy ra",
+          partialResult: workingSrt,
+          completedBatchRanges: completedRanges,
+          completedAt: Date.now(),
+        };
+        this.notify();
+
+        if (!skipNotification) {
+          notificationService.notifyTranslationError(
+            config.name,
+            error.message,
+            "direct",
+          );
+        }
+      }
+      throw error;
+    } finally {
+      const isCurrentJob = this.currentJob?.id === jobId;
+      if (this.abortController === abortController) {
+        this.abortController = null;
+      }
+      if (
+        !skipBackgroundControl &&
+        (isCurrentJob || this.currentJob?.status !== "processing")
+      ) {
+        backgroundService.onTranslationComplete();
+      }
+      this.abortedJobIds.delete(jobId);
+    }
+  }
+
   // Translate a single batch and replace in existing SRT
   async translateSingleBatch(
     videoUrl: string,
@@ -519,11 +833,8 @@ class TranslationManager {
       throw new Error("Đang dịch video khác, vui lòng đợi hoặc dừng trước");
     }
 
-    this.abortController = new AbortController();
-    this.isAborted = false;
-    this.skipBackgroundControl = false; // Reset — translateSingleBatch always manages its own background
-    this.skipNotification = false; // Reset — translateSingleBatch always sends its own notifications
-    this.skipSavePartial = false; // Reset flag for new translation
+    const abortController = new AbortController();
+    this.abortController = abortController;
 
     // Start background service
     await backgroundService.onTranslationStart(config.name);
@@ -559,7 +870,11 @@ class TranslationManager {
     this.notify();
 
     const onKeyStatus: KeyStatusCallback = (status) => {
-      if (this.currentJob && this.currentJob.id === jobId && !this.isAborted) {
+      if (
+        this.currentJob &&
+        this.currentJob.id === jobId &&
+        !this.abortedJobIds.has(jobId)
+      ) {
         this.currentJob = {
           ...this.currentJob,
           keyStatus: status.message,
@@ -579,13 +894,16 @@ class TranslationManager {
           videoDuration,
           rangeStart: batchStart,
           rangeEnd: batchEnd,
-          abortSignal: this.abortController.signal,
+          abortSignal: abortController.signal,
           onKeyStatus,
           skipTimestampAdjust: true, // replaceBatchInSrt will adjust timestamps
         }
       );
 
-      if (this.isAborted) {
+      if (
+        this.abortedJobIds.has(jobId) ||
+        this.currentJob?.id !== jobId
+      ) {
         throw new Error("Đã dừng dịch");
       }
 
@@ -611,7 +929,11 @@ class TranslationManager {
         }
       );
 
-      if (this.currentJob && this.currentJob.id === jobId && !this.isAborted) {
+      if (
+        this.currentJob &&
+        this.currentJob.id === jobId &&
+        !this.abortedJobIds.has(jobId)
+      ) {
         this.currentJob = {
           ...this.currentJob,
           status: "completed",
@@ -627,7 +949,11 @@ class TranslationManager {
 
       return updatedSrt;
     } catch (error: any) {
-      if (!this.isAborted && this.currentJob && this.currentJob.id === jobId) {
+      if (
+        !this.abortedJobIds.has(jobId) &&
+        this.currentJob &&
+        this.currentJob.id === jobId
+      ) {
         this.currentJob = {
           ...this.currentJob,
           status: "error",
@@ -645,12 +971,16 @@ class TranslationManager {
       }
       throw error;
     } finally {
-      this.abortController = null;
+      const isCurrentJob = this.currentJob?.id === jobId;
+      if (this.abortController === abortController) {
+        this.abortController = null;
+      }
       // Stop background service
       // Skip nếu được gọi từ queue (queue tự quản lý background)
-      if (!this.skipBackgroundControl) {
+      if (isCurrentJob || this.currentJob?.status !== "processing") {
         backgroundService.onTranslationComplete();
       }
+      this.abortedJobIds.delete(jobId);
     }
   }
 }

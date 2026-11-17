@@ -1,5 +1,8 @@
 /**
- * Update Modal - Shows update notification and download progress
+ * Update Modal - Optional update notification
+ *
+ * Users can install the update or postpone it. Postponing hides the modal
+ * until the app process is restarted.
  */
 import React, { useState, useRef, useMemo } from "react";
 import {
@@ -21,16 +24,14 @@ import Button3D from "./Button3D";
 
 interface UpdateModalProps {
   visible: boolean;
-  onClose: () => void;
   updateResult?: UpdateCheckResult | null;
-  onDismissUpdate?: () => void;
+  onDismiss: () => void;
 }
 
 export const UpdateModal: React.FC<UpdateModalProps> = ({
   visible,
-  onClose,
   updateResult: externalResult,
-  onDismissUpdate,
+  onDismiss,
 }) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -43,6 +44,21 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
   const updateResult = externalResult;
   const release = updateResult?.latestRelease;
+
+  // ── Dismiss ─────────────────────────────────────────────────────────
+
+  const handleDismiss = () => {
+    if (downloadingRef.current) {
+      downloadingRef.current = false;
+      setDownloading(false);
+      setDownloadProgress(0);
+      void updateService.cancelDownload();
+    }
+    setError(null);
+    onDismiss();
+  };
+
+  // ── Download & Install ──────────────────────────────────────────────
 
   const handleDownload = async () => {
     if (!release?.apkUrl || downloadingRef.current) {
@@ -72,16 +88,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
         setDownloadProgress(1);
         downloadingRef.current = false;
 
-        // Auto install immediately after download
         try {
           await updateService.installApk(fileUri);
-          // Installer opened, close modal
           setDownloading(false);
-          handleDismiss();
+          setDownloadedUri(fileUri);
         } catch (installError) {
           console.error("Install error:", installError);
           setError(t("update.installError"));
-          setDownloadedUri(fileUri); // Save for retry
+          setDownloadedUri(fileUri);
           setDownloading(false);
         }
       } else if (downloadingRef.current) {
@@ -104,8 +118,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
     try {
       await updateService.installApk(downloadedUri);
-      // Installer opened, close modal
-      handleDismiss();
+      // If the user cancels Android's installer, they can dismiss the modal
+      // and keep using the current version.
     } catch (installError) {
       console.error("Install error:", installError);
       setError(t("update.installError"));
@@ -118,22 +132,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     }
   };
 
-  const handleDismiss = () => {
-    // Cancel download if in progress
+  const handleCancelDownload = () => {
     downloadingRef.current = false;
     setDownloading(false);
     setDownloadProgress(0);
     setDownloadedUri(null);
     setError(null);
-    onDismissUpdate?.();
-    onClose();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // Markdown styles based on theme
   const markdownStyles = useMemo(
     () => ({
       body: {
@@ -265,18 +271,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </View>
             <View style={styles.headerText}>
               <Text style={[styles.title, { color: colors.text }]}>
-                {t("update.available")}
+                {t("update.title")}
               </Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                v{release.version} • {formatDate(release.publishedAt)}
+                {t("update.available")}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={handleDismiss}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
           </View>
 
           {/* Version Info */}
@@ -367,10 +367,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               >
                 {t("update.downloading")} {Math.round(downloadProgress * 100)}%
               </Text>
+              <TouchableOpacity
+                onPress={handleCancelDownload}
+                style={[styles.cancelDownloadBtn, { borderColor: colors.error }]}
+              >
+                <Text style={[styles.cancelDownloadText, { color: colors.error }]}>
+                  {t("common.cancel")}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
-          {/* Buttons */}
+          {/* Buttons — postpone or install */}
           {!downloading && (
             <View style={styles.buttonRow}>
               <View style={styles.buttonWrapper}>
@@ -442,10 +450,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    marginTop: 2,
-  },
-  closeButton: {
-    padding: 4,
+    marginTop: 4,
+    lineHeight: 18,
   },
   versionBox: {
     flexDirection: "row",
@@ -515,6 +521,17 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 13,
     textAlign: "center",
+    fontWeight: "500",
+  },
+  cancelDownloadBtn: {
+    alignSelf: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  cancelDownloadText: {
+    fontSize: 13,
     fontWeight: "500",
   },
   buttonRow: {

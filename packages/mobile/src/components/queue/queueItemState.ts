@@ -61,7 +61,10 @@ const getBatchSettingsInfo = (item: QueueItem): string | null => {
 export const deriveQueueItemState = (item: QueueItem): QueueItemState => {
   const hasRealProgress = !!(item.progress && item.progress.total > 0);
   // Batch retranslation info
-  const isBatchRetranslation = item.retranslateBatchIndex !== undefined;
+  const isBatchRetranslation = Boolean(
+    item.retranslateBatchIndices?.length ||
+      item.retranslateBatchIndex !== undefined,
+  );
   // Batch retranslation is actively translating only if it has progress (meaning API call started)
   // Without progress, it's waiting in queue
   const isBatchRetranslationActive = isBatchRetranslation && hasRealProgress;

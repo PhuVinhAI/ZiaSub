@@ -26,34 +26,64 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       borderColor: colors.warning,
       borderStyle: "dashed",
     },
-    translationItemExpanded: {
-      borderColor: colors.primary,
-    },
-    // Accordion header
     translationHeader: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: 12,
+      gap: 8,
+      padding: 10,
     },
-    translationHeaderLeft: {
+    translationHeaderMain: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 10,
       flex: 1,
+      minWidth: 0,
+      minHeight: 44,
     },
+    translationIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primarySoft,
+    },
+    translationIconActive: { backgroundColor: colors.successBg },
+    translationIconPartial: { backgroundColor: colors.warningBg },
     translationHeaderInfo: {
       flex: 1,
+      minWidth: 0,
+    },
+    translationMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 4,
     },
     translationHeaderActions: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 4,
+      gap: 5,
     },
-    headerActionBtn: {
-      padding: 4,
+    translationActionButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
     },
-    translationConfig: { color: colors.text, fontSize: 13, fontWeight: "500" },
+    translationActionSelect: { backgroundColor: colors.primarySoft },
+    translationActionSelected: { backgroundColor: colors.successBg },
+    translationActionResume: { backgroundColor: colors.successBg },
+    translationActionDelete: { backgroundColor: colors.errorBg },
+    translationActionDisabled: { opacity: 0.45 },
+    translationConfig: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: "600",
+      flexShrink: 1,
+    },
     translationDate: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
     // Preset badge
     presetBadge: {
@@ -64,7 +94,6 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 4,
-      marginLeft: 6,
     },
     presetBadgeText: {
       color: colors.primary,
@@ -85,16 +114,8 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       color: colors.textMuted,
       fontSize: 9,
     },
-    // Expanded content
-    translationExpanded: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      padding: 12,
-      backgroundColor: colors.surfaceElevated,
-    },
-    expandedProgressContainer: {
-      marginBottom: 12,
-    },
+    rangeBadge: { backgroundColor: colors.primarySoft },
+    rangeBadgeText: { color: colors.primary, fontSize: 9 },
     partialProgressBar: {
       height: 4,
       backgroundColor: colors.surface,
@@ -112,181 +133,13 @@ export const createTranslateStyles = (colors: ThemeColors) =>
       fontWeight: "600",
       marginTop: 4,
     },
-    // Batches grid
-    batchesContainer: {
-      marginBottom: 12,
-    },
-    batchesTitle: {
-      color: colors.textMuted,
-      fontSize: 11,
-      fontWeight: "600",
-      marginBottom: 8,
-      textTransform: "uppercase",
-    },
-    batchesGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    batchChipContainer: {
-      alignItems: "center",
-    },
-    batchChip: {
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 8,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      minWidth: 54,
-    },
-    batchChipCompleted: {
-      backgroundColor: colors.successBg,
-      borderColor: colors.success,
-    },
-    batchChipProcessing: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    batchChipPending: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderStyle: "dashed",
-    },
-    batchChipError: {
-      backgroundColor: colors.errorBg,
-      borderColor: colors.error,
-    },
-    batchChipPaused: {
-      backgroundColor: colors.warning,
-      borderColor: colors.warning,
-    },
-    batchChipWaiting: {
-      backgroundColor: colors.primarySoft,
-      borderColor: colors.primary,
-    },
-    batchChipPresub: {
-      backgroundColor: colors.warningBg,
-      borderColor: colors.warning,
-    },
-    batchChipText: {
-      color: colors.textMuted,
-      fontSize: 12,
-      fontWeight: "700",
-    },
-    batchChipTextCompleted: {
-      color: colors.success,
-    },
-    batchChipTextError: {
-      color: colors.error,
-    },
-    batchChipTime: {
-      color: colors.textMuted,
-      fontSize: 9,
-      marginTop: 2,
-    },
-    batchChipTimeCompleted: {
-      color: colors.success,
-    },
-    batchChipTimeError: {
-      color: colors.error,
-    },
-    batchChipTextPresub: {
-      color: colors.warning, // Warning text like completed uses success color
-    },
-    batchChipTimePresub: {
-      color: colors.warning, // Warning text
-    },
-    batchActions: {
-      flexDirection: "row",
-      gap: 2,
-      marginTop: 4,
-    },
-    batchActionBtn: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: colors.surfaceElevated,
-      justifyContent: "center",
-      alignItems: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    batchesHint: {
-      color: colors.textMuted,
-      fontSize: 10,
-      marginTop: 8,
-      fontStyle: "italic",
-    },
-    // Expanded action buttons
-    expandedActions: {
-      flexDirection: "row",
-      gap: 8,
-      marginTop: 4,
-    },
-    expandedActionBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      paddingVertical: 10,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      flex: 1,
-    },
-    expandedActionBtnPrimary: {
-      backgroundColor: colors.primary,
-    },
-    expandedActionBtnDanger: {
-      backgroundColor: colors.errorBg,
-      borderWidth: 1,
-      borderColor: colors.error,
-      flex: 0,
+    compactProgressContainer: {
       paddingHorizontal: 12,
+      paddingBottom: 10,
     },
-    expandedActionBtnTextPrimary: {
-      color: colors.onPrimary,
-      fontSize: 13,
-      fontWeight: "600",
+    retranslationStatusContainer: {
+      paddingHorizontal: 10,
     },
-    // Legacy - keep for backward compat
-    translationInfo: { flex: 1, padding: 12 },
-    resumeBtn: { padding: 12 },
-    viewBatchesBtn: { padding: 12 },
-    deleteBtn: { padding: 12 },
-
-    // Config picker styles
-    configPicker: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: colors.surfaceLight,
-      borderRadius: 12,
-      padding: 14,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    configPickerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-    configPickerText: { color: colors.text, fontSize: 14, fontWeight: "500" },
-    configDropdown: {
-      backgroundColor: colors.surfaceLight,
-      borderRadius: 12,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: "hidden",
-    },
-    configOption: {
-      padding: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    configOptionActive: { backgroundColor: colors.surfaceElevated },
-    configOptionText: { color: colors.text, fontSize: 14 },
-    configOptionTextActive: { color: colors.primary, fontWeight: "600" },
-
     // Progress styles
     progressContainer: {
       backgroundColor: colors.surfaceLight,
@@ -345,119 +198,95 @@ export const createTranslateStyles = (colors: ThemeColors) =>
     batchItemText: { color: colors.text, fontSize: 12, fontWeight: "600" },
 
     // Advanced options styles
-    advancedToggle: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      paddingVertical: 8,
-      marginBottom: 8,
-    },
-    advancedToggleText: {
-      color: colors.textMuted,
-      fontSize: 13,
-    },
-    advancedPanel: {
+    advancedLauncher: { marginBottom: 12 },
+    advancedScroll: { flex: 1 },
+    advancedScrollContent: { paddingBottom: 20 },
+    advancedSettingsGroup: {
       backgroundColor: colors.surfaceLight,
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderRadius: 10,
+      padding: 4,
+      gap: 2,
+      overflow: "hidden",
     },
-    advancedRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 18,
     },
-    advancedRowLeft: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      flex: 1,
-    },
-    advancedRowInfo: { flex: 1 },
-    advancedRowTitle: {
+    rangeSection: { marginTop: 0 },
+    rangeSectionTitle: {
       color: colors.text,
-      fontSize: 13,
-      fontWeight: "500",
+      fontSize: 15,
+      fontWeight: "700",
     },
-    advancedRowDesc: {
-      color: colors.textMuted,
-      fontSize: 11,
-      marginTop: 2,
+    rangeSectionDescription: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: 3,
     },
     rangeInputContainer: {
       flexDirection: "column",
-      gap: 12,
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
+      gap: 10,
+      marginTop: 10,
     },
     rangeInputGroup: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 10,
+      gap: 12,
+      minHeight: 58,
+      paddingLeft: 12,
+      paddingRight: 6,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceLight,
     },
     rangeLabel: {
-      color: colors.textMuted,
-      fontSize: 11,
-    },
-    rangeInput: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
       color: colors.text,
-      fontSize: 14,
-      fontWeight: "500",
-      minWidth: 80,
-      textAlign: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
+      fontSize: 13,
+      fontWeight: "700",
     },
     timeInputWrapper: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
+      padding: 4,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceElevated,
     },
     timeAdjustBtn: {
-      width: 32,
-      height: 32,
+      width: 44,
+      height: 44,
       borderRadius: 8,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: colors.surface,
       justifyContent: "center",
       alignItems: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    timeAdjustBtnPressed: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
     },
     timeInputField: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
+      minWidth: 74,
+      minHeight: 44,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
       color: colors.text,
       fontSize: 14,
-      fontWeight: "500",
-      minWidth: 70,
+      fontWeight: "700",
       textAlign: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
+      backgroundColor: "transparent",
+    },
+    durationHintContainer: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 0,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceLight,
     },
     durationHint: {
+      flex: 1,
       color: colors.textMuted,
       fontSize: 11,
-      textAlign: "center",
-      marginTop: 8,
     },
 
     // Warning styles

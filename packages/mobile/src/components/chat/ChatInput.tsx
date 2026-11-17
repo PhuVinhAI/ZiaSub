@@ -1,5 +1,11 @@
 import React from "react";
-import { View, StyleSheet, TextInput, TouchableOpacity } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  type LayoutChangeEvent,
+} from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -24,6 +30,7 @@ interface ChatInputProps {
   disabled?: boolean;
   videoTimeRange?: VideoTimeRange | null;
   onOpenTimeRange?: () => void;
+  onHeightChange?: (height: number) => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -41,6 +48,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   disabled,
   videoTimeRange,
   onOpenTimeRange,
+  onHeightChange,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -65,19 +73,21 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <View
-      style={[
-        styles.inputArea,
-        { paddingBottom: Math.max(insets.bottom, 14) },
-      ]}
+      onLayout={(event: LayoutChangeEvent) =>
+        onHeightChange?.(event.nativeEvent.layout.height)
+      }
+      style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 14) }]}
     >
       <View style={themedStyles.inputBox}>
         {attachVideo && videoUrl && (
           <View style={themedStyles.attachmentBar}>
-            <MaterialCommunityIcons
-              name="youtube"
-              size={16}
-              color={colors.error}
-            />
+            <View style={themedStyles.attachmentIcon}>
+              <MaterialCommunityIcons
+                name="youtube"
+                size={17}
+                color={colors.error}
+              />
+            </View>
             <Text style={themedStyles.attachmentText} numberOfLines={1}>
               {videoTitle || t("chat.video")}
             </Text>
@@ -85,11 +95,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <TouchableOpacity
                 style={themedStyles.timeRangeBadge}
                 onPress={onOpenTimeRange}
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                accessibilityLabel={t("chat.selectTimeRange")}
               >
                 <MaterialCommunityIcons
                   name="clock-outline"
                   size={12}
-                  color={colors.onPrimary}
+                  color={colors.accent}
                 />
                 <Text style={themedStyles.timeRangeText}>
                   {formatTimeRange(videoTimeRange)}
@@ -100,6 +113,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <TouchableOpacity
                 style={themedStyles.timeRangeBtn}
                 onPress={onOpenTimeRange}
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                accessibilityLabel={t("chat.selectTimeRange")}
               >
                 <MaterialCommunityIcons
                   name="clock-plus-outline"
@@ -111,10 +127,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <TouchableOpacity
               style={themedStyles.attachmentCancelBtn}
               onPress={onToggleVideo}
+              activeOpacity={0.72}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.cancel")}
             >
-              <Text style={themedStyles.attachmentCancelText}>
-                {t("common.cancel")}
-              </Text>
+              <MaterialCommunityIcons
+                name="close"
+                size={18}
+                color={colors.textMuted}
+              />
             </TouchableOpacity>
           </View>
         )}
@@ -134,7 +155,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
         />
         <View style={styles.inputBottomRow}>
           {videoUrl && !attachVideo && (
-            <TouchableOpacity style={styles.videoBtn} onPress={onToggleVideo}>
+            <TouchableOpacity
+              style={themedStyles.videoBtn}
+              onPress={onToggleVideo}
+              activeOpacity={0.72}
+              accessibilityRole="button"
+              accessibilityLabel={t("chat.video")}
+            >
               <MaterialCommunityIcons
                 name="youtube"
                 size={20}
@@ -145,15 +172,38 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <TouchableOpacity
             style={themedStyles.modelSelector}
             onPress={onOpenConfig}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={t("chat.selectConfig")}
           >
+            <MaterialCommunityIcons
+              name="creation"
+              size={14}
+              color={colors.primary}
+            />
             <Text style={themedStyles.modelText} numberOfLines={1}>
               {configName}
             </Text>
+            <MaterialCommunityIcons
+              name="chevron-down"
+              size={15}
+              color={colors.textMuted}
+            />
           </TouchableOpacity>
           <View style={styles.inputSpacer} />
           {isLoading ? (
-            <TouchableOpacity style={themedStyles.stopBtn} onPress={onStop}>
-              <MaterialCommunityIcons name="stop" size={18} color={colors.onError} />
+            <TouchableOpacity
+              style={themedStyles.stopBtn}
+              onPress={onStop}
+              activeOpacity={0.72}
+              accessibilityRole="button"
+              accessibilityLabel={t("chat.stopGeneration")}
+            >
+              <MaterialCommunityIcons
+                name="stop"
+                size={18}
+                color={colors.onError}
+              />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -163,6 +213,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
               ]}
               onPress={onSend}
               disabled={!inputText.trim() || disabled}
+              activeOpacity={0.72}
+              accessibilityRole="button"
+              accessibilityLabel={t("chat.send")}
             >
               <MaterialCommunityIcons
                 name="arrow-up"
@@ -183,109 +236,133 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 const styles = StyleSheet.create({
   inputArea: {
-    paddingHorizontal: 12,
-    paddingTop: 6,
+    paddingHorizontal: 10,
+    paddingTop: 8,
     paddingBottom: 10,
     backgroundColor: "transparent",
   },
   inputDisabled: { opacity: 0.5 },
-  inputBottomRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  videoBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  inputBottomRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   inputSpacer: { flex: 1 },
 });
 
 const chatInputThemedStyles = createThemedStyles((colors) => ({
   inputBox: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingTop: 9,
+    paddingBottom: 9,
     borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
+    borderColor: colors.borderLight,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 6,
   },
   attachmentBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingBottom: 10,
-    marginBottom: 6,
+    minHeight: 42,
+    paddingBottom: 8,
+    marginBottom: 5,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    gap: 8,
+    gap: 7,
+  },
+  attachmentIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.errorBg,
   },
   attachmentText: {
     flex: 1,
     color: colors.text,
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   attachmentCancelBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 8,
   },
-  attachmentCancelText: { color: colors.textMuted, fontSize: 13 },
   timeRangeBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    minHeight: 30,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 8,
   },
   timeRangeText: {
     fontSize: 11,
-    color: colors.onPrimary,
-    fontWeight: "500",
+    color: colors.accent,
+    fontWeight: "700",
   },
   timeRangeBtn: {
-    padding: 6,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: colors.surfaceLight,
   },
   input: {
     color: colors.text,
-    fontSize: 16,
-    minHeight: 24,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 30,
     maxHeight: 120,
-    padding: 0,
-    marginBottom: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
+    marginBottom: 7,
+  },
+  videoBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.errorBg,
   },
   modelSelector: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    maxWidth: 120,
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 11,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceLight,
+    maxWidth: 150,
   },
-  modelText: { color: colors.text, fontSize: 13, fontWeight: "500" },
+  modelText: {
+    flexShrink: 1,
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "600",
+  },
   sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
   },
-  sendBtnDisabled: { backgroundColor: colors.surfaceElevated },
+  sendBtnDisabled: { backgroundColor: colors.disabled },
   stopBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: colors.error,
     justifyContent: "center",
     alignItems: "center",

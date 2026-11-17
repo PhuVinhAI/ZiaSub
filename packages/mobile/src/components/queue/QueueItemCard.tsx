@@ -6,10 +6,7 @@ import { useTheme } from "@src/contexts";
 import { useThemedStyles } from "@hooks/useThemedStyles";
 import type { QueueItem } from "@src/types";
 import { formatDuration } from "./queueFormatters";
-import {
-  deriveQueueItemState,
-  getStatusStyle,
-} from "./queueItemState";
+import { deriveQueueItemState, getStatusStyle } from "./queueItemState";
 import { queueItemCardStyles } from "./queueItemCardStyles";
 import QueueItemBadges from "./QueueItemBadges";
 import QueueItemStatusText from "./QueueItemStatusText";
@@ -51,12 +48,11 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
 
   return (
     <TouchableOpacity
-      style={[
-        styles.card,
-        showProgressBar && { borderColor: statusStyle.color, borderWidth: 1.5 },
-      ]}
+      style={styles.card}
       onPress={() => onSelect(item)}
-      activeOpacity={0.7}
+      activeOpacity={0.72}
+      accessibilityRole="button"
+      accessibilityLabel={item.title}
     >
       {/* Progress bar at bottom */}
       {showProgressBar && (
@@ -78,6 +74,14 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
         <View style={styles.thumbnailContainer}>
           <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
 
+          {showProgressBar && (
+            <View style={styles.progressPercentBadge}>
+              <Text style={styles.progressPercentText}>
+                {Math.round(progressPercent)}%
+              </Text>
+            </View>
+          )}
+
           {/* Duration badge - bottom right */}
           {item.duration && (
             <View style={styles.durationBadge}>
@@ -93,7 +97,7 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
           >
             <MaterialCommunityIcons
               name={statusStyle.icon}
-              size={12}
+              size={14}
               color={statusStyle.onColor}
             />
           </View>
@@ -112,6 +116,7 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
             state={state}
             queuePosition={queuePosition}
             totalInQueue={totalInQueue}
+            statusStyle={statusStyle}
             styles={styles}
           />
         </View>

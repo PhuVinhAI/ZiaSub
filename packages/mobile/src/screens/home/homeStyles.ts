@@ -10,6 +10,20 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  playerWorkspace: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  normalVideoPane: {
+    flex: 1,
+    minHeight: 0,
+  },
+  visualVideoPane: {
+    width: "100%",
+    minHeight: 0,
+    backgroundColor: "#000000",
+    overflow: "hidden",
+  },
   headerContainer: {
     borderBottomWidth: 1,
   },
@@ -67,6 +81,13 @@ export const styles = StyleSheet.create({
   urlInputClose: {
     padding: 4,
     marginLeft: 4,
+  },
+  urlInputAction: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 2,
   },
   urlText: {
     flex: 1,

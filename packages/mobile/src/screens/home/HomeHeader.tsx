@@ -3,7 +3,7 @@
  *
  * Tách từ HomeScreen.tsx — chỉ di chuyển code, không sửa đổi logic.
  */
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
   Platform,
   UIManager,
   Linking,
+  Keyboard,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import type { EdgeInsets } from "react-native-safe-area-context";
 import type { ThemeColors } from "@src/contexts";
 import { styles, homeThemedStyles } from "./homeStyles";
@@ -27,6 +29,7 @@ import {
   setLastCopiedVideoUrl,
 } from "@utils/videoUtils";
 import { saveLastCopiedVideoUrlToStorage } from "@utils/storage";
+import { SavedUrlsSheet } from "./SavedUrlsSheet";
 
 if (
   Platform.OS === "android" &&
@@ -74,9 +77,11 @@ export const HomeHeader = ({
   navigateToUrl,
   currentUrl,
 }: HomeHeaderProps) => {
+  const { t } = useTranslation();
   const isAIStudio = isAIStudioPage(currentUrl);
   const lastYouTubeUrlRef = useRef<string>("");
   const lastAIStudioUrlRef = useRef<string>("");
+  const [savedUrlsVisible, setSavedUrlsVisible] = useState(false);
 
   useEffect(() => {
     if (!currentUrl) return;
@@ -96,6 +101,19 @@ export const HomeHeader = ({
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setShowUrlInput(false);
     setUrlInput("");
+  };
+
+  const handleOpenSavedUrls = () => {
+    Keyboard.dismiss();
+    setSavedUrlsVisible(true);
+    handleCloseUrlInput();
+  };
+
+  const handleSelectSavedUrl = (url: string) => {
+    setSavedUrlsVisible(false);
+    setShowUrlInput(false);
+    setUrlInput("");
+    navigateToUrl(url);
   };
 
   const handleToggleAIStudio = async () => {
@@ -203,7 +221,7 @@ export const HomeHeader = ({
               style={[styles.urlInput, themedStyles.urlInput]}
               value={urlInput}
               onChangeText={setUrlInput}
-              placeholder="URL hoặc tìm kiếm..."
+              placeholder={currentUrl || t("home.urlPlaceholder")}
               placeholderTextColor={colors.textMuted}
               autoFocus
               autoCapitalize="none"
@@ -222,6 +240,17 @@ export const HomeHeader = ({
                 }, 100);
               }}
             />
+            <TouchableOpacity
+              style={styles.urlInputAction}
+              onPress={handleOpenSavedUrls}
+              accessibilityLabel={t("home.savedUrls.open")}
+            >
+              <MaterialCommunityIcons
+                name="bookmark-outline"
+                size={18}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.urlInputClose}
               onPress={handleCloseUrlInput}
@@ -280,6 +309,12 @@ export const HomeHeader = ({
           </TouchableOpacity>
         )}
       </View>
+      <SavedUrlsSheet
+        visible={savedUrlsVisible}
+        currentUrl={currentUrl}
+        onClose={() => setSavedUrlsVisible(false)}
+        onSelectUrl={handleSelectSavedUrl}
+      />
     </View>
   );
 };

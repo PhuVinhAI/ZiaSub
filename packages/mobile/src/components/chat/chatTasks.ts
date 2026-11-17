@@ -17,9 +17,13 @@ export function deriveTasks(
       const nextMsg = messages[i + 1];
       const hasResult = nextMsg && nextMsg.role === "model";
       const isLastMessage = i === messages.length - 1;
+      const isStreamingResult =
+        hasResult && isLoading && i + 1 === messages.length - 1;
 
       let status: "done" | "error" | "pending";
-      if (hasResult) {
+      if (isStreamingResult) {
+        status = "pending";
+      } else if (hasResult) {
         status = nextMsg.content.startsWith("Lỗi:") ? "error" : "done";
       } else if (isLastMessage && isLoading) {
         // Currently processing

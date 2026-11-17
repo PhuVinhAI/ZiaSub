@@ -1,12 +1,12 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
-  TextInput as RNTextInput,
   Platform,
   ScrollView,
 } from "react-native";
+import { Text } from "react-native-paper";
 import { alert } from "../common/CustomAlert";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -16,11 +16,13 @@ import * as FileSystem from "expo-file-system/legacy";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
 import Button3D from "../common/Button3D";
+import SubtitleTextEditor from "./SubtitleTextEditor";
 
 interface SrtTabProps {
   srtContent: string;
   setSrtContent: (text: string) => void;
   onLoadSubtitles: () => void;
+  onOpenVisualEditor?: (content: string) => void;
   videoTitle?: string;
   configName?: string;
   presetName?: string;
@@ -30,6 +32,7 @@ export const SrtTab: React.FC<SrtTabProps> = ({
   srtContent,
   setSrtContent,
   onLoadSubtitles,
+  onOpenVisualEditor,
   videoTitle,
   configName,
   presetName,
@@ -37,6 +40,11 @@ export const SrtTab: React.FC<SrtTabProps> = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(srtTabThemedStyles);
+  const [showEditor, setShowEditor] = useState(false);
+  const lineCount = useMemo(
+    () => (srtContent.length > 0 ? srtContent.split(/\r?\n/).length : 0),
+    [srtContent],
+  );
 
   const sanitizeFileName = (name: string): string => {
     // Remove invalid characters for file names
@@ -119,29 +127,69 @@ export const SrtTab: React.FC<SrtTabProps> = ({
             style={styles.rowButton}
           />
         </View>
-        <View style={styles.inputContainer}>
-          <RNTextInput
-            placeholder={t("subtitleModal.srt.placeholder")}
-            placeholderTextColor={colors.textMuted}
-            multiline
-            value={srtContent}
-            onChangeText={setSrtContent}
-            style={themedStyles.input}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {srtContent.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => setSrtContent("")}
+        <View style={[styles.previewContainer, themedStyles.previewContainer]}>
+          <View style={styles.previewHeader}>
+            <View style={styles.previewTitleGroup}>
+              <View style={themedStyles.previewIcon}>
+                <MaterialCommunityIcons
+                  name="subtitles-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.previewTitleText}>
+                <Text style={themedStyles.previewTitle}>
+                  {t("subtitleModal.srt.contentTitle")}
+                </Text>
+                <Text style={themedStyles.previewMeta}>
+                  {t("subtitleModal.srt.editorStats", {
+                    lines: lineCount,
+                    characters: srtContent.length,
+                  })}
+                </Text>
+              </View>
+            </View>
+            {srtContent.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => setSrtContent("")}
+              >
+                <MaterialCommunityIcons
+                  name="close-circle"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={styles.previewBody}
+            onPress={() => setShowEditor(true)}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel={t("subtitleModal.srt.editFullscreen")}
+          >
+            <Text
+              style={[
+                themedStyles.previewText,
+                !srtContent && themedStyles.previewPlaceholder,
+              ]}
+              numberOfLines={10}
             >
+              {srtContent || t("subtitleModal.srt.placeholder")}
+            </Text>
+            <View style={styles.previewFooter}>
+              <Text style={themedStyles.previewHint}>
+                {t("subtitleModal.srt.editFullscreen")}
+              </Text>
               <MaterialCommunityIcons
-                name="close-circle"
-                size={18}
-                color={colors.textMuted}
+                name="fullscreen"
+                size={20}
+                color={colors.primary}
               />
-            </TouchableOpacity>
-          )}
+            </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
       <View style={styles.buttonWrapper}>
@@ -151,6 +199,21 @@ export const SrtTab: React.FC<SrtTabProps> = ({
           variant="primary"
         />
       </View>
+      <SubtitleTextEditor
+        visible={showEditor}
+        value={srtContent}
+        onSave={setSrtContent}
+        onOpenVisualEditor={
+          onOpenVisualEditor
+            ? (content) => {
+                setSrtContent(content);
+                setShowEditor(false);
+                onOpenVisualEditor(content);
+              }
+            : undefined
+        }
+        onClose={() => setShowEditor(false)}
+      />
     </View>
   );
 };
@@ -161,27 +224,74 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
   buttonRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
   rowButton: { flex: 1 },
-  inputContainer: {
+  previewContainer: {
     flex: 1,
     marginBottom: 16,
-    position: "relative",
     minHeight: 200,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: "hidden",
   },
-  clearButton: { position: "absolute", top: 12, right: 12, padding: 4 },
+  previewHeader: {
+    minHeight: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  previewTitleGroup: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  previewTitleText: { flex: 1, minWidth: 0 },
+  clearButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewBody: { flex: 1, minHeight: 150, padding: 14 },
+  previewFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 14,
+  },
   buttonWrapper: { paddingTop: 12 },
 });
 
 const srtTabThemedStyles = createThemedStyles((colors) => ({
-  input: {
-    flex: 1,
+  previewContainer: {
     backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    padding: 16,
-    color: colors.text,
-    fontSize: 13,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-    textAlignVertical: "top",
-    borderWidth: 1,
     borderColor: colors.border,
+  },
+  previewIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+  },
+  previewTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  previewMeta: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
+  previewText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+  previewPlaceholder: { color: colors.textMuted },
+  previewHint: {
+    flex: 1,
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "600",
   },
 }));

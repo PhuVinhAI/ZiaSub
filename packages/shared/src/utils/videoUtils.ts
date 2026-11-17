@@ -88,6 +88,19 @@ export const isShortsUrl = (url: string): boolean => {
   return url.includes("/shorts/");
 };
 
+/**
+ * Check if URL is a YouTube URL (watch, shorts, youtu.be, or main domain)
+ */
+export const isYouTubeUrl = (url: string): boolean => {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  // Must contain youtube.com or youtu.be as hostname, not just anywhere in the string
+  return (
+    /(^|:\/\/|\.)youtube\.com([\/?#:]|$)/i.test(lowerUrl) ||
+    /(^|:\/\/)youtu\.be([\/?#:]|$)/i.test(lowerUrl)
+  );
+};
+
 export const isGoogleLoginPage = (url: string): boolean => {
   if (!url) return false;
   try {
@@ -145,6 +158,20 @@ export const setLastHandledSrt = (srt: string) => {
 
 export const getLastHandledSrt = (): string => {
   return memoryLastHandledSrt;
+};
+
+/**
+ * Check if input looks like a URL/domain (has protocol or domain pattern)
+ */
+export const looksLikeUrl = (input: string): boolean => {
+  if (!input) return false;
+  // Has protocol
+  if (/^https?:\/\//i.test(input)) return true;
+  // Has www. prefix
+  if (/^www\./i.test(input)) return true;
+  // Has domain-like pattern: contains a dot, no spaces, ends with a TLD-like suffix
+  if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}([/?#].*)?$/.test(input)) return true;
+  return false;
 };
 
 

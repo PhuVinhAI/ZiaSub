@@ -15,7 +15,12 @@ export const runWithConcurrency = async <T>(
     total: number,
     statuses: Array<"pending" | "processing" | "completed" | "error">
   ) => void,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  onTaskComplete?: (
+    result: T,
+    index: number,
+    completedIndices: number[],
+  ) => void,
 ): Promise<{
   results: (T | null)[];
   hasErrors: boolean;
@@ -30,6 +35,7 @@ export const runWithConcurrency = async <T>(
   let hasErrors = false;
   let lastError: string | undefined;
   let aborted = false;
+  const completedIndices: number[] = [];
 
   const runNext = async (): Promise<void> => {
     // Check abort before starting next task
@@ -54,9 +60,12 @@ export const runWithConcurrency = async <T>(
 
       // Each batch task uses keyManager.executeWithRetry internally
       // which handles retry + key rotation for that specific batch
-      results[index] = await tasks[index]();
+      const result = await tasks[index]();
+      results[index] = result;
       statuses[index] = "completed";
       completedCount++;
+      completedIndices.push(index);
+      onTaskComplete?.(result, index, [...completedIndices]);
     } catch (error: any) {
       // Check if aborted
       if (abortSignal?.aborted) {

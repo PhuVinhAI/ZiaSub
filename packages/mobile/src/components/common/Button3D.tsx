@@ -6,6 +6,7 @@ import {
   ViewStyle,
   TextStyle,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -29,6 +30,7 @@ interface Button3DProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;
+  loading?: boolean;
   active?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
@@ -45,6 +47,7 @@ const Button3D: React.FC<Button3DProps> = ({
   variant = "primary",
   size = "normal",
   disabled = false,
+  loading = false,
   active = false,
   style,
   textStyle,
@@ -52,6 +55,8 @@ const Button3D: React.FC<Button3DProps> = ({
 }) => {
   const { colors } = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
+
+  const isDisabled = disabled || loading;
 
   const handlePressIn = () => {
     animatedValue.setValue(1);
@@ -67,7 +72,7 @@ const Button3D: React.FC<Button3DProps> = ({
   });
 
   const getColors = useMemo(() => {
-    if (disabled) {
+    if (isDisabled) {
       return {
         bg: colors.disabled,
         shadow: colors.border,
@@ -129,16 +134,16 @@ const Button3D: React.FC<Button3DProps> = ({
           border: colors.border,
         };
     }
-  }, [colors, disabled, active, variant]);
+  }, [colors, isDisabled, active, variant]);
 
   const sizeStyles = useMemo(() => {
     if (size === "small") {
       return {
-        containerHeight: 40 + SHADOW_HEIGHT,
-        buttonHeight: 40,
-        borderRadius: 10,
+        containerHeight: 44 + SHADOW_HEIGHT,
+        buttonHeight: 44,
+        borderRadius: 11,
         fontSize: 13,
-        iconSize: 16,
+        iconSize: 18,
       };
     }
     return {
@@ -177,7 +182,10 @@ const Button3D: React.FC<Button3DProps> = ({
           onPress={onPress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
-          disabled={disabled}
+          disabled={isDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={title}
+          accessibilityState={{ disabled: isDisabled, busy: loading }}
           style={[
             styles.button,
             {
@@ -188,7 +196,9 @@ const Button3D: React.FC<Button3DProps> = ({
             },
           ]}
         >
-          {children ? (
+          {loading ? (
+            <ActivityIndicator size="small" color={getColors.text} />
+          ) : children ? (
             children
           ) : (
             <View style={styles.content}>

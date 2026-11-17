@@ -8,6 +8,7 @@ import type {
   VideoTranslations,
   BatchSettings,
 } from "@src/types";
+import { parseSRT } from "@utils/srtParser";
 import { extractVideoId } from "@utils/videoUtils";
 
 // Helper to get video ID from URL
@@ -25,6 +26,12 @@ const getVideoIdFromUrl = (videoUrl: string): string => {
   return `video_${Math.abs(hash)}`;
 };
 
+const assertValidTranslation = (srtContent: string): void => {
+  if (!srtContent.trim() || parseSRT(srtContent).length === 0) {
+    throw new Error("Không thể lưu bản dịch không có phụ đề SRT hợp lệ");
+  }
+};
+
 export const saveTranslation = async (
   videoUrl: string,
   srtContent: string,
@@ -40,6 +47,7 @@ export const saveTranslation = async (
     rangeEnd?: number; // Time range end for partial video translation
   }
 ): Promise<SavedTranslation> => {
+  assertValidTranslation(srtContent);
   const videoId = getVideoIdFromUrl(videoUrl);
 
   // Get existing data
@@ -137,11 +145,13 @@ export const savePartialTranslation = async (
     rangeEnd?: number;
     videoDuration?: number;
     batchSettings?: BatchSettings;
+    completedBatchRanges?: Array<{ start: number; end: number }>;
     batchStatuses?: Array<"pending" | "completed" | "error">;
     presetId?: string;
     existingTranslationId?: string; // ID of existing translation to update (for batch retranslation)
   }
 ): Promise<SavedTranslation> => {
+  assertValidTranslation(srtContent);
   const videoId = getVideoIdFromUrl(videoUrl);
 
   let data = await storageService.getTranslation(videoId);
@@ -204,6 +214,7 @@ export const savePartialTranslation = async (
     rangeEnd: metadata.rangeEnd,
     videoDuration: metadata.videoDuration,
     batchSettings: metadata.batchSettings,
+    completedBatchRanges: metadata.completedBatchRanges,
     batchStatuses,
   };
 
@@ -321,6 +332,63 @@ export const getPartialOnlyVideoUrls = async (): Promise<string[]> => {
   }
 
   return urls;
+};
+
+export type TranslationHistoryStatus = "paused" | "completed";
+
+export interface TranslationHistoryItem {
+  id: string;
+  videoUrl: string;
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  duration?: number;
+  status: TranslationHistoryStatus;
+  timestamp: number;
+  completedBatches: number;
+  totalBatches: number;
+}
+
+/**
+ * Read history from persisted translation records, not from the queue.
+ * Queue items are disposable management records; these records survive queue cleanup.
+ */
+export const getTranslationHistory = async (): Promise<TranslationHistoryItem[]> => {
+  await storageService.initialize();
+
+  const history: TranslationHistoryItem[] = [];
+  const videoIds = storageService.getTranslationVideoIds();
+
+  for (const videoId of videoIds) {
+    const data = await storageService.getTranslation(videoId);
+    if (!data?.videoUrl || data.translations.length === 0) continue;
+
+    const translations = [...data.translations].sort(
+      (a, b) =>
+        (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt),
+    );
+    const latest = translations[0];
+    const resolvedVideoId = getVideoIdFromUrl(data.videoUrl);
+    const totalBatches = latest.totalBatches ?? 0;
+    const completedBatches = latest.isPartial
+      ? latest.completedBatches ?? 0
+      : latest.totalBatches ?? totalBatches;
+
+    history.push({
+      id: `translation-history-${resolvedVideoId}`,
+      videoUrl: data.videoUrl,
+      videoId: resolvedVideoId,
+      title: `Video ${resolvedVideoId}`,
+      thumbnail: `https://img.youtube.com/vi/${resolvedVideoId}/mqdefault.jpg`,
+      duration: latest.videoDuration,
+      status: latest.isPartial ? "paused" : "completed",
+      timestamp: latest.updatedAt ?? latest.createdAt,
+      completedBatches,
+      totalBatches,
+    });
+  }
+
+  return history.sort((a, b) => b.timestamp - a.timestamp);
 };
 
 export const hasTranslation = async (videoUrl: string): Promise<boolean> => {

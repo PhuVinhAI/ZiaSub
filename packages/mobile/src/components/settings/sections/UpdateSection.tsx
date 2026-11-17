@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -20,9 +19,12 @@ const UpdateSection: React.FC = () => {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const themedStyles = useThemedStyles(updateThemedStyles);
-  const { hasUpdate, updateResult, showUpdateModal } = useUpdate();
+  const { hasUpdate, updateResult, showUpdateModal, checkForUpdate } = useUpdate();
 
   const [checking, setChecking] = useState(false);
+  const [checkStatus, setCheckStatus] = useState<
+    "idle" | "upToDate" | "error"
+  >("idle");
 
   const checkUpdate = useCallback(async () => {
     if (hasUpdate && updateResult) {
@@ -32,17 +34,23 @@ const UpdateSection: React.FC = () => {
     }
 
     setChecking(true);
+    setCheckStatus("idle");
     try {
-      const result = await updateService.checkForUpdate();
-      if (result.hasUpdate) {
+      const result = await checkForUpdate();
+      if (!result) {
+        setCheckStatus("error");
+      } else if (!result.hasUpdate) {
+        setCheckStatus("upToDate");
+      } else {
         showUpdateModal();
       }
     } catch (err) {
       console.error("Update check failed:", err);
+      setCheckStatus("error");
     } finally {
       setChecking(false);
     }
-  }, [hasUpdate, updateResult, showUpdateModal]);
+  }, [checkForUpdate, hasUpdate, updateResult, showUpdateModal]);
 
   const currentVersion = updateService.getCurrentVersion();
 
@@ -83,26 +91,59 @@ const UpdateSection: React.FC = () => {
       )}
 
       {!hasUpdate && (
-        <TouchableOpacity
-          style={[styles.checkButton, themedStyles.checkButton]}
-          onPress={checkUpdate}
-          disabled={checking}
-        >
-          {checking ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <>
+        <>
+          {checkStatus !== "idle" && (
+            <View
+              style={[
+                styles.statusBox,
+                checkStatus === "upToDate"
+                  ? themedStyles.successBox
+                  : themedStyles.errorBox,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={
+                  checkStatus === "upToDate"
+                    ? "check-circle-outline"
+                    : "alert-circle-outline"
+                }
+                size={19}
+                color={
+                  checkStatus === "upToDate" ? colors.success : colors.error
+                }
+              />
+              <Text
+                style={
+                  checkStatus === "upToDate"
+                    ? themedStyles.successText
+                    : themedStyles.errorText
+                }
+              >
+                {checkStatus === "upToDate"
+                  ? t("update.upToDate")
+                  : t("update.checkError")}
+              </Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.checkButton, themedStyles.checkButton]}
+            onPress={checkUpdate}
+            disabled={checking}
+          >
+            {checking ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
               <MaterialCommunityIcons
                 name="refresh"
                 size={18}
                 color={colors.primary}
               />
-              <Text style={themedStyles.checkButtonText}>
-                {t("update.checkNow")}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+            )}
+            <Text style={themedStyles.checkButtonText}>
+              {checking ? t("update.checking") : t("update.checkNow")}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
@@ -137,6 +178,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 8,
   },
+  statusBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 8,
+  },
 });
 
 const updateThemedStyles = createThemedStyles((colors) => ({
@@ -151,8 +200,6 @@ const updateThemedStyles = createThemedStyles((colors) => ({
   },
   updateBox: {
     backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primary,
   },
   updateTitle: {
     fontSize: 14,
@@ -166,14 +213,22 @@ const updateThemedStyles = createThemedStyles((colors) => ({
   },
   checkButton: {
     backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   checkButtonText: {
     fontSize: 14,
     color: colors.primary,
     fontWeight: "500",
   },
+  successBox: {
+    backgroundColor: colors.successBg,
+    borderColor: colors.success,
+  },
+  errorBox: {
+    backgroundColor: colors.errorBg,
+    borderColor: colors.error,
+  },
+  successText: { flex: 1, color: colors.success, fontSize: 13 },
+  errorText: { flex: 1, color: colors.error, fontSize: 13 },
 }));
 
 export default UpdateSection;

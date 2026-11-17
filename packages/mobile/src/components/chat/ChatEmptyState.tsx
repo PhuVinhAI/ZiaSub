@@ -26,26 +26,35 @@ const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={themedStyles.greeting}>{t("chat.greeting")}</Text>
-      <Text style={themedStyles.greetingSubtitle}>
-        {t("chat.greetingSubtitle")}
-      </Text>
-      {!hasApiKey && (
-        <View style={themedStyles.warningContainer}>
+      <View style={styles.content}>
+        <View style={themedStyles.brandMark}>
           <MaterialCommunityIcons
-            name="alert-circle-outline"
-            size={20}
-            color={colors.warning}
+            name="creation"
+            size={24}
+            color={colors.primary}
           />
-          <Text style={themedStyles.warningText}>{t("chat.noApiKey")}</Text>
         </View>
-      )}
-      {hasVideo && (
-        <QuickActions
-          onAction={onQuickAction}
-          disabled={isLoading || !hasApiKey}
-        />
-      )}
+        <Text style={themedStyles.greeting}>{t("chat.greeting")}</Text>
+        <Text style={themedStyles.greetingSubtitle}>
+          {t("chat.greetingSubtitle")}
+        </Text>
+        {!hasApiKey && (
+          <View style={themedStyles.warningContainer}>
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={20}
+              color={colors.warning}
+            />
+            <Text style={themedStyles.warningText}>{t("chat.noApiKey")}</Text>
+          </View>
+        )}
+        {hasVideo && (
+          <QuickActions
+            onAction={onQuickAction}
+            disabled={isLoading || !hasApiKey}
+          />
+        )}
+      </View>
     </View>
   );
 };
@@ -54,33 +63,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "flex-start",
-    paddingHorizontal: 8,
-    paddingTop: 40,
+    alignItems: "center",
+    paddingHorizontal: 4,
+    paddingTop: 24,
+    paddingBottom: 32,
   },
+  content: { width: "100%", maxWidth: 560 },
 });
 
 const chatEmptyThemedStyles = createThemedStyles((colors) => ({
-  greeting: { color: colors.textSecondary, fontSize: 18, marginBottom: 4 },
+  brandMark: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+    marginBottom: 18,
+  },
+  greeting: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    lineHeight: 21,
+    marginBottom: 3,
+  },
   greetingSubtitle: {
     color: colors.text,
-    fontSize: 26,
-    fontWeight: "600",
-    marginBottom: 32,
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: "700",
+    marginBottom: 26,
   },
   warningContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.warningBg,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
+    borderRadius: 8,
+    padding: 13,
+    marginBottom: 18,
     gap: 10,
     borderWidth: 1,
     borderColor: colors.warning,
     alignSelf: "stretch",
   },
-  warningText: { color: colors.warning, fontSize: 13, flex: 1 },
+  warningText: { color: colors.warning, fontSize: 13, lineHeight: 18, flex: 1 },
 }));
 
 export default ChatEmptyState;

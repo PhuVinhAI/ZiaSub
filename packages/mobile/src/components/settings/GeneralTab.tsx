@@ -1,203 +1,188 @@
-import React, { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from "react-native";
+import React, { useMemo } from "react";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { confirmDestructive } from "@components/common/CustomAlert";
 import { useTheme, useUpdate } from "@src/contexts";
 import { useThemedStyles, createThemedStyles } from "@hooks/useThemedStyles";
+import { confirmDestructive } from "@components/common/CustomAlert";
+import Button3D from "@components/common/Button3D";
 import type {
-  SubtitleSettings,
   BatchSettings,
-  TTSSettings,
+  DebugSettings,
   FloatingUISettings,
   NotificationSettings,
-  DebugSettings,
+  SubtitleSettings,
 } from "@src/types";
 import {
-  DEFAULT_SUBTITLE_SETTINGS,
   DEFAULT_BATCH_SETTINGS,
-  DEFAULT_TTS_SETTINGS,
+  DEFAULT_DEBUG_SETTINGS,
   DEFAULT_FLOATING_UI_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
-  DEFAULT_DEBUG_SETTINGS,
+  DEFAULT_SUBTITLE_SETTINGS,
 } from "@constants/defaults";
-import {
-  ApiKeysSection,
-  SubtitleSection,
-  BatchSection,
-  TTSSection,
-  LanguageSection,
-  ThemeSection,
-  UpdateSection,
-  DataSection,
-  FloatingUISection,
-  NotificationSection,
-  DebugSection,
-} from "./sections";
-import Button3D from "@components/common/Button3D";
 
-// Enable LayoutAnimation on Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-interface GeneralTabProps {
-  subtitleSettings: SubtitleSettings;
-  onSubtitleChange: (settings: SubtitleSettings) => void;
-  batchSettings: BatchSettings;
-  onBatchChange: (settings: BatchSettings) => void;
-  apiKeys: string[];
-  onApiKeysChange: (keys: string[]) => void;
-  ttsSettings: TTSSettings;
-  onTTSChange: (settings: TTSSettings) => void;
-  floatingUISettings: FloatingUISettings;
-  onFloatingUIChange: (settings: FloatingUISettings) => void;
-  notificationSettings: NotificationSettings;
-  onNotificationChange: (settings: NotificationSettings) => void;
-  debugSettings?: DebugSettings;
-  onDebugChange?: (settings: DebugSettings) => void;
-  onNavigateToUrl?: (url: string) => void;
-}
-
-type SettingGroup =
+export type SettingPage =
   | "appearance"
   | "apiKeys"
   | "subtitle"
   | "batch"
-  | "tts"
   | "floatingUI"
   | "notification"
-  | "debug"
   | "data"
-  | "update"
-  | null;
+  | "debug"
+  | "support";
 
-interface GroupConfig {
-  key: SettingGroup;
-  icon: string;
-  labelKey: string;
+type SettingsIcon = keyof typeof MaterialCommunityIcons.glyphMap;
+
+interface MenuItem {
+  page: SettingPage;
+  icon: SettingsIcon;
+  title: string;
   description: string;
+  showUpdateBadge?: boolean;
 }
 
-export const GeneralTab: React.FC<GeneralTabProps> = ({
-  subtitleSettings,
-  onSubtitleChange,
-  batchSettings,
-  onBatchChange,
-  apiKeys,
-  onApiKeysChange,
-  ttsSettings,
-  onTTSChange,
-  floatingUISettings,
-  onFloatingUIChange,
+interface MenuSection {
+  title: string;
+  icon: SettingsIcon;
+  items: MenuItem[];
+}
+
+interface GeneralTabProps {
+  apiKeyCount: number;
+  notificationSettings: NotificationSettings;
+  debugSettings: DebugSettings;
+  onSelectPage: (page: SettingPage) => void;
+  onSubtitleChange: (settings: SubtitleSettings) => void;
+  onBatchChange: (settings: BatchSettings) => void;
+  onFloatingUIChange: (settings: FloatingUISettings) => void;
+  onNotificationChange: (settings: NotificationSettings) => void;
+  onDebugChange: (settings: DebugSettings) => void;
+}
+
+const GeneralTab: React.FC<GeneralTabProps> = ({
+  apiKeyCount,
   notificationSettings,
+  debugSettings,
+  onSelectPage,
+  onSubtitleChange,
+  onBatchChange,
+  onFloatingUIChange,
   onNotificationChange,
-  debugSettings = { enabled: false },
   onDebugChange,
-  onNavigateToUrl,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const themedStyles = useThemedStyles(generalThemedStyles);
-  const [expandedGroup, setExpandedGroup] = useState<SettingGroup>(null);
   const { hasUpdate, updateResult } = useUpdate();
+  const themedStyles = useThemedStyles(generalThemedStyles);
 
-  const groups: GroupConfig[] = [
-    {
-      key: "appearance",
-      icon: "palette",
-      labelKey: "settings.groups.appearance",
-      description: t("settings.groups.appearanceDesc"),
-    },
-    {
-      key: "apiKeys",
-      icon: "key-variant",
-      labelKey: "settings.apiKeys.title",
-      description: t("settings.groups.apiKeysDesc", { count: apiKeys.length }),
-    },
-    {
-      key: "subtitle",
-      icon: "subtitles",
-      labelKey: "settings.subtitle.title",
-      description: t("settings.groups.subtitleDesc"),
-    },
-    {
-      key: "batch",
-      icon: "playlist-play",
-      labelKey: "settings.batch.title",
-      description: t("settings.groups.batchDesc"),
-    },
-    {
-      key: "tts",
-      icon: "account-voice",
-      labelKey: "settings.tts.title",
-      description: t("settings.groups.ttsDesc", {
-        status: ttsSettings.enabled
-          ? t("settings.groups.enabled")
-          : t("settings.groups.disabled"),
-      }),
-    },
-    {
-      key: "floatingUI",
-      icon: "gesture-tap-button",
-      labelKey: "settings.floatingUI.title",
-      description: t("settings.groups.floatingUIDesc"),
-    },
-    {
-      key: "notification",
-      icon: "bell-outline",
-      labelKey: "settings.notification.title",
-      description: t("settings.groups.notificationDesc", {
-        status: notificationSettings.enabled
-          ? t("settings.groups.enabled")
-          : t("settings.groups.disabled"),
-      }),
-    },
-    {
-      key: "debug",
-      icon: "bug-outline",
-      labelKey: "settings.debug.title",
-      description: t("settings.groups.debugDesc", {
-        status: (debugSettings?.enabled ?? false)
-          ? t("settings.groups.enabled")
-          : t("settings.groups.disabled"),
-      }),
-    },
-    {
-      key: "data",
-      icon: "database",
-      labelKey: "settings.data.title",
-      description: t("settings.data.description"),
-    },
-    {
-      key: "update",
-      icon: "update",
-      labelKey: "update.title",
-      description:
-        hasUpdate && updateResult?.latestRelease
-          ? `v${updateResult.latestRelease.version} ${t(
-              "update.available"
-            ).toLowerCase()}`
-          : t("update.checkNow"),
-    },
-  ];
-
-  const toggleGroup = (group: SettingGroup) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedGroup(expandedGroup === group ? null : group);
-  };
+  const sections = useMemo<MenuSection[]>(
+    () => [
+      {
+        title: t("settings.menu.translation"),
+        icon: "translate",
+        items: [
+          {
+            page: "apiKeys",
+            icon: "key-variant",
+            title: t("settings.apiKeys.title"),
+            description: t("settings.groups.apiKeysDesc", {
+              count: apiKeyCount,
+            }),
+          },
+          {
+            page: "batch",
+            icon: "playlist-play",
+            title: t("settings.batch.title"),
+            description: t("settings.groups.batchDesc"),
+          },
+        ],
+      },
+      {
+        title: t("settings.menu.display"),
+        icon: "monitor-dashboard",
+        items: [
+          {
+            page: "appearance",
+            icon: "palette-outline",
+            title: t("settings.groups.appearance"),
+            description: t("settings.groups.appearanceDesc"),
+          },
+          {
+            page: "subtitle",
+            icon: "subtitles-outline",
+            title: t("settings.subtitle.title"),
+            description: t("settings.groups.subtitleDesc"),
+          },
+          {
+            page: "floatingUI",
+            icon: "gesture-tap-button",
+            title: t("settings.floatingUI.title"),
+            description: t("settings.groups.floatingUIDesc"),
+          },
+        ],
+      },
+      {
+        title: t("settings.menu.app"),
+        icon: "cellphone-cog",
+        items: [
+          {
+            page: "notification",
+            icon: "bell-outline",
+            title: t("settings.notification.title"),
+            description: t("settings.groups.notificationDesc", {
+              status: notificationSettings.enabled
+                ? t("settings.groups.enabled")
+                : t("settings.groups.disabled"),
+            }),
+          },
+          {
+            page: "data",
+            icon: "database-outline",
+            title: t("settings.data.title"),
+            description: t("settings.data.description"),
+          },
+          {
+            page: "debug",
+            icon: "bug-outline",
+            title: t("settings.debug.title"),
+            description: t("settings.groups.debugDesc", {
+              status: debugSettings.enabled
+                ? t("settings.groups.enabled")
+                : t("settings.groups.disabled"),
+            }),
+          },
+        ],
+      },
+      {
+        title: t("settings.menu.support"),
+        icon: "lifebuoy",
+        items: [
+          {
+            page: "support",
+            icon: "help-circle-outline",
+            title: t("settings.support.title"),
+            description:
+              hasUpdate && updateResult?.latestRelease
+                ? t("settings.support.updateAvailable", {
+                    version: updateResult.latestRelease.version,
+                  })
+                : t("settings.support.description"),
+            showUpdateBadge: hasUpdate,
+          },
+        ],
+      },
+    ],
+    [
+      apiKeyCount,
+      debugSettings.enabled,
+      hasUpdate,
+      notificationSettings.enabled,
+      t,
+      updateResult?.latestRelease,
+    ]
+  );
 
   const handleResetAllSettings = () => {
     confirmDestructive(
@@ -206,212 +191,149 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
       () => {
         onSubtitleChange({ ...DEFAULT_SUBTITLE_SETTINGS });
         onBatchChange({ ...DEFAULT_BATCH_SETTINGS });
-        onTTSChange({ ...DEFAULT_TTS_SETTINGS });
         onFloatingUIChange({ ...DEFAULT_FLOATING_UI_SETTINGS });
         onNotificationChange({ ...DEFAULT_NOTIFICATION_SETTINGS });
+        onDebugChange({ ...DEFAULT_DEBUG_SETTINGS });
       },
       t("settings.resetAll.confirm")
     );
   };
 
-  const renderGroupContent = (group: SettingGroup) => {
-    switch (group) {
-      case "appearance":
-        return (
-          <View style={styles.groupContent}>
-            <ThemeSection />
-            <LanguageSection />
-          </View>
-        );
-      case "apiKeys":
-        return (
-          <View style={styles.groupContent}>
-            <ApiKeysSection
-              apiKeys={apiKeys}
-              onApiKeysChange={onApiKeysChange}
-              onNavigateToUrl={onNavigateToUrl}
-            />
-          </View>
-        );
-      case "subtitle":
-        return (
-          <View style={styles.groupContent}>
-            <SubtitleSection
-              subtitleSettings={subtitleSettings}
-              onSubtitleChange={onSubtitleChange}
-            />
-          </View>
-        );
-      case "batch":
-        return (
-          <View style={styles.groupContent}>
-            <BatchSection
-              batchSettings={batchSettings}
-              onBatchChange={onBatchChange}
-            />
-          </View>
-        );
-      case "tts":
-        return (
-          <View style={styles.groupContent}>
-            <TTSSection ttsSettings={ttsSettings} onTTSChange={onTTSChange} />
-          </View>
-        );
-      case "floatingUI":
-        return (
-          <View style={styles.groupContent}>
-            <FloatingUISection
-              floatingUISettings={floatingUISettings}
-              onFloatingUIChange={onFloatingUIChange}
-            />
-          </View>
-        );
-      case "notification":
-        return (
-          <View style={styles.groupContent}>
-            <NotificationSection
-              notificationSettings={notificationSettings}
-              onNotificationChange={onNotificationChange}
-            />
-          </View>
-        );
-      case "debug":
-        return (
-          <View style={styles.groupContent}>
-            <DebugSection
-              debugSettings={debugSettings}
-              onDebugChange={(newDebug) => onDebugChange && onDebugChange(newDebug)}
-            />
-          </View>
-        );
-      case "data":
-        return (
-          <View style={styles.groupContent}>
-            <DataSection />
-          </View>
-        );
-      case "update":
-        return (
-          <View style={styles.groupContent}>
-            <UpdateSection />
-          </View>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {groups.map((group) => {
-        const isExpanded = expandedGroup === group.key;
-        const showUpdateBadge =
-          group.key === "update" && hasUpdate && !isExpanded;
-        return (
-          <View key={group.key} style={themedStyles.groupContainer}>
-            <TouchableOpacity
-              style={[
-                themedStyles.groupHeader,
-                isExpanded && themedStyles.groupHeaderExpanded,
-              ]}
-              onPress={() => toggleGroup(group.key)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.groupHeaderLeft}>
-                <View style={styles.iconWrapper}>
-                  <View
-                    style={[
-                      themedStyles.iconContainer,
-                      isExpanded && themedStyles.iconContainerExpanded,
-                      showUpdateBadge && {
-                        backgroundColor: colors.errorBg,
-                      },
-                    ]}
-                  >
+    <ScrollView
+      style={staticStyles.container}
+      contentContainerStyle={staticStyles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {sections.map((section) => (
+        <View key={section.title} style={staticStyles.section}>
+          <View style={staticStyles.sectionHeader}>
+            <View style={[staticStyles.sectionHeaderIcon, themedStyles.sectionHeaderIcon]}>
+              <MaterialCommunityIcons
+                name={section.icon}
+                size={16}
+                color={colors.primary}
+              />
+            </View>
+            <Text style={[themedStyles.sectionLabel, staticStyles.sectionTitleFlex]}>
+              {section.title}
+            </Text>
+            <View style={themedStyles.sectionCount}>
+              <Text style={themedStyles.sectionCountText}>{section.items.length}</Text>
+            </View>
+          </View>
+          <View style={themedStyles.menuCard}>
+            {section.items.map((item, index) => (
+              <TouchableOpacity
+                key={item.page}
+                style={[
+                  staticStyles.menuRow,
+                  index < section.items.length - 1 && themedStyles.menuDivider,
+                ]}
+                onPress={() => onSelectPage(item.page)}
+                activeOpacity={0.65}
+                accessibilityRole="button"
+              >
+                <View style={staticStyles.iconWrapper}>
+                  <View style={[staticStyles.menuIcon, themedStyles.menuIcon]}>
                     <MaterialCommunityIcons
-                      name={group.icon as any}
+                      name={item.icon}
                       size={20}
-                      color={
-                        showUpdateBadge
-                          ? colors.error
-                          : isExpanded
-                          ? colors.primary
-                          : colors.textMuted
-                      }
+                      color={item.showUpdateBadge ? colors.error : colors.primary}
                     />
                   </View>
-                  {showUpdateBadge && (
+                  {item.showUpdateBadge && (
                     <View
                       style={[
-                        styles.updateBadge,
+                        staticStyles.updateBadge,
                         {
                           backgroundColor: colors.error,
-                          borderColor: colors.border,
+                          borderColor: colors.surface,
                         },
                       ]}
                     />
                   )}
                 </View>
-                <View style={styles.groupInfo}>
+                <View style={staticStyles.menuText}>
                   <Text
                     style={[
-                      themedStyles.groupTitle,
-                      isExpanded && themedStyles.groupTitleExpanded,
-                      showUpdateBadge && { color: colors.error },
+                      themedStyles.menuTitle,
+                      item.showUpdateBadge && { color: colors.error },
                     ]}
                   >
-                    {t(group.labelKey)}
+                    {item.title}
                   </Text>
-                  {!isExpanded && (
-                    <Text
-                      style={[
-                        themedStyles.groupDescription,
-                        showUpdateBadge && { color: colors.error },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {group.description}
-                    </Text>
-                  )}
+                  <Text
+                    style={[
+                      themedStyles.menuDescription,
+                      item.showUpdateBadge && { color: colors.error },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {item.description}
+                  </Text>
                 </View>
-              </View>
-              <MaterialCommunityIcons
-                name={isExpanded ? "chevron-up" : "chevron-down"}
-                size={24}
-                color={isExpanded ? colors.primary : colors.textMuted}
-              />
-            </TouchableOpacity>
-            {isExpanded && renderGroupContent(group.key)}
+                <View style={[staticStyles.chevronBox, themedStyles.chevronBox]}>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={21}
+                    color={colors.textMuted}
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
-        );
-      })}
+        </View>
+      ))}
 
-      {/* Reset All Settings Button */}
-      <View style={styles.resetAllContainer}>
+      <View style={staticStyles.resetContainer}>
         <Button3D
           title={t("settings.resetAll.button")}
           icon="restore"
           onPress={handleResetAllSettings}
           variant="outline"
         />
-        <Text style={themedStyles.resetAllHint}>
-          {t("settings.resetAll.hint")}
-        </Text>
+        <Text style={themedStyles.resetHint}>{t("settings.resetAll.hint")}</Text>
       </View>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
+const staticStyles = StyleSheet.create({
   container: { flex: 1 },
-  groupHeaderLeft: {
+  content: { paddingBottom: 16 },
+  section: { marginBottom: 19 },
+  sectionHeader: {
+    minHeight: 30,
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
+    gap: 8,
+    marginHorizontal: 3,
+    marginBottom: 8,
+  },
+  sectionHeaderIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionTitleFlex: { flex: 1 },
+  menuRow: {
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     gap: 12,
   },
-  iconWrapper: {
-    position: "relative",
+  iconWrapper: { position: "relative" },
+  menuIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
   updateBadge: {
     position: "absolute",
@@ -422,63 +344,53 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 2,
   },
-  groupInfo: { flex: 1 },
-  groupContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 },
-  resetAllContainer: {
-    marginTop: 8,
-    marginBottom: 24,
-    gap: 8,
-  },
-});
-
-const generalThemedStyles = createThemedStyles((colors) => ({
-  groupContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    marginBottom: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  groupHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-  },
-  groupHeaderExpanded: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
+  menuText: { flex: 1 },
+  chevronBox: {
+    width: 32,
+    height: 32,
     borderRadius: 10,
-    backgroundColor: colors.surfaceLight,
     alignItems: "center",
     justifyContent: "center",
   },
-  iconContainerExpanded: {
-    backgroundColor: colors.primarySoft,
-  },
-  groupTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  groupTitleExpanded: {
-    color: colors.primary,
-  },
-  groupDescription: {
+  resetContainer: { gap: 8, marginBottom: 8 },
+});
+
+const generalThemedStyles = createThemedStyles((colors) => ({
+  sectionLabel: {
+    color: colors.textSecondary,
     fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
   },
-  resetAllHint: {
+  sectionHeaderIcon: { backgroundColor: colors.primarySoft },
+  sectionCount: {
+    minWidth: 26,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: colors.surfaceLight,
+  },
+  sectionCountText: { color: colors.textMuted, fontSize: 10, fontWeight: "800" },
+  menuCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  menuDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  menuIcon: { backgroundColor: colors.primarySoft },
+  menuTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  menuDescription: {
+    color: colors.textMuted,
     fontSize: 12,
-    color: colors.textMuted,
-    textAlign: "center",
+    lineHeight: 16,
+    marginTop: 3,
   },
+  chevronBox: { backgroundColor: colors.surfaceLight },
+  resetHint: { color: colors.textMuted, fontSize: 12, textAlign: "center" },
 }));
 
 export default GeneralTab;

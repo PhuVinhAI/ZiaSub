@@ -14,6 +14,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { alert, confirm } from "../common/CustomAlert";
 import BottomSheetModal from "../common/BottomSheetModal";
+import SegmentedTabs from "../common/SegmentedTabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -49,6 +50,7 @@ interface SubtitleInputModalProps {
   srtContent: string;
   setSrtContent: (text: string) => void;
   onLoadSubtitles: () => void;
+  onOpenVisualEditor?: (content: string) => void;
   onApplySubtitles?: (content: string) => void;
   onClearSubtitles?: () => void;
   videoUrl?: string;
@@ -68,6 +70,7 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
   srtContent,
   setSrtContent,
   onLoadSubtitles,
+  onOpenVisualEditor,
   onApplySubtitles,
   onClearSubtitles,
   videoUrl,
@@ -168,12 +171,7 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
     if (videoUrl) {
       const queueItem = queueManager.isInQueue(videoUrl);
       if (queueItem) {
-        // If currently translating, abort first
-        if (queueItem.status === "translating") {
-          await translationManager.abortTranslation(videoUrl);
-        }
-        // Remove from queue completely
-        await queueManager.removeFromQueue(queueItem.id);
+        await queueManager.abortAndRemove(queueItem.id);
       }
       // Queue status sẽ tự cập nhật qua useQueueVideoStatus hook
       setIsTranslating(false);
@@ -400,53 +398,23 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
       wrapperComponent={Reanimated.View}
       wrapperStyle={[styles.keyboardAvoidingContainer, animatedBottomStyle]}
     >
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === "translate" && styles.tabActive,
-          ]}
-          onPress={() => setActiveTab("translate")}
-        >
-          <MaterialCommunityIcons
-            name="translate"
-            size={18}
-            color={
-              activeTab === "translate"
-                ? colors.primary
-                : colors.textMuted
-            }
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "translate" && styles.tabTextActive,
-            ]}
-          >
-            {t("subtitleModal.tabs.translate")}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "srt" && styles.tabActive]}
-          onPress={() => setActiveTab("srt")}
-        >
-          <MaterialCommunityIcons
-            name="file-document-outline"
-            size={18}
-            color={
-              activeTab === "srt" ? colors.primary : colors.textMuted
-            }
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "srt" && styles.tabTextActive,
-            ]}
-          >
-            {t("subtitleModal.tabs.srt")}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <SegmentedTabs<TabType>
+        value={activeTab}
+        onChange={setActiveTab}
+        style={styles.tabs}
+        items={[
+          {
+            key: "translate",
+            label: t("subtitleModal.tabs.translate"),
+            icon: "translate",
+          },
+          {
+            key: "srt",
+            label: t("subtitleModal.tabs.srt"),
+            icon: "file-document-outline",
+          },
+        ]}
+      />
       <View
         style={{
           display: activeTab === "srt" ? "flex" : "none",
@@ -457,6 +425,7 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
           srtContent={srtContent}
           setSrtContent={setSrtContent}
           onLoadSubtitles={onLoadSubtitles}
+          onOpenVisualEditor={onOpenVisualEditor}
           videoTitle={videoTitle}
           configName={activeConfigName}
           presetName={activePresetName}
@@ -503,7 +472,11 @@ const SubtitleInputModal: React.FC<SubtitleInputModalProps> = ({
 const themedStyles = createThemedStyles((colors) => ({
   modalOverlay: { flex: 1, justifyContent: "flex-end" as const },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: colors.overlay,
   },
   keyboardAvoidingContainer: {
@@ -531,29 +504,7 @@ const themedStyles = createThemedStyles((colors) => ({
   },
   title: { color: colors.text, fontSize: 16, fontWeight: "600" as const },
   closeButton: { position: "absolute" as const, right: 0, top: 12, padding: 8 },
-  tabBar: {
-    flexDirection: "row" as const,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  tabActive: { backgroundColor: colors.surfaceElevated },
-  tabText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "500" as const,
-  },
-  tabTextActive: { color: colors.text },
+  tabs: { marginBottom: 16 },
 }));
 
 export default SubtitleInputModal;

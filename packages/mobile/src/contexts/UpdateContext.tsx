@@ -7,6 +7,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import { updateService, UpdateCheckResult } from "@services/updateService";
 
@@ -15,9 +16,8 @@ interface UpdateContextType {
   updateResult: UpdateCheckResult | null;
   showUpdateModal: () => void;
   dismissUpdate: () => void;
-  checkForUpdate: () => Promise<void>;
+  checkForUpdate: () => Promise<UpdateCheckResult | null>;
   updateModalVisible: boolean;
-  setUpdateModalVisible: (visible: boolean) => void;
 }
 
 const UpdateContext = createContext<UpdateContextType>({
@@ -25,9 +25,8 @@ const UpdateContext = createContext<UpdateContextType>({
   updateResult: null,
   showUpdateModal: () => {},
   dismissUpdate: () => {},
-  checkForUpdate: async () => {},
+  checkForUpdate: async () => null,
   updateModalVisible: false,
-  setUpdateModalVisible: () => {},
 });
 
 export const useUpdate = () => useContext(UpdateContext);
@@ -46,6 +45,9 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
     null
   );
   const [updateModalVisible, setUpdateModalVisible] = useState(false);
+  // Session-only dismissal: survives background/foreground, resets when the
+  // app process restarts.
+  const dismissedForSession = useRef(false);
 
   const checkForUpdate = useCallback(async () => {
     try {
@@ -53,10 +55,15 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
       setUpdateResult(result);
       if (result.hasUpdate) {
         setHasUpdate(true);
-        setUpdateModalVisible(true);
+        setUpdateModalVisible(!dismissedForSession.current);
+      } else {
+        setHasUpdate(false);
+        setUpdateModalVisible(false);
       }
+      return result;
     } catch (error) {
       console.error("Failed to check for update:", error);
+      return null;
     }
   }, []);
 
@@ -65,6 +72,7 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
   }, []);
 
   const dismissUpdate = useCallback(() => {
+    dismissedForSession.current = true;
     setUpdateModalVisible(false);
   }, []);
 
@@ -81,7 +89,6 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
     dismissUpdate,
     checkForUpdate,
     updateModalVisible,
-    setUpdateModalVisible,
   };
 
   return (

@@ -1,12 +1,16 @@
-import React, { useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   TouchableOpacity,
   FlatList,
   Modal,
   Animated,
+  StyleSheet,
 } from "react-native";
-import { useKeyboardHandler } from "react-native-keyboard-controller";
+import {
+  KeyboardEvents,
+  useKeyboardHandler,
+} from "react-native-keyboard-controller";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,6 +18,8 @@ import Reanimated, {
 import { Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import { useThemedStyles } from "@hooks/useThemedStyles";
 import ConfigSelector from "./ConfigSelector";
@@ -44,7 +50,8 @@ const ChatModal: React.FC<ChatModalProps> = ({
   videoDuration,
   onLoadingChange,
 }) => {
-  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
   const themedStyles = useThemedStyles(chatModalThemedStyles);
   const insets = useSafeAreaInsets();
 
@@ -74,6 +81,9 @@ const ChatModal: React.FC<ChatModalProps> = ({
     showTimeRangePicker,
     setShowTimeRangePicker,
     flatListRef,
+    scrollToBottom,
+    handleChatScroll,
+    handleChatScrollBeginDrag,
     loadData,
     handleSelectConfig,
     handleSend,
@@ -97,6 +107,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
 
   // Keyboard handling with react-native-keyboard-controller
   const keyboardHeight = useSharedValue(0);
+  const inputHeight = useSharedValue(110);
 
   useKeyboardHandler(
     {
@@ -105,16 +116,36 @@ const ChatModal: React.FC<ChatModalProps> = ({
         keyboardHeight.value = Math.max(event.height, 0);
       },
     },
-    []
+    [],
   );
 
   const keyboardAnimatedStyle = useAnimatedStyle(() => ({
-    paddingBottom: keyboardHeight.value,
+    transform: [{ translateY: -keyboardHeight.value }],
   }));
+
+  const listFooterAnimatedStyle = useAnimatedStyle(() => ({
+    height: inputHeight.value + keyboardHeight.value + 8,
+  }));
+
+  const handleInputHeightChange = useCallback(
+    (height: number) => {
+      if (Math.abs(inputHeight.value - height) <= 1) return;
+      inputHeight.value = height;
+      scrollToBottom();
+    },
+    [inputHeight, scrollToBottom],
+  );
+
+  useEffect(() => {
+    const subscription = KeyboardEvents.addListener("keyboardDidShow", () =>
+      scrollToBottom({ animated: true }),
+    );
+    return () => subscription.remove();
+  }, [scrollToBottom]);
 
   const tasks = useMemo(
     (): TaskItem[] => deriveTasks(messages, isLoading),
-    [messages, isLoading]
+    [messages, isLoading],
   );
 
   const renderTask = ({ item, index }: { item: TaskItem; index: number }) => {
@@ -133,7 +164,10 @@ const ChatModal: React.FC<ChatModalProps> = ({
   };
 
   const topPadding = Math.max(insets.top, 24);
-  const bottomPadding = Math.max(insets.bottom, 10);
+  const headerSubtitle =
+    tasks.length > 0
+      ? t("chat.taskCount", { count: tasks.length })
+      : activeConfig?.name || t("chat.title");
 
   return (
     <Modal
@@ -154,21 +188,38 @@ const ChatModal: React.FC<ChatModalProps> = ({
             },
           ]}
         >
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.headerBtn} onPress={toggleDrawer}>
+          <View style={[styles.header, themedStyles.header]}>
+            <TouchableOpacity
+              style={[styles.headerBtn, themedStyles.headerBtn]}
+              onPress={toggleDrawer}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={t("chat.history")}
+            >
               <MaterialCommunityIcons
                 name="menu"
-                size={24}
+                size={22}
                 color={colors.text}
               />
             </TouchableOpacity>
-            <Text style={themedStyles.headerTitle} numberOfLines={1}>
-              {currentSession?.name || "Zia"}
-            </Text>
-            <TouchableOpacity style={styles.headerBtn} onPress={handleClose}>
+            <View style={styles.headerTitleGroup}>
+              <Text style={themedStyles.headerTitle} numberOfLines={1}>
+                {currentSession?.name || "Zia"}
+              </Text>
+              <Text style={themedStyles.headerSubtitle} numberOfLines={1}>
+                {headerSubtitle}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.headerBtn, themedStyles.headerBtn]}
+              onPress={handleClose}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+            >
               <MaterialCommunityIcons
                 name="close"
-                size={24}
+                size={22}
                 color={colors.text}
               />
             </TouchableOpacity>
@@ -179,9 +230,19 @@ const ChatModal: React.FC<ChatModalProps> = ({
             renderItem={renderTask}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.taskList}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: true })
+            ListFooterComponent={
+              <Reanimated.View
+                pointerEvents="none"
+                style={listFooterAnimatedStyle}
+              />
             }
+            onContentSizeChange={() => scrollToBottom()}
+            onScroll={handleChatScroll}
+            onScrollBeginDrag={handleChatScrollBeginDrag}
+            scrollEventThrottle={16}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <ChatEmptyState
                 hasApiKey={hasApiKey}
@@ -209,20 +270,32 @@ const ChatModal: React.FC<ChatModalProps> = ({
               disabled={!hasApiKey}
               videoTimeRange={videoTimeRange}
               onOpenTimeRange={() => setShowTimeRangePicker(true)}
+              onHeightChange={handleInputHeightChange}
             />
           </Reanimated.View>
           {drawerOpen && (
             <TouchableOpacity
-              style={[styles.drawerOverlay, { backgroundColor: colors.overlay }]}
+              style={[
+                styles.drawerOverlay,
+                { backgroundColor: colors.overlay },
+              ]}
               activeOpacity={1}
               onPress={toggleDrawer}
-            />
+            >
+              <BlurView
+                intensity={25}
+                tint={isDark ? "dark" : "light"}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+            </TouchableOpacity>
           )}
           <ChatDrawer
             sessions={sessions}
             currentSession={currentSession}
             drawerAnim={drawerAnim}
             paddingTop={topPadding + 20}
+            onClose={toggleDrawer}
             onNewChat={handleNewChat}
             onSelectSession={handleSelectSession}
             onDeleteSession={handleDeleteSession}

@@ -28,8 +28,11 @@ interface BackupData {
   translationQueue?: any[];
 }
 
-interface BackupInfo {
+export type BackupIssue = "invalid_format" | "unreadable";
+
+export interface BackupInfo {
   hasBackup: boolean;
+  issue?: BackupIssue;
   createdAt?: number;
   version?: string;
   chatCount?: number;
@@ -39,6 +42,7 @@ interface BackupInfo {
 
 class BackupService {
   private static instance: BackupService;
+  private backupQueue: Promise<void> = Promise.resolve();
 
   private constructor() {}
 
@@ -67,11 +71,11 @@ class BackupService {
    * Check if backup exists at path
    */
   async getBackupInfo(path: string): Promise<BackupInfo> {
-    try {
-      if (this.isSafUri(path)) {
-        return await this.getBackupInfoSaf(path);
-      }
+    if (this.isSafUri(path)) {
+      return await this.getBackupInfoSaf(path);
+    }
 
+    try {
       const backupPath = `${path}/${BACKUP_FILENAME}`;
       const info = await FileSystem.getInfoAsync(backupPath);
 
@@ -80,54 +84,164 @@ class BackupService {
       }
 
       const content = await FileSystem.readAsStringAsync(backupPath);
-      const data = JSON.parse(content) as BackupData;
-
-      return {
-        hasBackup: true,
-        createdAt: data.createdAt,
-        version: data.version,
-        chatCount: data.chatSessions?.length || 0,
-        translationCount: Object.keys(data.translations || {}).length,
-        queueCount: data.translationQueue?.length || 0,
-      };
-    } catch {
-      return { hasBackup: false };
+      return this.inspectBackupContent(content, backupPath);
+    } catch (error) {
+      logger.error("BackupService", `Cannot inspect backup path: ${path}`, error);
+      return { hasBackup: false, issue: "unreadable" };
     }
   }
 
   private async getBackupInfoSaf(directoryUri: string): Promise<BackupInfo> {
+    let files: string[];
     try {
-      const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(
+      files = await FileSystem.StorageAccessFramework.readDirectoryAsync(
         directoryUri
       );
+    } catch (error) {
+      logger.error(
+        "BackupService",
+        `Cannot list SAF backup directory: ${directoryUri}`,
+        error
+      );
+      return { hasBackup: false, issue: "unreadable" };
+    }
 
-      const backupFile = this.findSafFile(files, BACKUP_FILENAME);
-      if (!backupFile) {
-        return { hasBackup: false };
-      }
+    const backupFile = this.findSafFile(files, BACKUP_FILENAME);
+    if (!backupFile) {
+      return { hasBackup: false };
+    }
 
+    try {
       const content = await FileSystem.StorageAccessFramework.readAsStringAsync(
         backupFile
       );
-      const data = JSON.parse(content) as BackupData;
+      return this.inspectBackupContent(content, backupFile);
+    } catch (error) {
+      logger.error(
+        "BackupService",
+        `Cannot read SAF backup file: ${backupFile}`,
+        error
+      );
+      return { hasBackup: false, issue: "unreadable" };
+    }
+  }
 
+  private inspectBackupContent(content: string, source: string): BackupInfo {
+    try {
+      const data = this.parseBackupData(content);
       return {
         hasBackup: true,
         createdAt: data.createdAt,
         version: data.version,
-        chatCount: data.chatSessions?.length || 0,
-        translationCount: Object.keys(data.translations || {}).length,
+        chatCount: data.chatSessions.length,
+        translationCount: Object.keys(data.translations).length,
         queueCount: data.translationQueue?.length || 0,
       };
-    } catch {
-      return { hasBackup: false };
+    } catch (error) {
+      logger.warn("BackupService", `Invalid backup file: ${source}`, error);
+      return { hasBackup: false, issue: "invalid_format" };
     }
+  }
+
+  private parseBackupData(content: string): BackupData {
+    // Some file managers/editors prepend an UTF-8 BOM, which JSON.parse rejects.
+    const normalizedContent = content.replace(/^\uFEFF/, "").trim();
+    let data: unknown;
+
+    try {
+      data = JSON.parse(normalizedContent);
+    } catch (parseError) {
+      // Older SAF writes may overwrite a shorter backup without truncating the
+      // previous file. Recover the first complete root object and ignore only
+      // the stale trailing bytes after it.
+      const rootEnd = this.findRootJsonObjectEnd(normalizedContent);
+      const trailingContent =
+        rootEnd > 0 ? normalizedContent.slice(rootEnd).trim() : "";
+      if (rootEnd <= 0 || !trailingContent) {
+        throw parseError;
+      }
+
+      data = JSON.parse(normalizedContent.slice(0, rootEnd));
+      logger.warn(
+        "BackupService",
+        `Recovered backup with ${trailingContent.length} stale trailing characters`
+      );
+    }
+
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("Backup root must be a JSON object");
+    }
+
+    const candidate = data as Partial<BackupData>;
+    if (
+      typeof candidate.version !== "string" ||
+      typeof candidate.createdAt !== "number" ||
+      !candidate.settings ||
+      typeof candidate.settings !== "object" ||
+      !Array.isArray(candidate.geminiConfigs) ||
+      !Array.isArray(candidate.chatSessions) ||
+      !candidate.translations ||
+      typeof candidate.translations !== "object" ||
+      Array.isArray(candidate.translations) ||
+      !candidate.srtFiles ||
+      typeof candidate.srtFiles !== "object" ||
+      Array.isArray(candidate.srtFiles) ||
+      (candidate.translationQueue !== undefined &&
+        !Array.isArray(candidate.translationQueue))
+    ) {
+      throw new Error("Backup JSON does not match the supported format");
+    }
+
+    return candidate as BackupData;
+  }
+
+  private findRootJsonObjectEnd(content: string): number {
+    if (!content.startsWith("{")) return -1;
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < content.length; i++) {
+      const character = content[i];
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (character === '"') {
+        inString = true;
+      } else if (character === "{") {
+        depth += 1;
+      } else if (character === "}") {
+        depth -= 1;
+        if (depth === 0) return i + 1;
+        if (depth < 0) return -1;
+      }
+    }
+
+    return -1;
   }
 
   /**
    * Create backup to file system
    */
   async createBackup(path?: string): Promise<void> {
+    const operation = this.backupQueue
+      .catch(() => undefined)
+      .then(() => this.createBackupInternal(path));
+    this.backupQueue = operation;
+    return operation;
+  }
+
+  private async createBackupInternal(path?: string): Promise<void> {
     const backupPath = path || (await storageService.getBackupPath());
     if (!backupPath) {
       throw new Error("No backup path configured");
@@ -185,49 +299,72 @@ class BackupService {
       directoryUri
     );
 
-    // Find or create backup file
-    let backupFileUri = this.findSafFile(files, BACKUP_FILENAME);
-
-    if (backupFileUri) {
-      await FileSystem.StorageAccessFramework.writeAsStringAsync(
-        backupFileUri,
-        content
-      );
-    } else {
-      backupFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-        directoryUri,
-        BACKUP_FILENAME,
-        "application/json"
-      );
-      await FileSystem.StorageAccessFramework.writeAsStringAsync(
-        backupFileUri,
-        content
-      );
-    }
+    await this.writeVerifiedSafFile(
+      directoryUri,
+      files,
+      BACKUP_FILENAME,
+      "application/json",
+      content
+    );
 
     // Write marker file (use non-hidden name so SAF readDirectoryAsync can find it)
-    let markerUri = this.findSafFile(files, SAF_MARKER_FILE);
     const markerContent = JSON.stringify({
       createdAt: Date.now(),
       version: "2.0",
     });
+    await this.writeVerifiedSafFile(
+      directoryUri,
+      files,
+      SAF_MARKER_FILE,
+      "application/json",
+      markerContent
+    );
+  }
 
-    if (markerUri) {
-      await FileSystem.StorageAccessFramework.writeAsStringAsync(
-        markerUri,
-        markerContent
-      );
-    } else {
-      markerUri = await FileSystem.StorageAccessFramework.createFileAsync(
+  private async writeVerifiedSafFile(
+    directoryUri: string,
+    files: string[],
+    filename: string,
+    mimeType: string,
+    content: string
+  ): Promise<string> {
+    let fileUri = this.findSafFile(files, filename);
+    if (!fileUri) {
+      fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
         directoryUri,
-        SAF_MARKER_FILE,
-        "application/json"
-      );
-      await FileSystem.StorageAccessFramework.writeAsStringAsync(
-        markerUri,
-        markerContent
+        filename,
+        mimeType
       );
     }
+
+    await FileSystem.StorageAccessFramework.writeAsStringAsync(fileUri, content);
+    let savedContent =
+      await FileSystem.StorageAccessFramework.readAsStringAsync(fileUri);
+    if (savedContent === content) return fileUri;
+
+    // Some SAF providers do not truncate an existing file when the replacement
+    // is shorter. Recreate the document and verify the second write.
+    logger.warn(
+      "BackupService",
+      `SAF write left stale data in ${filename}; recreating the file`
+    );
+    await FileSystem.StorageAccessFramework.deleteAsync(fileUri, {
+      idempotent: true,
+    });
+    fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+      directoryUri,
+      filename,
+      mimeType
+    );
+    await FileSystem.StorageAccessFramework.writeAsStringAsync(fileUri, content);
+    savedContent =
+      await FileSystem.StorageAccessFramework.readAsStringAsync(fileUri);
+
+    if (savedContent !== content) {
+      throw new Error(`Could not safely replace SAF file: ${filename}`);
+    }
+
+    return fileUri;
   }
 
   /**
@@ -247,7 +384,7 @@ class BackupService {
       content = await this.readBackupLocal(backupPath);
     }
 
-    const backupData = JSON.parse(content) as BackupData;
+    const backupData = this.parseBackupData(content);
 
     // Import data
     await storageService.importAllData({
@@ -309,21 +446,30 @@ class BackupService {
    * Helper to find file in SAF directory
    */
   private findSafFile(files: string[], filename: string): string | undefined {
-    const encodedFilename = encodeURIComponent(filename);
-    return files.find((f) => {
-      const decodedUri = decodeURIComponent(f);
-      const lastSegment = f.split("/").pop() || "";
-      const decodedLastSegment = decodeURIComponent(lastSegment);
+    const target = filename.toLocaleLowerCase();
+    return files.find(
+      (fileUri) => this.getSafFilename(fileUri).toLocaleLowerCase() === target
+    );
+  }
 
-      return (
-        f.endsWith(`/${filename}`) ||
-        f.endsWith(`/${encodedFilename}`) ||
-        decodedUri.endsWith(`/${filename}`) ||
-        lastSegment === filename ||
-        lastSegment === encodedFilename ||
-        decodedLastSegment === filename
-      );
-    });
+  private getSafFilename(fileUri: string): string {
+    let decodedUri = fileUri;
+
+    // Some Android document providers return document IDs encoded twice.
+    for (let i = 0; i < 3; i++) {
+      try {
+        const decoded = decodeURIComponent(decodedUri);
+        if (decoded === decodedUri) break;
+        decodedUri = decoded;
+      } catch {
+        break;
+      }
+    }
+
+    const cleanUri = decodedUri.split(/[?#]/, 1)[0].replace(/\\/g, "/");
+    const lastSlash = cleanUri.lastIndexOf("/");
+    const lastColon = cleanUri.lastIndexOf(":");
+    return cleanUri.slice(Math.max(lastSlash, lastColon) + 1);
   }
 
   /**

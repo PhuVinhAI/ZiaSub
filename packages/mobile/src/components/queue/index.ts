@@ -1,4 +1,5 @@
 export { default as TranslationQueueModal } from "./TranslationQueueModal";
+export { default as TranslationHistorySheet } from "./TranslationHistorySheet";
 export { default as QueueItemCard } from "./QueueItemCard";
 export { default as QueueTabs } from "./QueueTabs";
 export { default as ConfigPicker } from "./ConfigPicker";

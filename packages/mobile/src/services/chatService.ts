@@ -7,16 +7,10 @@ import type {
 } from "@src/types";
 import { normalizeYouTubeUrl } from "@utils/videoUtils";
 import { keyManager } from "./keyManager";
-
-// Model IDs for reference
-const MODEL_GEMINI_3_6_FLASH = "models/gemini-3.6-flash";
-const MODEL_GEMINI_3_5_FLASH = "models/gemini-3.5-flash";
-const MODEL_GEMINI_3_5_FLASH_LITE = "models/gemini-3.5-flash-lite";
-const MODEL_GEMINI_3_FLASH = "models/gemini-3-flash-preview";
-const MODEL_GEMINI_3_1_PRO = "models/gemini-3.1-pro-preview";
-const MODEL_GEMINI_3_1_FLASH_LITE = "models/gemini-3.1-flash-lite";
-const MODEL_GEMINI_FLASH = "models/gemini-flash-latest";
-const MODEL_GEMINI_FLASH_LITE = "models/gemini-flash-lite-latest";
+import {
+  getEffectiveChatSystemPrompt,
+  supportsMinimalThinking,
+} from "./geminiModelConfig";
 
 // Map config string to ThinkingLevel enum
 const getThinkingLevel = (level?: string): ThinkingLevel => {
@@ -38,11 +32,9 @@ const getThinkingConfig = (
   model: string,
   thinkingLevel?: string
 ): { thinkingLevel?: ThinkingLevel } | undefined => {
-  // Gemini 3.1 Pro Preview - only LOW and HIGH
-  if (model === MODEL_GEMINI_3_1_PRO) {
-    const level =
-      thinkingLevel === "LOW" ? ThinkingLevel.LOW : ThinkingLevel.HIGH;
-    return { thinkingLevel: level };
+  // Models without MINIMAL clamp it down to the nearest level (LOW)
+  if (thinkingLevel === "MINIMAL" && !supportsMinimalThinking(model)) {
+    return { thinkingLevel: ThinkingLevel.LOW };
   }
 
   // All other supported models use full ThinkingLevel (MINIMAL, LOW, MEDIUM, HIGH)
@@ -75,7 +67,8 @@ export const sendChatMessage = async (
   config: GeminiConfig,
   callbacks: StreamCallbacks,
   videoUrl?: string, // Video URL để nhét vào tin nhắn đầu tiên của user
-  videoTimeRange?: VideoTimeRange // Khoảng thời gian video (x-y)
+  videoTimeRange?: VideoTimeRange, // Khoảng thời gian video (x-y)
+  abortSignal?: AbortSignal
 ): Promise<void> => {
   if (!keyManager.hasAvailableKey()) {
     callbacks.onError(new Error("Thêm API key trong Cài đặt trước nhé"));
@@ -138,7 +131,7 @@ export const sendChatMessage = async (
       parts.push(videoPart);
     }
 
-    parts.push({ text: msg.content });
+    parts.push({ text: msg.modelContent || msg.content });
 
     contents.push({
       role: msg.role,
@@ -150,19 +143,22 @@ export const sendChatMessage = async (
     // Build config based on model capabilities
     const chatConfig: any = {
       temperature: config.temperature,
-      systemInstruction: config.systemPrompt,
+      systemInstruction: getEffectiveChatSystemPrompt(config),
       thinkingConfig: getThinkingConfig(
         config.model,
         config.thinkingLevel
       ),
     };
 
+    if (abortSignal) {
+      chatConfig.abortSignal = abortSignal;
+    }
+
     // Only add mediaResolution if model supports it
     if (supportsMediaResolution(config.model)) {
       chatConfig.mediaResolution = getMediaResolution(config.mediaResolution);
     }
 
-    // Dùng chats.create với sendMessage (non-streaming) theo docs
     const chat = ai.chats.create({
       model: config.model,
       config: chatConfig,
@@ -172,14 +168,32 @@ export const sendChatMessage = async (
     // Lấy message cuối cùng để gửi
     const lastMessage = contents[contents.length - 1];
 
-    const response = await chat.sendMessage({
-      message: lastMessage.parts,
-    });
+    let fullText = "";
 
-    const fullText = response.text ?? "";
+    if (typeof chat.sendMessageStream === "function") {
+      const responseStream = await chat.sendMessageStream({
+        message: lastMessage.parts,
+      });
+
+      for await (const chunk of responseStream) {
+        if (abortSignal?.aborted) return;
+
+        const chunkText = chunk.text ?? "";
+        if (!chunkText) continue;
+
+        fullText += chunkText;
+        callbacks.onChunk(chunkText);
+      }
+    } else {
+      const response = await chat.sendMessage({
+        message: lastMessage.parts,
+      });
+
+      fullText = response.text ?? "";
+      if (fullText) callbacks.onChunk(fullText);
+    }
 
     if (fullText) {
-      callbacks.onChunk(fullText);
       callbacks.onComplete(fullText);
     } else {
       callbacks.onError(new Error("Không nhận được phản hồi từ AI"));

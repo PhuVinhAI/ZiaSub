@@ -255,6 +255,35 @@ class StorageService {
       if (!data) return null;
       const parsed = JSON.parse(data) as VideoTranslations;
       if (!parsed.translations || parsed.translations.length === 0) return null;
+
+      const validTranslations = parsed.translations.filter(
+        (translation) =>
+          typeof translation.srtContent === "string" &&
+          translation.srtContent.trim().length > 0
+      );
+
+      if (validTranslations.length !== parsed.translations.length) {
+        logger.warn(
+          "StorageService",
+          `Removed ${parsed.translations.length - validTranslations.length} empty translation(s) for ${videoId}`
+        );
+
+        if (validTranslations.length === 0) {
+          await this.deleteTranslation(videoId);
+          return null;
+        }
+
+        parsed.translations = validTranslations;
+        if (
+          !validTranslations.some(
+            (translation) => translation.id === parsed.activeTranslationId
+          )
+        ) {
+          parsed.activeTranslationId = validTranslations[0].id;
+        }
+        await this.setTranslation(videoId, parsed);
+      }
+
       return parsed;
     } catch {
       return null;
@@ -341,7 +370,8 @@ class StorageService {
 
   async isAutoBackupEnabled(): Promise<boolean> {
     const value = await AsyncStorage.getItem(KEYS.AUTO_BACKUP_ENABLED);
-    return value === "true";
+    // Auto backup is enabled by default until the user explicitly disables it.
+    return value === null ? true : value === "true";
   }
 
   async setAutoBackupEnabled(enabled: boolean): Promise<void> {

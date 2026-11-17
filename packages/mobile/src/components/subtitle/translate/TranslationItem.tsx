@@ -1,50 +1,31 @@
-/**
- * TranslationItem — one saved-translation card (header + expanded content)
- *
- * Tách từ SavedTranslationsList.tsx — chỉ di chuyển code, không sửa đổi logic.
- */
 import React from "react";
-import { View, TouchableOpacity } from "react-native";
-import { Text } from "react-native-paper";
+import { TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text } from "react-native-paper";
 import { useTranslation } from "react-i18next";
+
 import { useTheme } from "@src/contexts";
 import type { SavedTranslation, TranslationJob } from "@src/types";
 import {
   formatDate,
   formatTime,
-  getPresetName,
   getBatchSettingsInfo,
+  getPresetName,
   getProgressPercent,
-  type BatchInfo,
 } from "./translationListUtils";
-import { getBatchDisplayState } from "./translationBatchState";
 import RetranslationStatusBar from "./RetranslationStatusBar";
-import BatchChip from "./BatchChip";
 
 interface TranslationItemProps {
   item: SavedTranslation;
   index: number;
-  isExpanded: boolean;
-  batches: BatchInfo[];
   activeTranslationId: string | null;
   onSelect: (translation: SavedTranslation) => void;
   onDelete: (translation: SavedTranslation) => void;
   onResume?: (translation: SavedTranslation) => void;
-  onRetranslateBatch?: (
-    translation: SavedTranslation,
-    batchIndex: number,
-    mode: "single" | "fromHere"
-  ) => void;
+  onOpenBatchEditor?: (translation: SavedTranslation) => void;
   onStopBatchRetranslate?: () => void;
   onResumeBatchRetranslate?: () => void;
   onCancelBatchRetranslate?: () => void;
-  onToggleExpand: (id: string) => void;
-  handleRetranslateBatch: (
-    item: SavedTranslation,
-    batchIndex: number,
-    mode: "single" | "fromHere"
-  ) => void;
   isPausedInQueue: boolean;
   isWaitingInQueue: boolean;
   isTranslating: boolean;
@@ -52,6 +33,9 @@ interface TranslationItemProps {
   pausedBatchRetranslation?: {
     batchIndex: number;
     mode: "single" | "fromHere";
+    batchIndices?: number[];
+    completedBatches?: number;
+    totalBatches?: number;
     translationId?: string;
   } | null;
   retranslatingTranslationId?: string | null;
@@ -61,18 +45,14 @@ interface TranslationItemProps {
 const TranslationItem: React.FC<TranslationItemProps> = ({
   item,
   index,
-  isExpanded,
-  batches,
   activeTranslationId,
   onSelect,
   onDelete,
   onResume,
-  onRetranslateBatch,
+  onOpenBatchEditor,
   onStopBatchRetranslate,
   onResumeBatchRetranslate,
   onCancelBatchRetranslate,
-  onToggleExpand,
-  handleRetranslateBatch,
   isPausedInQueue,
   isWaitingInQueue,
   isTranslating,
@@ -83,72 +63,89 @@ const TranslationItem: React.FC<TranslationItemProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
-
+  const isActive = item.id === activeTranslationId;
   const progressPercent = getProgressPercent(item);
-  // Show batch retranslation status only for the translation being retranslated
-  // If no specific translation ID is tracked, fallback to first translation (index 0)
-  const hasBatchRetranslation = !!(
-    batchRetranslateJob || pausedBatchRetranslation
+  const canResume = Boolean(
+    item.isPartial &&
+      onResume &&
+      !isPausedInQueue &&
+      !isWaitingInQueue &&
+      !isTranslating &&
+      !batchRetranslateJob &&
+      !pausedBatchRetranslation,
   );
-  const hasSpecificTranslationId = !!(
+
+  const hasBatchRetranslation = Boolean(
+    batchRetranslateJob || pausedBatchRetranslation,
+  );
+  const trackedTranslationId =
     retranslatingTranslationId ||
     batchRetranslateJob?.existingTranslationId ||
-    pausedBatchRetranslation?.translationId
-  );
-  const isThisTranslationBeingRetranslated = hasSpecificTranslationId
-    ? retranslatingTranslationId === item.id ||
-      batchRetranslateJob?.existingTranslationId === item.id ||
-      pausedBatchRetranslation?.translationId === item.id
-    : hasBatchRetranslation && index === 0; // Fallback to first translation
+    pausedBatchRetranslation?.translationId;
+  const isThisTranslationBeingRetranslated = trackedTranslationId
+    ? trackedTranslationId === item.id
+    : hasBatchRetranslation && index === 0;
+
+  const handleOpen = () => {
+    if (item.isPartial) {
+      if (canResume) onResume?.(item);
+      return;
+    }
+    onOpenBatchEditor?.(item);
+  };
 
   return (
     <View
       style={[
         styles.translationItem,
-        item.id === activeTranslationId && styles.translationItemActive,
+        isActive && styles.translationItemActive,
         item.isPartial && styles.translationItemPartial,
-        isExpanded && styles.translationItemExpanded,
       ]}
     >
-      {/* Header - always visible */}
-      <TouchableOpacity
-        style={styles.translationHeader}
-        onPress={() => onToggleExpand(item.id)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.translationHeaderLeft}>
-          <MaterialCommunityIcons
-            name={isExpanded ? "chevron-down" : "chevron-right"}
-            size={20}
-            color={colors.textMuted}
-          />
-          <MaterialCommunityIcons
-            name={
-              item.isPartial
-                ? "progress-clock"
-                : item.id === activeTranslationId
-                ? "check-circle"
-                : "file-document-outline"
-            }
-            size={16}
-            color={
-              item.isPartial
-                ? colors.warning
-                : item.id === activeTranslationId
-                ? colors.success
-                : colors.textMuted
-            }
-          />
+      <View style={styles.translationHeader}>
+        <TouchableOpacity
+          style={styles.translationHeaderMain}
+          onPress={handleOpen}
+          disabled={item.isPartial ? !canResume : !onOpenBatchEditor}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={
+            item.isPartial
+              ? t("subtitleModal.translate.resume")
+              : t("subtitleModal.translate.batchEditor.title")
+          }
+        >
+          <View
+            style={[
+              styles.translationIcon,
+              item.isPartial && styles.translationIconPartial,
+              isActive && styles.translationIconActive,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={
+                item.isPartial
+                  ? "progress-clock"
+                  : isActive
+                    ? "check"
+                    : "playlist-edit"
+              }
+              size={19}
+              color={
+                item.isPartial
+                  ? colors.warning
+                  : isActive
+                    ? colors.success
+                    : colors.primary
+              }
+            />
+          </View>
+
           <View style={styles.translationHeaderInfo}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 4,
-              }}
-            >
-              <Text style={styles.translationConfig}>{item.configName}</Text>
+            <View style={styles.translationMetaRow}>
+              <Text style={styles.translationConfig} numberOfLines={1}>
+                {item.configName}
+              </Text>
               {getPresetName(item.presetId) && (
                 <View style={styles.presetBadge}>
                   <MaterialCommunityIcons
@@ -156,7 +153,7 @@ const TranslationItem: React.FC<TranslationItemProps> = ({
                     size={10}
                     color={colors.primary}
                   />
-                  <Text style={styles.presetBadgeText}>
+                  <Text style={styles.presetBadgeText} numberOfLines={1}>
                     {getPresetName(item.presetId)}
                   </Text>
                 </View>
@@ -168,174 +165,119 @@ const TranslationItem: React.FC<TranslationItemProps> = ({
                     size={10}
                     color={colors.textMuted}
                   />
-                  <Text style={styles.settingsBadgeText}>
+                  <Text style={styles.settingsBadgeText} numberOfLines={1}>
                     {getBatchSettingsInfo(item)}
                   </Text>
                 </View>
               )}
-              {/* Time range badge - compact, only show if has time range */}
               {(item.rangeStart !== undefined ||
                 item.rangeEnd !== undefined) && (
-                <View
-                  style={[
-                    styles.settingsBadge,
-                    { backgroundColor: colors.primarySoft },
-                  ]}
-                >
+                <View style={[styles.settingsBadge, styles.rangeBadge]}>
                   <MaterialCommunityIcons
                     name="clock-time-four-outline"
                     size={10}
                     color={colors.primary}
                   />
-                  <Text
-                    style={[
-                      styles.settingsBadgeText,
-                      { color: colors.primary },
-                    ]}
-                  >
+                  <Text style={styles.rangeBadgeText} numberOfLines={1}>
                     {formatTime(item.rangeStart || 0)}-
                     {formatTime(item.rangeEnd || item.videoDuration || 0)}
                   </Text>
                 </View>
               )}
             </View>
-            <Text style={styles.translationDate}>
+            <Text style={styles.translationDate} numberOfLines={1}>
               {formatDate(item.createdAt)}
               {item.isPartial && ` • ${progressPercent}%`}
             </Text>
           </View>
-        </View>
-        {/* Quick actions on header */}
+        </TouchableOpacity>
+
         <View style={styles.translationHeaderActions}>
-          {item.isPartial &&
-            onResume &&
-            !isPausedInQueue &&
-            !isWaitingInQueue &&
-            !isTranslating &&
-            !batchRetranslateJob &&
-            !pausedBatchRetranslation && (
-              <TouchableOpacity
-                style={styles.headerActionBtn}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onResume(item);
-                }}
-              >
-                <MaterialCommunityIcons
-                  name="play-circle-outline"
-                  size={20}
-                  color={colors.success}
-                />
-              </TouchableOpacity>
-            )}
-        </View>
-      </TouchableOpacity>
-
-      {/* Expanded content */}
-      {isExpanded && (
-        <View style={styles.translationExpanded}>
-          {/* Progress bar for partial */}
-          {item.isPartial && (
-            <View style={styles.expandedProgressContainer}>
-              <View style={styles.partialProgressBar}>
-                <View
-                  style={[
-                    styles.partialProgressFill,
-                    { width: `${progressPercent}%` },
-                  ]}
-                />
-              </View>
-              <Text style={styles.partialProgressText}>
-                {t("subtitleModal.translate.partial")} • {item.completedBatches}/
-                {item.totalBatches || "?"} batches
-              </Text>
-            </View>
-          )}
-
-          {/* Batch grid */}
-          {batches.length > 0 && (
-            <View style={styles.batchesContainer}>
-              <Text style={styles.batchesTitle}>
-                {t("subtitleModal.translate.batchList")}
-              </Text>
-
-              {/* Retranslation status bar for fromHere mode */}
-              {isThisTranslationBeingRetranslated &&
-                (batchRetranslateJob || pausedBatchRetranslation) && (
-                  <RetranslationStatusBar
-                    item={item}
-                    batchRetranslateJob={batchRetranslateJob}
-                    pausedBatchRetranslation={pausedBatchRetranslation}
-                    onStopBatchRetranslate={onStopBatchRetranslate}
-                    onResumeBatchRetranslate={onResumeBatchRetranslate}
-                    onCancelBatchRetranslate={onCancelBatchRetranslate}
-                  />
-                )}
-
-              <View style={styles.batchesGrid}>
-                {batches.map((batch) => {
-                  const state = getBatchDisplayState(batch, item, {
-                    batchRetranslateJob,
-                    pausedBatchRetranslation,
-                    isWaitingInQueue,
-                  });
-                  return (
-                    <BatchChip
-                      key={batch.index}
-                      batch={batch}
-                      item={item}
-                      state={state}
-                      styles={styles}
-                      onRetranslateBatch={onRetranslateBatch}
-                      handleRetranslateBatch={handleRetranslateBatch}
-                      batchRetranslateJob={batchRetranslateJob}
-                      pausedBatchRetranslation={pausedBatchRetranslation}
-                      isTranslating={isTranslating}
-                      isPausedInQueue={isPausedInQueue}
-                      isWaitingInQueue={isWaitingInQueue}
-                    />
-                  );
-                })}
-              </View>
-              {!batchRetranslateJob && !pausedBatchRetranslation && (
-                <Text style={styles.batchesHint}>
-                  {t("subtitleModal.translate.retranslateHint")}
-                </Text>
-              )}
-            </View>
-          )}
-
-          {/* Action buttons */}
-          <View style={styles.expandedActions}>
+          {item.isPartial ? (
             <TouchableOpacity
               style={[
-                styles.expandedActionBtn,
-                styles.expandedActionBtnPrimary,
+                styles.translationActionButton,
+                styles.translationActionResume,
+                !canResume && styles.translationActionDisabled,
+              ]}
+              onPress={() => onResume?.(item)}
+              disabled={!canResume}
+              accessibilityRole="button"
+              accessibilityLabel={t("subtitleModal.translate.resume")}
+            >
+              <MaterialCommunityIcons
+                name="play"
+                size={20}
+                color={canResume ? colors.success : colors.textMuted}
+              />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.translationActionButton,
+                styles.translationActionSelect,
+                isActive && styles.translationActionSelected,
               ]}
               onPress={() => onSelect(item)}
+              accessibilityRole="button"
+              accessibilityLabel={t("subtitleModal.translate.useThis")}
+              accessibilityState={{ selected: isActive }}
             >
               <MaterialCommunityIcons
-                name="check"
-                size={18}
-                color={colors.onPrimary}
-              />
-              <Text style={styles.expandedActionBtnTextPrimary}>
-                {t("subtitleModal.translate.useThis")}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.expandedActionBtn, styles.expandedActionBtnDanger]}
-              onPress={() => onDelete(item)}
-            >
-              <MaterialCommunityIcons
-                name="delete-outline"
-                size={18}
-                color={colors.error}
+                name={isActive ? "check-circle" : "check-circle-outline"}
+                size={21}
+                color={isActive ? colors.success : colors.primary}
               />
             </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[
+              styles.translationActionButton,
+              styles.translationActionDelete,
+            ]}
+            onPress={() => onDelete(item)}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.delete")}
+          >
+            <MaterialCommunityIcons
+              name="delete-outline"
+              size={20}
+              color={colors.error}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {item.isPartial && (
+        <View style={styles.compactProgressContainer}>
+          <View style={styles.partialProgressBar}>
+            <View
+              style={[
+                styles.partialProgressFill,
+                { width: `${progressPercent}%` },
+              ]}
+            />
           </View>
+          <Text style={styles.partialProgressText}>
+            {t("subtitleModal.translate.partial")} • {item.completedBatches || 0}/
+            {item.totalBatches || "?"}
+          </Text>
         </View>
       )}
+
+      {isThisTranslationBeingRetranslated &&
+        (batchRetranslateJob || pausedBatchRetranslation) && (
+          <View style={styles.retranslationStatusContainer}>
+            <RetranslationStatusBar
+              item={item}
+              batchRetranslateJob={batchRetranslateJob}
+              pausedBatchRetranslation={pausedBatchRetranslation}
+              onStopBatchRetranslate={onStopBatchRetranslate}
+              onResumeBatchRetranslate={onResumeBatchRetranslate}
+              onCancelBatchRetranslate={onCancelBatchRetranslate}
+            />
+          </View>
+        )}
     </View>
   );
 };

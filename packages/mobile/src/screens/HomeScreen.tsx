@@ -1,5 +1,10 @@
-import React, { useEffect, useCallback } from "react";
-import { View, StatusBar, BackHandler } from "react-native";
+import React, { useEffect, useCallback, useRef, useState } from "react";
+import {
+  View,
+  StatusBar,
+  BackHandler,
+  useWindowDimensions,
+} from "react-native";
 import { alert, confirm } from "@components/common/CustomAlert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebViewNavigation } from "react-native-webview";
@@ -23,10 +28,16 @@ import { useClipboardKeyDetector } from "@hooks/useClipboardKeyDetector";
 import { isAIStudioPage } from "@utils/videoUtils";
 
 import { YouTubePlayer } from "@components/video";
-import { SubtitleInputModal } from "@components/subtitle";
+import {
+  SubtitleInputModal,
+  VisualSubtitleEditor,
+} from "@components/subtitle";
 import { SettingsModal } from "@components/settings";
-import { FloatingButton, FAQModal } from "@components/common";
-import { TranslationQueueModal } from "@components/queue";
+import { FloatingButton } from "@components/common";
+import {
+  TranslationHistorySheet,
+  TranslationQueueModal,
+} from "@components/queue";
 import { ChatModal } from "@components/chat";
 
 import { HomeHeader } from "./home/HomeHeader";
@@ -35,8 +46,12 @@ import { styles, homeThemedStyles } from "./home/homeStyles";
 const HomeScreen = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { colors, isDark } = useTheme();
   const { hasUpdate } = useUpdate();
+  const currentTimeRef = useRef(0);
+  const [visualEditorVisible, setVisualEditorVisible] = useState(false);
+  const [visualCurrentTime, setVisualCurrentTime] = useState(0);
 
   // Modal states
   const {
@@ -48,8 +63,8 @@ const HomeScreen = () => {
     setQueueModalVisible,
     chatModalVisible,
     setChatModalVisible,
-    faqModalVisible,
-    setFaqModalVisible,
+    historyVisible,
+    setHistoryVisible,
     isChatLoading,
     setIsChatLoading,
   } = useHomeModals();
@@ -58,14 +73,12 @@ const HomeScreen = () => {
   const {
     subtitleSettings,
     batchSettings,
-    ttsSettings,
     floatingUISettings,
     notificationSettings,
     debugSettings,
     apiKeys,
     updateSubtitleSettings,
     updateBatchSettings,
-    updateTTSSettings,
     updateFloatingUISettings,
     updateNotificationSettings,
     updateDebugSettings,
@@ -116,11 +129,12 @@ const HomeScreen = () => {
     subtitles,
     loadSavedSRT,
     applySrtContent,
+    updateSrtDraft,
     findSubtitle,
     updateFromTranslation,
     clearSubtitles,
     hasSubtitles,
-  } = useSubtitles({ webViewRef, ttsSettings });
+  } = useSubtitles({ webViewRef });
 
   // Automatic clipboard API key & SRT subtitle detector
   useClipboardKeyDetector({
@@ -147,9 +161,8 @@ const HomeScreen = () => {
     onTranslationComplete: updateFromTranslation,
   });
 
-  // Subtitle style + TTS ducking sync effects
+  // Subtitle style sync effects
   useSubtitleStyleSync({
-    webViewRef,
     postMessageToWebView,
     subtitleSettings,
     isVideoPlaying,
@@ -159,12 +172,63 @@ const HomeScreen = () => {
 
   // Load saved SRT when URL changes
   useEffect(() => {
+    currentTimeRef.current = 0;
+    setVisualCurrentTime(0);
+    setVisualEditorVisible(false);
     loadSavedSRT(currentUrl);
   }, [currentUrl, loadSavedSRT]);
+
+  useEffect(() => {
+    postMessageToWebView({
+      type: "setVisualSubtitleEditor",
+      payload: visualEditorVisible,
+    });
+  }, [postMessageToWebView, visualEditorVisible]);
+
+  const handleOpenVisualEditor = useCallback(
+    (content: string) => {
+      updateSrtDraft(content);
+      setVisualCurrentTime(currentTimeRef.current);
+      setModalVisible(false);
+      setVisualEditorVisible(true);
+    },
+    [setModalVisible, updateSrtDraft],
+  );
+
+  const handleCloseVisualEditor = useCallback(
+    async (content: string) => {
+      await applySrtContent(content, currentUrl);
+      setVisualEditorVisible(false);
+    },
+    [applySrtContent, currentUrl],
+  );
+
+  const handleDiscardVisualEditor = useCallback(
+    (content: string) => {
+      updateSrtDraft(content);
+      setVisualEditorVisible(false);
+    },
+    [updateSrtDraft],
+  );
+
+  const handleSeekVideo = useCallback(
+    (seconds: number) => {
+      currentTimeRef.current = seconds;
+      setVisualCurrentTime(seconds);
+      postMessageToWebView({ type: "seekTo", payload: seconds });
+    },
+    [postMessageToWebView],
+  );
 
   // Handle Android hardware back press
   useEffect(() => {
     const onBackPress = () => {
+      // The visual editor registers its own back handler so it can also save
+      // an inline edit before this parent handler is reached.
+      if (visualEditorVisible) {
+        void handleCloseVisualEditor(srtContent);
+        return true;
+      }
       // 1. Close full screen mode first if active
       if (isFullscreen) {
         onFullScreenClose();
@@ -183,8 +247,8 @@ const HomeScreen = () => {
         setChatModalVisible(false);
         return true;
       }
-      if (faqModalVisible) {
-        setFaqModalVisible(false);
+      if (historyVisible) {
+        setHistoryVisible(false);
         return true;
       }
       if (modalVisible) {
@@ -221,6 +285,9 @@ const HomeScreen = () => {
     return () => subscription.remove();
   }, [
     isFullscreen,
+    visualEditorVisible,
+    handleCloseVisualEditor,
+    srtContent,
     onFullScreenClose,
     settingsVisible,
     setSettingsVisible,
@@ -228,8 +295,8 @@ const HomeScreen = () => {
     setQueueModalVisible,
     chatModalVisible,
     setChatModalVisible,
-    faqModalVisible,
-    setFaqModalVisible,
+    historyVisible,
+    setHistoryVisible,
     modalVisible,
     setModalVisible,
     showUrlInput,
@@ -249,8 +316,17 @@ const HomeScreen = () => {
     setQueueModalVisible,
   });
 
+  const handleCurrentTime = useCallback(
+    (seconds: number) => {
+      currentTimeRef.current = seconds;
+      if (visualEditorVisible) setVisualCurrentTime(seconds);
+    },
+    [visualEditorVisible],
+  );
+
   const { handleWebViewMessage } = useWebViewMessageHandler({
     findSubtitle,
+    onCurrentTime: handleCurrentTime,
     setVideoDuration,
     setVideoTitle,
     onFullScreenOpen,
@@ -272,8 +348,17 @@ const HomeScreen = () => {
         type: "setSubtitleStyle",
         payload: subtitleSettings,
       });
+      postMessageToWebView({
+        type: "setVisualSubtitleEditor",
+        payload: visualEditorVisible,
+      });
     }, 500);
-  }, [syncAllToWebView, postMessageToWebView, subtitleSettings]);
+  }, [
+    syncAllToWebView,
+    postMessageToWebView,
+    subtitleSettings,
+    visualEditorVisible,
+  ]);
 
   const handleLoadSubtitles = useCallback(async () => {
     const { fixCount } = await applySrtContent(srtContent, currentUrl);
@@ -289,21 +374,28 @@ const HomeScreen = () => {
   }, [srtContent, currentUrl, applySrtContent, t]);
 
   const themedStyles = useThemedStyles(homeThemedStyles);
+  const visualVideoHeight = Math.min(
+    Math.max(windowWidth * (9 / 16) + 52, 220),
+    windowHeight * 0.44,
+  );
 
   return (
     <View
       style={[
         styles.container,
         themedStyles.container,
-        { paddingBottom: insets.bottom },
+        {
+          paddingTop: visualEditorVisible ? insets.top : 0,
+          paddingBottom: insets.bottom,
+        },
       ]}
     >
       <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={colors.surface}
+        barStyle={visualEditorVisible || isDark ? "light-content" : "dark-content"}
+        backgroundColor={visualEditorVisible ? "#000000" : colors.surface}
       />
 
-      {!isFullscreen && (
+      {!isFullscreen && !visualEditorVisible && (
         <HomeHeader
           insets={insets}
           colors={colors}
@@ -324,37 +416,60 @@ const HomeScreen = () => {
         />
       )}
 
-      <YouTubePlayer
-        ref={webViewRef}
-        onMessage={handleWebViewMessage}
-        onNavigationStateChange={handleNavigationStateChange}
-        onLoad={handleWebViewLoad}
-        isDesktopMode={isDesktopMode}
-      />
+      <View style={styles.playerWorkspace}>
+        <View
+          style={
+            visualEditorVisible
+              ? [styles.visualVideoPane, { height: visualVideoHeight }]
+              : styles.normalVideoPane
+          }
+        >
+          <YouTubePlayer
+            ref={webViewRef}
+            onMessage={handleWebViewMessage}
+            onNavigationStateChange={handleNavigationStateChange}
+            onLoad={handleWebViewLoad}
+            isDesktopMode={isDesktopMode}
+          />
+        </View>
+        {visualEditorVisible && (
+          <VisualSubtitleEditor
+            value={srtContent}
+            currentTime={visualCurrentTime}
+            videoDuration={videoDuration}
+            onChange={updateSrtDraft}
+            onSeek={handleSeekVideo}
+            onDone={handleCloseVisualEditor}
+            onDiscard={handleDiscardVisualEditor}
+          />
+        )}
+      </View>
 
-      <FloatingButton
-        isVideoPage={isVideoPlaying}
-        isDesktopMode={isDesktopMode}
-        activeUrl={activeUrl}
-        onPress={() => setModalVisible(true)}
-        onSettingsPress={() => setSettingsVisible(true)}
-        onQueuePress={() => setQueueModalVisible(true)}
-        onChatPress={() => setChatModalVisible(true)}
-        onFAQPress={() => setFaqModalVisible(true)}
-        onAddToQueuePress={currentUrl ? handleAddToQueue : undefined}
-        hasSubtitles={hasSubtitles}
-        isTranslating={isTranslating}
-        isWaitingInQueue={isWaitingInQueue}
-        isPausedInQueue={isPausedInQueue}
-        queuePosition={queuePosition}
-        pausedProgress={pausedProgress}
-        translationProgress={translationProgress}
-        queueCount={queueCount}
-        isInQueue={!!currentVideoInQueue}
-        isChatLoading={isChatLoading}
-        hasUpdate={hasUpdate}
-        floatingUISettings={floatingUISettings}
-      />
+      {!visualEditorVisible && (
+        <FloatingButton
+          isVideoPage={isVideoPlaying}
+          isDesktopMode={isDesktopMode}
+          activeUrl={activeUrl}
+          onPress={() => setModalVisible(true)}
+          onSettingsPress={() => setSettingsVisible(true)}
+          onQueuePress={() => setQueueModalVisible(true)}
+          onChatPress={() => setChatModalVisible(true)}
+          onHistoryPress={() => setHistoryVisible(true)}
+          onAddToQueuePress={currentUrl ? handleAddToQueue : undefined}
+          hasSubtitles={hasSubtitles}
+          isTranslating={isTranslating}
+          isWaitingInQueue={isWaitingInQueue}
+          isPausedInQueue={isPausedInQueue}
+          queuePosition={queuePosition}
+          pausedProgress={pausedProgress}
+          translationProgress={translationProgress}
+          queueCount={queueCount}
+          isInQueue={!!currentVideoInQueue}
+          isChatLoading={isChatLoading}
+          hasUpdate={hasUpdate}
+          floatingUISettings={floatingUISettings}
+        />
+      )}
 
       <SubtitleInputModal
         visible={modalVisible}
@@ -362,6 +477,7 @@ const HomeScreen = () => {
         srtContent={srtContent}
         setSrtContent={setSrtContent}
         onLoadSubtitles={handleLoadSubtitles}
+        onOpenVisualEditor={handleOpenVisualEditor}
         onApplySubtitles={(content) => applySrtContent(content, currentUrl)}
         onClearSubtitles={() => {
           clearSubtitles(currentUrl);
@@ -390,8 +506,6 @@ const HomeScreen = () => {
         onBatchSettingsChange={updateBatchSettings}
         apiKeys={apiKeys}
         onApiKeysChange={updateApiKeys}
-        ttsSettings={ttsSettings}
-        onTTSSettingsChange={updateTTSSettings}
         floatingUISettings={floatingUISettings}
         onFloatingUISettingsChange={updateFloatingUISettings}
         notificationSettings={notificationSettings}
@@ -407,6 +521,12 @@ const HomeScreen = () => {
         onSelectVideo={handleSelectVideoFromQueue}
       />
 
+      <TranslationHistorySheet
+        visible={historyVisible}
+        onClose={() => setHistoryVisible(false)}
+        onSelectVideo={handleSelectVideoFromQueue}
+      />
+
       <ChatModal
         visible={chatModalVisible}
         onClose={() => setChatModalVisible(false)}
@@ -416,10 +536,6 @@ const HomeScreen = () => {
         onLoadingChange={setIsChatLoading}
       />
 
-      <FAQModal
-        visible={faqModalVisible}
-        onClose={() => setFaqModalVisible(false)}
-      />
     </View>
   );
 };

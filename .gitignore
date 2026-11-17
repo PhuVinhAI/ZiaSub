@@ -9,6 +9,10 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Generated native module build artifacts
+packages/mobile/modules/**/android/build/
+packages/mobile/modules/**/ios/build/
+
 # Native
 .kotlin/
 *.orig.*
@@ -32,6 +36,9 @@ yarn-error.*
 
 # local env files
 .env*.local
+
+# Release signing credentials (never commit)
+packages/mobile/release-signing/
 
 # typescript
 *.tsbuildinfo

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,10 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "@src/contexts";
 import Button3D from "@components/common/Button3D";
 import { Ionicons } from "@expo/vector-icons";
-import { backupService } from "@services/backupService";
+import {
+  backupService,
+  type BackupInfo,
+} from "@services/backupService";
 import { storageService } from "@services/storageService";
 import * as FileSystem from "expo-file-system/legacy";
 import { showAlert } from "@components/common/CustomAlert";
@@ -24,13 +27,6 @@ interface StepProps {
   isLast: boolean;
 }
 
-interface BackupInfo {
-  hasBackup: boolean;
-  createdAt?: number;
-  chatCount?: number;
-  translationCount?: number;
-}
-
 export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -38,24 +34,51 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
   const [backupInfo, setBackupInfo] = useState<BackupInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
+  const backupCheckId = useRef(0);
 
-  useEffect(() => {
-    // Set default path on mount
-    const defaultPath = backupService.getDefaultBackupPath();
-    setSelectedPath(defaultPath);
-    checkBackupData(defaultPath);
-  }, []);
-
-  const checkBackupData = async (path: string) => {
+  const checkBackupData = useCallback(async (path: string) => {
+    const checkId = ++backupCheckId.current;
     setChecking(true);
+    setBackupInfo(null);
     try {
       const info = await backupService.getBackupInfo(path);
-      setBackupInfo(info);
+      if (checkId === backupCheckId.current) {
+        setBackupInfo(info);
+      }
     } catch {
-      setBackupInfo({ hasBackup: false });
+      if (checkId === backupCheckId.current) {
+        setBackupInfo({ hasBackup: false, issue: "unreadable" });
+      }
+    } finally {
+      if (checkId === backupCheckId.current) {
+        setChecking(false);
+      }
     }
-    setChecking(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const initializeBackupPath = async () => {
+      let savedPath: string | null = null;
+      try {
+        savedPath = await storageService.getBackupPath();
+      } catch (error) {
+        console.error("Cannot load saved backup path:", error);
+      }
+      const initialPath = savedPath || backupService.getDefaultBackupPath();
+
+      if (cancelled) return;
+      setSelectedPath(initialPath);
+      await checkBackupData(initialPath);
+    };
+
+    void initializeBackupPath();
+    return () => {
+      cancelled = true;
+      backupCheckId.current += 1;
+    };
+  }, [checkBackupData]);
 
   const handleUseDefault = async () => {
     const defaultPath = backupService.getDefaultBackupPath();
@@ -94,6 +117,7 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
     try {
       // Setup backup path
       await backupService.setupBackupPath(selectedPath);
+      await storageService.setAutoBackupEnabled(true);
 
       // If restore requested and backup exists
       if (restore && backupInfo?.hasBackup) {
@@ -111,6 +135,26 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
   };
 
   const handleDataChoice = () => {
+    if (backupInfo?.issue) {
+      const messageKey =
+        backupInfo.issue === "invalid_format"
+          ? "onboarding.storage.invalidBackupConfirm"
+          : "onboarding.storage.unreadableBackupConfirm";
+      showAlert(
+        t("onboarding.storage.backupProblemTitle"),
+        t(messageKey),
+        [
+          {
+            text: t("onboarding.storage.continueWithoutRestore"),
+            onPress: () => handleConfirm(false),
+          },
+          { text: t("common.cancel"), style: "cancel" },
+        ],
+        "warning"
+      );
+      return;
+    }
+
     // If no backup, just proceed
     if (!backupInfo?.hasBackup) {
       handleConfirm(false);
@@ -191,6 +235,29 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
               {t("onboarding.storage.checking")}
             </Text>
           </View>
+        ) : backupInfo?.issue ? (
+          <View
+            style={[
+              styles.dataInfoContainer,
+              { backgroundColor: colors.errorBg },
+            ]}
+          >
+            <Ionicons name="alert-circle" size={20} color={colors.error} />
+            <View style={styles.dataInfoContent}>
+              <Text style={[styles.dataInfoTitle, { color: colors.error }]}>
+                {t("onboarding.storage.backupProblemTitle")}
+              </Text>
+              <Text
+                style={[styles.dataInfoDetail, { color: colors.textSecondary }]}
+              >
+                {t(
+                  backupInfo.issue === "invalid_format"
+                    ? "onboarding.storage.invalidBackup"
+                    : "onboarding.storage.unreadableBackup"
+                )}
+              </Text>
+            </View>
+          </View>
         ) : backupInfo?.hasBackup ? (
           <View
             style={[
@@ -218,7 +285,7 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
               </Text>
             </View>
           </View>
-        ) : (
+        ) : backupInfo ? (
           <View style={styles.infoContainer}>
             <Ionicons
               name="information-circle"
@@ -229,7 +296,7 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
               {t("onboarding.storage.noBackup")}
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Path Options */}
         <View style={styles.optionsContainer}>
@@ -276,9 +343,15 @@ export const StorageStep: React.FC<StepProps> = ({ onNext, onPrevious }) => {
             style={styles.backButton}
           />
           <Button3D
-            title={loading ? t("common.loading") : t("onboarding.continue")}
+            title={
+              loading
+                ? t("common.loading")
+                : checking
+                  ? t("onboarding.storage.checking")
+                  : t("onboarding.continue")
+            }
             onPress={handleDataChoice}
-            disabled={!selectedPath || loading}
+            disabled={!selectedPath || loading || checking || !backupInfo}
             style={styles.nextButton}
           />
         </View>
